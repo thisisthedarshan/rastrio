@@ -188,6 +188,35 @@ For each task:
 
 If a requested change conflicts with a documented architectural invariant, format/schema contract, compatibility guarantee, security rule, or later-phase scope boundary, make the conflict explicit rather than silently changing the contract.
 
+## Git and commit discipline
+
+- Do NOT commit, push, force-push, rebase, reset published history, or otherwise mutate repository history unless explicitly requested.
+- Keep each proposed commit focused on one coherent logical change.
+- When asked to commit, or when providing a completion report for a substantial uncommitted change, provide a recommended commit message following the Conventional Commits format:
+
+  `<type>(optional-scope): <description>`
+
+- Use the most accurate commit type:
+  - `feat` — new user-visible or externally meaningful functionality;
+  - `fix` — bug fix;
+  - `refactor` — implementation restructuring without intended behavior change;
+  - `test` — tests only;
+  - `docs` — documentation only;
+  - `build` — build system, Gradle configuration, dependencies, or packaging;
+  - `ci` — continuous-integration configuration;
+  - `perf` — performance improvement;
+  - `chore` — repository maintenance or engineering work that does not fit a more specific type.
+- Do NOT use `feat` merely because a change is large.
+- The subject MUST be concise, imperative, and describe the completed change rather than the activity performed.
+- Do not end the subject with a period.
+- For non-trivial commits, include a body separated from the subject by a blank line.
+- The body SHOULD explain the significant architectural or behavioral changes and why they were made. Do not merely dump a list of changed files.
+- Include relevant verification performed when useful, especially for architectural, build, migration, security, or release-sensitive changes.
+- Breaking changes MUST use the Conventional Commits breaking-change form (`!` and/or a `BREAKING CHANGE:` footer) and must not be introduced silently.
+- If a change spans multiple unrelated concerns, recommend splitting it into separate commits rather than inventing one broad commit message.
+- Do not claim tests or verification were run unless they were actually executed successfully.
+- Unless explicitly asked to create the commit, leave changes uncommitted and include the recommended commit message in the completion report.
+
 ## Definition of done
 
 A change is not complete merely because it compiles. Confirm that the requested behavior exists, relevant tests pass, architecture boundaries remain intact, error/diagnostic behavior is defined, preview reflects physical-output decisions, platform details have not leaked into portable Core APIs, persistent-contract changes are documented and compatibility-aware, security/resource implications have been addressed, and no hidden network requirement has been introduced into an offline workflow.
