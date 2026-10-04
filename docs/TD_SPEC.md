@@ -1836,15 +1836,21 @@ None of those physical decisions are serialized into `.td` v1.
 Existing project examples include:
 
 ```text
+TD100 Invalid .td container, JSON, schema, or semantic data
 TD101 Invalid asset reference
+TD102 .td archive read cancelled
 TD120 Archive resource limit exceeded
 TD121 Expanded-size limit exceeded
 TD122 Entry-count limit exceeded
 TD123 Entry-size limit exceeded
 TD124 JSON resource limit exceeded
+TD125 Document or manifest complexity limit exceeded
+TD126 Archive path resource limit exceeded
 ```
 
 Exact additional codes MAY be assigned as implementation proceeds, but codes used publicly/tests SHOULD remain stable once established.
+
+The Phase 1 `TdException.diagnostic.code` API exposes the codes listed above as stable v1 diagnostic identifiers. Messages are descriptive and are not stable compatibility keys.
 
 Diagnostics MUST avoid leaking printable content by default.
 

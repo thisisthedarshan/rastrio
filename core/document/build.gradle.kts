@@ -16,3 +16,10 @@
 plugins {
     id("rastrio.core")
 }
+
+kotlin.sourceSets {
+    commonMain.get().dependencies {
+        implementation(libs.korlibs.compression)
+        implementation(libs.korlibs.crypto)
+    }
+}

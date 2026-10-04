@@ -407,6 +407,7 @@ All values MUST remain configurable in trusted application policy.
 |---|---:|---|
 | `.td` compressed file size | 64 MiB | hard operational/safety ceiling |
 | `.td` total expanded bytes | 256 MiB | hard safety ceiling |
+| `.td` archive reader resident input, output, metadata, and inflater scratch | 128 MiB | hard memory ceiling |
 | `.td` archive entries | 1,024 | hard complexity ceiling |
 | `.td` individual expanded entry | 64 MiB | hard ceiling |
 | `.td` `manifest.json` | 64 KiB | hard ceiling |
@@ -505,6 +506,8 @@ totalExpandedBytes
 and stop decompression before accepting data that would exceed the limit.
 
 Archive metadata MUST NOT be trusted in place of the actual expansion counter.
+
+The Phase 1 in-memory reader also applies a trusted 128 MiB resident archive budget before allocating or retaining each entry. It counts the caller-provided compressed input, retained expanded payloads, a conservative allowance for central-directory paths and entry objects, and transient inflater scratch during deflation. This is a separate runtime memory ceiling from the 256 MiB cumulative expansion ceiling: an archive can be below the expansion ceiling yet fail the resident ceiling. The inflater writes into one preallocated output array per entry; the reader checks actual produced bytes against the entry and cumulative limits. Applications may lower the resident budget for smaller devices. The budget is not a `.td` format field or a guarantee covering later JSON object materialization.
 
 ---
 
