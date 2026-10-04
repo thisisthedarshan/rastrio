@@ -23,6 +23,6 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "RastrIO",
     ) {
-        App()
+        RastrioApp()
     }
 }

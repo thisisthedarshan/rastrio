@@ -15,50 +15,55 @@
 
 package com.circuitnext.rastrio
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
-import rastrio.shared.generated.resources.Res
-import rastrio.shared.generated.resources.compose_multiplatform
+private val LightColors = lightColorScheme(
+    primary = Color(0xFF315C73),
+    onPrimary = Color.White,
+    secondary = Color(0xFF8A5B22),
+    onSecondary = Color.White,
+    background = Color(0xFFF7F4EE),
+    onBackground = Color(0xFF23282B),
+    surface = Color(0xFFFBF9F4),
+    onSurface = Color(0xFF23282B),
+)
+
+private val DarkColors = darkColorScheme(
+    primary = Color(0xFF78AFC8),
+    onPrimary = Color(0xFF10252F),
+    secondary = Color(0xFFE3AE66),
+    onSecondary = Color(0xFF332109),
+    background = Color(0xFF141719),
+    onBackground = Color(0xFFECE9E2),
+    surface = Color(0xFF1A1E21),
+    onSurface = Color(0xFFECE9E2),
+)
 
 @Composable
-@Preview
-fun App() {
-    MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
-                }
-            }
+fun RastrioApp() {
+    MaterialTheme(colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors) {
+        HomeScreen()
+    }
+}
+
+@Composable
+fun HomeScreen() {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Text("Welcome to Rastrio", style = MaterialTheme.typography.headlineLarge)
+            Text("Thermal document workspace", style = MaterialTheme.typography.bodyLarge)
         }
     }
 }

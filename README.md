@@ -195,13 +195,18 @@ Typical repository-level commands are:
 # Run the repository's standard verification
 ./gradlew check
 
+# Check the documented Core dependency boundaries
+./gradlew verifyArchitecture
+
 # Build the Android debug application
 ./gradlew :androidApp:assembleDebug
 ```
 
 On Windows, use `gradlew.bat` instead of `./gradlew`.
 
-You will need a compatible JDK and, for Android development, the Android SDK/toolchain. Exact toolchain and dependency versions are defined by the repository's Gradle configuration and version catalog rather than duplicated here.
+The selected development toolchain is JDK 21 (Azul/Zulu), Gradle Wrapper 9.6.0, Kotlin 2.4.20, Android Gradle Plugin 9.4.1, Compose Multiplatform 1.12.1, and Android compile SDK 37. Android min SDK is 24. The current Android target SDK is 37 and follows the version catalog as the project updates for platform policy. The wrapper, daemon JVM criteria, and `gradle/libs.versions.toml` are the authoritative version sources. Android builds also need the Android SDK; browser tests in `./gradlew check` need a configured browser.
+
+The module graph and ownership rules are documented in [Architecture](docs/ARCHITECTURE.md). Reusable golden data belongs under `test-fixtures/` as described in [Testing](docs/TESTING.md).
 
 > [!NOTE]
 > During pre-alpha development, individual platform build/run tasks may evolve with the Kotlin Multiplatform toolchain. Prefer the checked-in Gradle wrapper and inspect `./gradlew tasks` when in doubt.
