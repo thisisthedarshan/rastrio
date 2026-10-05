@@ -2862,3 +2862,78 @@ For raster text, preview accuracy means the exact prepared raster is shown geome
 For native printer text, preview accuracy means wrapping, placement, operation selection, dimensions, alignment, style intent, and native-font geometry are authoritative; glyph ink shape may remain representative when the printer's exact ROM font data is unavailable.
 
 This distinction is mandatory. It preserves Rastrio's central promise that physical preview and printed geometry derive from one shared, immutable physical plan rather than from separate layout engines.
+
+
+## Phase 3A Implementation Foundation
+
+The Phase 3A implementation is deliberately narrower than the complete v1 contract above.
+It introduces portable contracts in `core-text` and resolved logical geometry in `core-layout`;
+it does not claim complete paragraph layout, Unicode shaping, native coverage or raster rendering.
+
+- Text metric and geometry fields ending in `Mm` use portable millimetres. This keeps `core-text`
+  independent of `core-document`. `LayoutConstraints.canvasWidth` uses the existing document
+  `Length` with `MM`; there is no conversion to screen pixels or printer dots in this phase.
+- `LogicalGeometry` centralizes Phase 3 logical precision at 0.000001 mm (one nanometre).
+  Finite, nonnegative inputs are quantized to nearest integer ticks with ties to even. Each
+  operand is quantized before arithmetic; sums/subtractions use checked integer ticks, scaling
+  rounds back to the same grid, and equality/fits/overflow decisions compare ticks. For example,
+  three 0.1 mm cells total 0.3 mm, 0.3000004 mm fits 0.3 mm, and 0.300001 mm does not. Exact
+  half-tick boundaries follow ties-to-even rather than a caller-specific tolerance. Measurements
+  emitted by the ASCII backend and geometry emitted by layout are canonical millimetres.
+  Supplied constraints/metrics remain immutable inputs; their logical interpretation uses this
+  policy. `LogicalDocument.widthMm` reports the canonical canvas width.
+  The representability ceiling is 10^15 ticks (10^9 mm), keeping checked arithmetic and tick/mm
+  round trips safe across common targets. Negative/non-finite values and raw resource-limit
+  violations are rejected before rounding. A positive canvas width must remain positive after
+  quantization; zero-progress heights/spacing fail with `LAY122`. This logical precision is
+  independent of subsequent printer-dot rounding and does not change portable `Length` or `.td`.
+- Coordinates increase rightward/downward from the logical canvas top-left. Ascent and descent
+  are nonnegative distances above/below the baseline. Line height includes line gap, baseline
+  placement is explicit, and no platform padding is added. Final physical rounding remains the
+  responsibility of printer preparation.
+- `ResolvedTypography` retains a controlled metric/font/backend identity and immutable style,
+  metrics and optional supplied `FixedCellGeometry`. The fixed geometry is not a physical print
+  strategy. `TypographyContext` resolves body, six headings, code and list-marker typography.
+- `TextMeasurer` is injected and receives text plus resolved typography. Cluster ranges and break
+  offsets use UTF-16 positions with exclusive ends. Clusters partition the text and carry advances
+  including backend shaping effects; allowed/mandatory breaks must occur at cluster boundaries.
+  Total advance equals the checked sum of individually quantized cluster advances under
+  `LogicalGeometry`; equality is evaluated on that grid, not by exact binary floating-point
+  summation. No platform object or resource handle crosses the boundary. The service must fail
+  when required shaping/coverage cannot be supplied. Portable glyph-painting data can be added with the later shaping backend.
+- `AsciiFixedCellMeasurer` accepts only printable ASCII U+0020 through U+007E under supplied fixed
+  geometry. Each character is one cluster; SPACE supplies an allowed break after itself. Empty
+  text has zero advance. Tabs, controls, line breaks and non-ASCII text return a diagnostic without
+  invented geometry. This restricted backend does not substitute for Unicode 18 UAX #29/#14.
+- `FoundationLayoutEngine` supports empty documents and fitting plain single-line paragraphs
+  (including consecutive `Text` nodes and empty paragraphs). It resolves left/center/right x,
+  line bounds and baseline, absolute run coordinates and block source indices. Paragraph after
+  spacing is 0.5 × body line height per Section 17.3 and contributes to total document height,
+  including after the final paragraph. Width is explicit in both orientations; landscape does
+  not swap axes or infer a width. Results retain the complete constraints and metric context.
+- `LogicalTextLine` permits a finite nonnegative advance larger than its available width, so
+  later engines can preserve an intact oversized cluster with an overflow diagnostic per §14.6.
+  The immutable model does not choose an overflow policy. The foundation engine continues to
+  reject paragraphs requiring wrapping; it does not implement emergency breaks yet.
+- Unsupported blocks/inlines, explicit breaks and paragraphs needing wrapping fail atomically
+  (`LAY100` / `LAY101`), rather than clipping or dropping content. Unsupported schemas (`LAY102`)
+  and inconsistent service metrics/input lengths (`LAY103`) also fail. Text service diagnostics
+  retain their `TXT` code with the semantic source block index. No diagnostic embeds printable
+  content. Geometry-only image/QR placeholder types are present for later layout; this engine
+  does not yet produce them.
+- `SnapshotList` defensively copies immutable elements into a collection with no mutation API.
+  Finalized logical/text collections and heading selections cannot be changed through caller lists.
+
+Runtime budgets use the provisional document/layout limits from RESOURCE_LIMITS Sections 17.1,
+17.2, 17.5 and 17.7: 100,000 blocks, 500,000 inline nodes, 1,000 mm maximum width and 1,000,000
+items (blocks, lines, runs and measured clusters). Phase 3A additionally limits aggregate input text
+to 8 Mi UTF-16 code units and each ASCII measurement run to 64 Ki code units. These are trusted,
+explicit operational bounds, not portable-format fields or permanent Unicode text policy.
+Counts are checked before concatenation; generated items and finite coordinate arithmetic are
+checked during layout. Resource failures return `LAY120` or `TXT120`, and coordinate-range failures return `LAY122`,
+without partial output. Internal mandatory breaks from an injected backend also return `LAY100`.
+
+Phase 3B must implement full logical flow and wrapping using these cluster/measurement contracts,
+explicit line breaks, styles, heading/list/code/table/placeholder policies, and the specified
+Unicode/tab rules when supported. Phase 3A makes no new permanent decision about font selection,
+physical native/raster strategy, physical rounding, or shaping-backend versions.

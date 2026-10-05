@@ -3179,3 +3179,25 @@ At the same time:
 > **Resource enforcement must preserve document semantics. When significant printable content cannot be processed safely, Rastrio reports the problem rather than silently discarding that content.**
 
 The provisional numeric baselines in this document provide safe initial implementation targets. They are deliberately replaceable by measured values without changing Rastrio's document model, printer model, preview contract, or transport architecture.
+
+
+## Phase 3A Operational Text/Layout Budgets
+
+The initial `TextResourcePolicy` caps each ASCII measurement request at 64 Ki UTF-16 code units.
+For its printable-ASCII repertoire this is also 64 KiB of UTF-8 text. `LayoutResourcePolicy` caps
+aggregate plain-paragraph input at 8 Mi UTF-16 code units, with 100,000 blocks, 500,000 inline nodes,
+1,000 mm resolved width and 1,000,000 generated items (including measured clusters). Limits are
+trusted runtime inputs; documents cannot raise them. The existing archive/JSON/string/source-byte
+limits continue to apply at their own input boundaries.
+
+These code-unit limits bound intermediate concatenation and measurement collections in the Phase
+3A engine. They are provisional operational budgets, not a permanent Unicode segmentation policy.
+A future backend must additionally bound its own shaping/glyph work and memory. Failure returns
+`TXT120` / `LAY120` and no partial logical document. Coordinate arithmetic rejects non-finite values
+and loss of forward progress (`LAY122`). Phase 3 logical arithmetic additionally uses the
+`LogicalGeometry` 0.000001 mm grid with a 10^15-tick representability ceiling (10^9 mm), chosen
+for exact checked sums and stable tick/mm round trips on all common targets. Raw count/width
+resource limits are checked before quantization; rounding cannot admit an over-limit input.
+A positive canvas width that quantizes to zero is invalid; zero-progress line heights/spacing
+fail with `LAY122`. The ceiling bounds coordinate representation, not page-like receipt length.
+ASCII advance range failures return `TXT120` before allocating measured clusters.

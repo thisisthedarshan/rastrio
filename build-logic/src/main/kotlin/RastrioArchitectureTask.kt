@@ -84,6 +84,7 @@ abstract class RastrioArchitectureTask : DefaultTask() {
         val forbiddenImports = listOf(
             "android.", "androidx.", "org.jetbrains.compose.",
             "java.awt.", "javax.swing.", "com.circuitnext.rastrio.shared.",
+            "org.jetbrains.skia.", "org.jetbrains.skiko.", "kotlinx.browser.", "org.w3c.dom.",
         )
         for (source in coreSources.files) {
             source.readLines().forEachIndexed { index, line ->

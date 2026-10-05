@@ -20,8 +20,8 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:document"))
-            implementation(project(":core:text"))
+            api(project(":core:document"))
+            api(project(":core:text"))
         }
     }
 }
