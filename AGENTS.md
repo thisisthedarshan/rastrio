@@ -213,6 +213,42 @@ Treat `.td`, `.tcfg`, Markdown, images, imported fonts/assets, device metadata, 
 - Imported `.tcfg` files must not be able to inject executable code or arbitrary/raw ESC/POS command programs.
 - Application-controlled prepared-artifact backing stores must use bounded, private, lifecycle-managed storage; untrusted filenames/paths must not become host filesystem paths.
 
+## Security review discipline
+
+Security review is part of implementation when a change introduces or materially modifies a trust boundary. It is not deferred until release.
+
+A targeted security review SHOULD be performed after a coherent implementation phase or substantial change that affects any of the following:
+
+- parsing or deserializing untrusted input;
+- persistent portable formats such as `.td` or `.tcfg`;
+- archive, compression, image, font, or other potentially hostile binary input handling;
+- Markdown, external URLs, or external asset references;
+- filesystem access or path handling;
+- network access;
+- Bluetooth, USB, browser hardware APIs, device metadata, permissions, or transport/session logic;
+- printer command or protocol serialization;
+- resource limits, memory budgeting, cancellation, or denial-of-service controls;
+- authentication, credentials, tokens, sensitive logging, or private application data;
+- migration or compatibility paths that consume older/untrusted persisted data.
+
+A full repository security review SHOULD be performed before the first public alpha and again before security-sensitive stable releases.
+
+When a security-review tool or skill is installed and available:
+
+- prefer a targeted review of the relevant uncommitted diff or subsystem before a whole-repository scan;
+- perform the review as a separate read-only goal after implementation and normal tests have passed;
+- classify findings by severity, confidence, exploitability, and whether they are correctness issues or defense-in-depth suggestions;
+- do not modify code merely to silence a scanner finding without confirming the finding against the actual data flow and governing specifications;
+- fix actionable findings before considering the affected phase complete where reasonably possible;
+- rerun the relevant tests and verification after security fixes;
+- rerun the targeted security review when a security fix materially changes the reviewed attack surface.
+
+When no security-review tool is available, perform the same review using the relevant requirements in `docs/SECURITY.md`, `docs/RESOURCE_LIMITS.md`, tests, source inspection, and compiler/runtime verification. Lack of an optional security tool MUST NOT block development.
+
+Security review does not replace normal tests, architecture verification, resource-limit tests, fuzz/invalid-input tests, or hardware validation.
+
+Do NOT automatically run an expensive full-repository security scan after every change.
+
 ## Testing
 
 Testing is part of implementation, not cleanup.
