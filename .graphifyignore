@@ -1,0 +1,13 @@
+.gradle/
+**/build/
+.idea/
+.git/
+graphify-out/
+
+local.properties
+
+**/generated/
+**/.kotlin/
+
+assets/readme/
+assets/social/

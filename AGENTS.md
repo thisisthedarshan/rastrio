@@ -21,6 +21,94 @@ For any non-trivial task, read the relevant parts of:
 
 If a referenced document has not been created yet, use `PRD.md` as the governing baseline. Do not silently resolve contradictions between specifications, tests, and implementation. If two governing documents appear to conflict, stop changing the affected contract, identify the conflict, and preserve the higher-authority rule until the specifications are deliberately reconciled.
 
+## Optional agent tooling
+
+Rastrio contributors are **not required** to install or use Serena, Graphify, Ponytail, or any other agent-specific tooling. These tools are optional productivity aids only. A contributor or coding agent without them MUST still be able to work on the repository using normal file inspection, search, IDE, compiler, test, and Git tooling.
+
+Use the following guidance **only when the corresponding tool is installed and available in the current environment**. Do not fail, block, or defer a task merely because one or more of these tools are unavailable.
+
+### Tool authority and fallback
+
+The repository's source code, tests, `PRD.md`, and relevant documents under `docs/` remain authoritative. Optional tools may help discover or modify code, but they do not override repository specifications, architecture invariants, security/resource rules, tests, compiler output, or verified hardware behavior.
+
+When an optional tool is unavailable:
+
+- use normal repository search, targeted file reads, IDE/language-server navigation, and compiler/test feedback instead;
+- keep reads scoped to the task rather than scanning unrelated parts of the repository;
+- do not ask the contributor to install optional tooling unless they explicitly want to use it.
+
+When several optional tools are available, prefer the following division of responsibility rather than using all of them for the same job.
+
+### Graphify — repository topology and cross-cutting discovery
+
+When Graphify is available, use it primarily for **coarse-grained repository discovery**:
+
+- identify the modules, files, concepts, and dependency paths relevant to a task;
+- answer cross-cutting questions such as which subsystems participate in a feature or transformation;
+- narrow the initial search space before reading implementation files;
+- prefer scoped graph queries over broad repository-wide file reads when that is sufficient.
+
+Graphify is a discovery aid, not a source of normative behavior.
+
+- Do not rely on Graphify summaries or inferred graph edges instead of reading the relevant `PRD.md` or `docs/` specification.
+- Do not treat inferred relationships as established architecture when the source or specification says otherwise.
+- After Graphify identifies the likely implementation area, inspect the relevant source and tests directly before changing behavior.
+- Avoid querying or indexing irrelevant build outputs, caches, generated artifacts, or large unrelated asset trees where configuration permits.
+
+When both Graphify and Serena are available, normally use **Graphify first for broad topology**, then **Serena for exact symbol-level inspection**.
+
+### Serena — symbol-level code navigation and semantic editing
+
+When Serena is available, use it primarily for **fine-grained code intelligence**:
+
+- locate symbol definitions, references, implementations, callers, and related symbols;
+- inspect only the symbol bodies and surrounding code needed for the task;
+- use semantic rename/refactoring/editing operations when they are safer than textual replacement;
+- use it to reduce unnecessary whole-file or repository-wide reads.
+
+Serena is not authoritative for project behavior.
+
+- Confirm architectural or persistent-format decisions against the relevant repository specifications.
+- Validate semantic edits with the normal compiler, Gradle tasks, and tests.
+- For Kotlin Multiplatform, Gradle, generated code, source-set wiring, `expect`/`actual`, Compose compiler behavior, or other areas where semantic tooling may be incomplete, fall back to direct source/build-file inspection and build/test feedback.
+- Do not perform a broad refactor merely because Serena makes it easy; the requested change must still satisfy the repository's change-discipline rules.
+
+### Ponytail — implementation minimalism and over-engineering review
+
+When Ponytail is available, use it as an **implementation-discipline aid**:
+
+- prefer reusing existing project code and platform/standard-library capabilities;
+- avoid unnecessary dependencies, wrappers, abstractions, indirection, and speculative future-proofing;
+- make the smallest coherent change that fully satisfies the task;
+- use Ponytail review/audit capabilities where useful to identify accidental over-engineering.
+
+Ponytail's minimalism is subordinate to Rastrio's documented architecture and correctness requirements.
+
+It MUST NOT be used to remove or bypass:
+
+- required module boundaries or domain abstractions;
+- validation, diagnostics, security controls, or resource limits;
+- compatibility/migration behavior;
+- deterministic processing requirements;
+- tests or testability seams;
+- the `ThermalDocument` → `LogicalDocument` → `PreparedPrint` pipeline;
+- the separation between physical preparation, preview, ESC/POS serialization, and transport;
+- any other invariant required by `PRD.md` or the relevant `docs/` specification.
+
+If a simpler implementation would violate a documented invariant, keep the invariant.
+
+### Preferred agent workflow when these tools are available
+
+For a non-trivial implementation task, use the tools in this order when useful:
+
+1. Read this file and the relevant normative specification(s).
+2. Use Graphify, if available, to identify the affected subsystem and narrow the search space.
+3. Use Serena, if available, to inspect the exact symbols, references, and implementations involved.
+4. Read the relevant source and tests directly before editing.
+5. Implement the smallest coherent change, applying Ponytail principles if available without weakening architecture, correctness, security, compatibility, or tests.
+6. Run the required targeted tests and repository verification.
+7. Use Ponytail review, if available and useful, as a final over-engineering check; do not accept suggestions that conflict with repository rules.
+
 ## Priorities
 
 1. Android is the implementation and release priority.

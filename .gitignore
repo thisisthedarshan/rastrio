@@ -53,3 +53,6 @@ node_modules/
 
 # Specifically excluding Gradle jar
 !gradle/wrapper/gradle-wrapper.jar
+
+# Ignore Graphify <https://github.com/Graphify-Labs/graphify>
+graphify-out/
