@@ -15,6 +15,7 @@ kotlin = "2.4.20"
 kotlin-wrappers = "2026.9.2"
 kotlinx-coroutines = "1.11.0"
 korlibs = "6.1.0"
+markdown = "0.7.7"
 material3 = "1.12.0-alpha03"
 
 [libraries]
@@ -40,6 +41,7 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 korlibs-compression = { module = "org.korge:korlibs-compression", version.ref = "korlibs" }
 korlibs-crypto = { module = "org.korge:korlibs-crypto", version.ref = "korlibs" }
+markdown = { module = "org.jetbrains:markdown", version.ref = "markdown" }
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
 
 [plugins]

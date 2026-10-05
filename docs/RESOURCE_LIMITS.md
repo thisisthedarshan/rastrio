@@ -421,6 +421,7 @@ All values MUST remain configurable in trusted application policy.
 | `.tcfg` individual string value | 64 KiB UTF-8 | hard ceiling |
 | `.tcfg` total decoded JSON nodes/tokens | 100,000 | complexity ceiling |
 | Markdown UTF-8 source size | 8 MiB | operational ceiling |
+| Markdown source lines | 100,000 | pre-parser allocation ceiling |
 | Markdown AST nodes | 250,000 | complexity ceiling |
 | Markdown structural nesting | 128 levels | complexity ceiling |
 | image compressed input | 32 MiB | hard input ceiling |
@@ -839,6 +840,30 @@ Markdown source size MUST be bounded before full compilation.
 A platform MAY use a smaller limit when its memory constraints require it.
 
 Source byte size SHOULD be checked before conversion into representations that consume more memory, such as UTF-16 strings or parser objects.
+
+---
+
+## 12.1A Source lines and parser work
+
+Before normalization or parser construction, bound source lines independently of
+UTF-8 bytes. The provisional runtime baseline is **100,000 lines**, including
+blank lines and the final line (an empty source has one line). CRLF counts as one
+terminator; standalone CR and LF each count as one. Check the bound before
+incrementing a `Long` counter. This limits the dependency's eager per-line views,
+which AST validation cannot protect after allocation. Platforms may lower this
+trusted policy ceiling. It is not a Markdown format restriction.
+
+Parser work has a provisional runtime ceiling of **50,000,000 units**. Account
+for cancellation checkpoints, source reads, slice creation/materialization, and
+cached and filtered token-list reads in every sequential inline parser. Repeated
+cached-token scans must consume this budget even when they never read source or
+call cancellation checkpoints. Preserve upstream syntax and parser order; do
+not substitute image/bracket-count quotas for actual work accounting. Reject
+line/work excess with a content-free `MD121` diagnostic and no partial document.
+
+The line ceiling bounds a separate allocation driver; it does not promise that
+all inputs below it fit every heap. Existing source, AST, nesting and canonical
+limits still apply. Neither line nor work ceilings are controlled by input.
 
 ---
 
@@ -2511,6 +2536,9 @@ Required tests include:
 
 ```text
 source size boundary
+normalized source-line exact/over boundary and many short lines
+cached-token work exact/over boundary, unmatched images and legitimate images
+multi-million-line pre-parser rejection
 AST node boundary
 deeply nested lists
 deep block quotes

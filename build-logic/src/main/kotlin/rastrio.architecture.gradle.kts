@@ -19,11 +19,13 @@ val architectureCheck = tasks.register<RastrioArchitectureTask>("verifyArchitect
     group = "verification"
     description = "Checks Phase 0 module direction and portable Core imports."
     repositoryRoot.set(layout.projectDirectory)
-    coreSources.from(fileTree("core") { include("**/src/**/*.kt") })
 }
 
 gradle.projectsEvaluated {
     architectureCheck.configure {
+        coreSources.from(allprojects.filter { it.path.startsWith(":core:") }.map { module ->
+            module.fileTree("src") { include("**/*.kt") }
+        })
         projectEdges.set(allprojects.associate { module ->
             module.path to module.configurations
                 .flatMap { it.dependencies }

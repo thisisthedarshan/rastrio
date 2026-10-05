@@ -13,22 +13,5 @@
  * limitations under the License.
  **/
 
-plugins {
-    id("rastrio.core")
-}
-
-tasks.named<Copy>("jvmProcessResources") {
-    from(rootProject.file("README.md")) { into("repository") }
-}
-
-kotlin {
-    sourceSets {
-        jvmTest {
-            resources.srcDir(rootProject.file("test-fixtures"))
-        }
-        commonMain.dependencies {
-            api(project(":core:document"))
-            implementation(libs.markdown)
-        }
-    }
-}
+// Full-size adversarial resource cases also run in Wasm; allow bounded work to finish.
+config.client.mocha = Object.assign({}, config.client.mocha, { timeout: 10000 });
