@@ -443,7 +443,7 @@ All values MUST remain configurable in trusted application policy.
 | table rows per table | 20,000 | complexity ceiling |
 | table columns per table | 256 | complexity ceiling |
 | total cells per table | 250,000 | complexity ceiling |
-| generated layout items/operations | 1,000,000 | complexity ceiling |
+| generated layout cost items | 100,000 | provisional Phase 3B resident-cost ceiling |
 | provisional logical landscape width | 1,000 mm | operational ceiling |
 | physical landscape segments | 256 | operational ceiling |
 | encoded bytes queued ahead of transport | 256 KiB | memory/backpressure ceiling |
@@ -1687,10 +1687,12 @@ The layout engine SHOULD track the number of generated geometry items or equival
 ### Provisional Baseline
 
 ```text
-1,000,000 generated layout items/operations
+100,000 generated layout cost items (Phase 3B default)
 ```
 
 This protects against inputs where a relatively small semantic model expands into pathological layout complexity.
+The normative requirement is early bounded allocation, not a permanent numeric format limit.
+The current Phase 3B default and its retained-cost accounting/rationale are defined below.
 
 ---
 
@@ -3186,7 +3188,8 @@ The provisional numeric baselines in this document provide safe initial implemen
 The initial `TextResourcePolicy` caps each ASCII measurement request at 64 Ki UTF-16 code units.
 For its printable-ASCII repertoire this is also 64 KiB of UTF-8 text. `LayoutResourcePolicy` caps
 aggregate plain-paragraph input at 8 Mi UTF-16 code units, with 100,000 blocks, 500,000 inline nodes,
-1,000 mm resolved width and 1,000,000 generated items (including measured clusters). Limits are
+1,000 mm resolved width and originally 1,000,000 generated items (including measured clusters).
+Phase 3B tightens that item default and expands accounting as described below. Limits are
 trusted runtime inputs; documents cannot raise them. The existing archive/JSON/string/source-byte
 limits continue to apply at their own input boundaries.
 
@@ -3201,3 +3204,71 @@ resource limits are checked before quantization; rounding cannot admit an over-l
 A positive canvas width that quantizes to zero is invalid; zero-progress line heights/spacing
 fail with `LAY122`. The ceiling bounds coordinate representation, not page-like receipt length.
 ASCII advance range failures return `TXT120` before allocating measured clusters.
+
+
+## Phase 3B Operational Flow Budgets
+
+**Normative requirement:** generated/intermediate layout must be bounded and rejected with
+`LAY120` before memory pressure is the effective control. `OutOfMemoryError` is not an
+acceptable limit mechanism, and a finite but unaffordable count is not sufficient.
+
+**Provisional default:** `LayoutResourcePolicy.maxItems = 100,000`, reduced from the
+Phase 3A value of 1,000,000. This is trusted application tuning, not a `.td` field or a
+portable-format ceiling. Callers may lower it for smaller Android/browser memory budgets;
+raising it requires a corresponding measured memory envelope. Aggregate input, 64 Ki ASCII
+request, block, inline-node, depth and width controls remain independently applicable.
+
+Cost items are reserved cumulatively for each:
+
+- measured span, before making its immutable text/request/measurement;
+- measured source cluster and its associated `FlowAtom`, before retaining cluster atoms;
+- explicit-break marker, before constructing/appending its `FlowAtom`;
+- generated block and line, before retained geometry/per-line collections;
+- generated run, before slice lists, sliced measurements, bounds and substrings;
+- retained diagnostic, before construction/appending.
+
+One cluster cost item covers its source cluster, associated atom and final slice cluster;
+these bounded copies can coexist. The units are counts of cost families, not exact JVM or
+browser heap bytes. The backend still bounds its own per-request allocations: layout checks
+returned cluster counts before retaining their atoms, while the ASCII service limits each
+request to 65,536 code units before allocating its measurement collections. The 8 Mi code-unit
+aggregate bound continues to constrain span text/builders and the canonical input's text.
+No document-wide flattened copy is built.
+
+### Rationale and regression envelope
+
+A one-cluster-per-line result retains much more than a text character: line/run/bounds
+objects, list snapshots and backing arrays, sliced measurement/cluster/break collections,
+substrings, plus the current block's source measurements and atoms. The old million-item
+allowance admitted hundreds of thousands of these object families and exhausted a 128 MiB
+JVM heap on supported maximum-size paragraphs. The tenfold reduction is deliberately
+conservative for Android/browser-class runtimes rather than tuned to a large desktop heap.
+
+Under the current accounting, a 65,536-cluster paragraph first reserves a block, a measured
+span and its clusters. At one-tick width it has room for at most 17,230 line/run pairs and
+one coalesced overflow diagnostic before `LAY120`; it cannot retain all 65,536 output lines
+or proceed to the next paragraph's measurement. A maximum-size paragraph at 1,000 mm width
+and a 1 mm cell still produces 66 lines within policy. Explicit-break and alternating-style
+zero-advance cases consume the same shared budget, so a line-only cap cannot be bypassed.
+
+The runnable `:core:layout:resourceHeapProbe` uses a dedicated `-Xmx128m` JVM for eight
+65,536-character paragraphs at a one-tick canvas width, 300,000 semantic breaks, and
+100,000 alternating zero-advance styled leaves. All three must return `LAY120`; a normal
+maximum-size paragraph must succeed. This is supporting empirical evidence for the current
+ceiling, not a guarantee for arbitrary heap occupancy, platform object sizes or future
+measurement backends. Common exact-limit/one-over tests are the primary deterministic gate;
+ordinary unit tests do not intentionally provoke an OOM. Reprofile this tunable default when
+representation costs/backends change, retaining adequate application/runtime headroom.
+
+### Diagnostic growth and atomicity
+
+Successful output carries at most one content-free `LAY101` overflow diagnostic per source
+block, charged against the shared item budget. It means one or more intact clusters exceed
+available width; line/run geometry retains each actual overflow. Repeated identical conditions
+are coalesced in source-block order without hiding that overflow occurred. Fatal resource
+failure returns only its structured diagnostic and no partially generated document.
+
+Inline traversal remains iterative, with maximum depth 64 (root inline nodes at depth one).
+Entire-tree preflight rejects depth/node/text violations before measurement. Coordinate
+range and quantized forward-progress failures remain `LAY122`. No persistent-format,
+platform or printer contract changes accompany this operational resource tightening.

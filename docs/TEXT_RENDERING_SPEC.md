@@ -2937,3 +2937,86 @@ Phase 3B must implement full logical flow and wrapping using these cluster/measu
 explicit line breaks, styles, heading/list/code/table/placeholder policies, and the specified
 Unicode/tab rules when supported. Phase 3A makes no new permanent decision about font selection,
 physical native/raster strategy, physical rounding, or shaping-backend versions.
+
+
+## Phase 3B Paragraph and Heading Flow
+
+Phase 3B extends the committed Phase 3A `FoundationLayoutEngine` without changing the
+portable measurement or logical scene contracts. Only `Paragraph` and `Heading` blocks
+are supported; structured blocks remain subsequent Phase 3 work and fail atomically with
+`LAY100`. The broader Phase 3A roadmap above is not the scope of this subphase.
+
+### Break selection and whitespace
+
+Within each line, select the furthest fitting supplied legal break opportunity when the
+next cluster would overflow. If none exists, use the furthest fitting measured cluster
+boundary. No hyphens are inserted. Supplied mandatory breaks always terminate a line;
+only semantic `LineBreak` nodes set `endsWithExplicitBreak`. A trailing semantic break
+leaves a final empty line, and consecutive breaks preserve empty lines. Empty lines use
+the block's base typography and contain an empty resolved run.
+
+Phase 3B preserves all semantic whitespace, including leading/trailing/repeated ASCII
+spaces and soft-wrap separators. A separator stays at the end of the preceding line if
+it fits there; if it cannot fit, its cluster follows the same emergency/overflow rules as
+other content. No space is trimmed, collapsed, or replaced. Per-line alignment includes
+these measured spaces. This is the deterministic choice permitted by Section 15.3.
+
+An indivisible oversized cluster occupies its own overflowing line with `LAY101` in the
+successful document diagnostics. Repeated overflow is represented by one budgeted,
+content-free diagnostic per source block; each overflowing line retains its actual geometry. Its x origin is zero for all alignments; negative
+coordinates, scaling, clipping, substitution and dropping content are not introduced.
+Block bounds describe the nominal canvas content area; overflowing line/run bounds retain
+the actual measured advance.
+
+### Typography and vertical geometry
+
+Paragraph base typography is `TypographyContext.body`; heading base typography is
+`TypographyContext.heading(level)`. Strong, emphasis and strike combine monotonically
+with the resolved base style. Inline code selects the code typography and applies the
+surrounding semantic bold/emphasis/strike flags. Base typography identity, metrics, role
+and any existing underline are retained. Links lay out only visible children, with no
+resource resolution or speculative destination metadata.
+
+Adjacent text leaves with equal resolved typography are measured together. Each resolved
+span is measured once, and wrapped runs slice its finalized measurement at supplied
+cluster boundaries, rebasing UTF-16 offsets and break opportunities without remeasurement.
+This does not add full Unicode segmentation or shaping. The ASCII backend continues to
+return `TXT100` for tabs, controls and unsupported Unicode. The existing four-column tab
+contract in Section 16 remains unchanged and awaits a supporting backend.
+
+All output geometry uses `LogicalGeometry`. Mixed-typography runs share a line baseline:
+its offset is the greatest quantized run baseline offset, and its below-baseline extent
+is the greatest quantized `(lineHeight - baselineOffset)` among the runs. Line height is
+the checked sum of those extents; each run has its own resolved height and y coordinate.
+No extra inter-line spacing or host font padding is added.
+
+Paragraph after spacing remains `0.5 × body line height`, including after the final block.
+The provisional Phase 3B heading policy uses no before spacing and the same
+`0.5 × body line height` after spacing, centrally named in `TextLayoutPolicyV1`.
+Heading sizes/line metrics come solely from the supplied context, without an invented
+heading scale. Block bounds exclude after spacing; document height includes it.
+
+### Bounded traversal and failures
+
+The engine preflights the entire supported tree before measurement, counting nested
+inline nodes and text/code leaves under the existing aggregate budgets. Iterative iterator
+frames bound traversal stack/sibling storage. `LayoutResourcePolicy.maxInlineDepth`
+defaults to 64 and can only be lowered; root inline nodes occupy depth one. Excess nesting,
+node/text/item counts fail with `LAY120`. Measured clusters and generated blocks, lines and
+runs, measured spans, explicit break markers and retained diagnostics are charged to the
+shared item budget before their Core retention/allocation. Source cluster atoms are reserved
+before construction; service-internal measurement allocations retain their backend budget.
+The provisional Phase 3B default is 100,000 cost items as justified in RESOURCE_LIMITS;
+explicit break markers are also bounded by the inline-node budget. Intermediate span text, measurements and
+cluster references are bounded by aggregate text/node budgets and the injected backend's
+per-request policy; they are retained only for the current block. Final measurements may
+copy cluster slices, so transient source-plus-result storage is bounded rather than
+claimed to be zero-copy. Break slicing uses indexed lower-bound lookup rather than
+rescanning a paragraph's complete break list for every narrow line.
+
+`LAY101` now reports preserved cluster overflow rather than rejecting a paragraph needing
+wrapping. `LAY104` rejects heading levels outside 1–6, including direct in-memory inputs.
+Existing schema (`LAY102`), inconsistent measurement (`LAY103`), coordinate/progress
+(`LAY122`) and backend (`TXTxxx`) diagnostics remain structured and content-free. Fatal
+failures return no partial logical document. No `.td`/`.tcfg` schema or printer/platform
+contract changes are introduced.

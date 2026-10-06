@@ -21,16 +21,19 @@ import com.circuitnext.rastrio.core.document.LengthUnit
 import com.circuitnext.rastrio.core.document.Orientation
 import com.circuitnext.rastrio.core.text.*
 
-/** Trusted runtime policy. Counts all generated blocks, lines, runs and measured clusters. */
+/** Trusted runtime policy. Bounds clusters/atoms, spans, blocks, lines, runs and diagnostics. */
 data class LayoutResourcePolicy(
     val maxBlocks: Int = 100_000,
     val maxInlineNodes: Int = 500_000,
     val maxTextCodeUnits: Int = 8 * 1024 * 1024,
-    val maxItems: Int = 1_000_000,
+    // Provisional retained-cost ceiling; rationale and constrained-heap probe in RESOURCE_LIMITS.
+    val maxItems: Int = 100_000,
     val maxWidthMm: Double = 1_000.0,
+    val maxInlineDepth: Int = 64,
 ) {
     init {
         require(maxBlocks > 0 && maxInlineNodes > 0 && maxTextCodeUnits > 0 && maxItems > 0)
+        require(maxInlineDepth in 1..64)
         require(maxWidthMm.isFinite() && maxWidthMm > 0.0 && maxWidthMm <= 1_000.0)
     }
 }

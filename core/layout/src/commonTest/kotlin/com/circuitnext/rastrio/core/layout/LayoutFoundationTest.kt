@@ -70,15 +70,12 @@ class LayoutFoundationTest {
         assertEquals(7.5, layout(ThermalDocument(blocks = listOf(p("")))).heightMm)
     }
 
-    @Test fun unsupportedContentAndOverflowFailAtomically() {
-        for (block in listOf(Heading(1, Alignment.LEFT, listOf(Text("title"))), Separator,
-            Paragraph(Alignment.LEFT, listOf(Strong(listOf(Text("bold"))))),
-            Paragraph(Alignment.LEFT, listOf(Text("A"), LineBreak, Text("B"))))) {
+    @Test fun unsupportedContentFailsAtomically() {
+        for (block in listOf<DocumentBlock>(Separator, CodeBlock("code"))) {
             val failure = assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("ok"), block)), constraints))
             assertEquals("LAY100", failure.diagnostics.single().code)
             assertEquals(1, failure.diagnostics.single().sourceBlockIndex)
         }
-        assertEquals("LAY101", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("12345678901"))), constraints)).diagnostics.single().code)
         assertEquals("TXT100", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("é"))), constraints)).diagnostics.single().code)
         assertEquals("LAY102", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(schemaVersion = 2), constraints)).diagnostics.single().code)
     }
@@ -95,7 +92,7 @@ class LayoutFoundationTest {
     @Test fun resourceLimitsAreCheckedBeforeServiceWork() {
         var calls = 0
         val counting = FoundationLayoutEngine(TextMeasurer { request -> calls++; AsciiFixedCellMeasurer().measure(request) })
-        val policy = LayoutResourcePolicy(maxBlocks = 1, maxInlineNodes = 1, maxTextCodeUnits = 3, maxItems = 6)
+        val policy = LayoutResourcePolicy(maxBlocks = 1, maxInlineNodes = 1, maxTextCodeUnits = 3, maxItems = 7)
         val limited = constraints.copy(resources = policy)
         assertIs<LayoutResult.Success>(counting.layout(ThermalDocument(blocks = listOf(p("abc"))), limited))
         calls = 0
@@ -142,8 +139,9 @@ class LayoutFoundationTest {
         val service = TextMeasurer { request -> TextMeasureResult.Success(TextMeasurement(2, 4.0, request.typography.metrics,
             SnapshotList(listOf(MeasuredCluster(0, 1, 2.0), MeasuredCluster(1, 2, 2.0))),
             SnapshotList(listOf(BreakOpportunity(1, BreakKind.MANDATORY))))) }
-        assertEquals("LAY100", assertIs<LayoutResult.Failure>(FoundationLayoutEngine(service).layout(
-            ThermalDocument(blocks = listOf(p("AB"))), constraints)).diagnostics.single().code)
+        val output = assertIs<LayoutResult.Success>(FoundationLayoutEngine(service).layout(
+            ThermalDocument(blocks = listOf(p("AB"))), constraints)).document
+        assertEquals(listOf("A", "B"), assertIs<LogicalTextBlock>(output.blocks.single()).lines.map { it.runs.single().text })
     }
 
     @Test fun fractionalFitBoundariesAndAlignmentAreDeterministic() {
@@ -160,8 +158,15 @@ class LayoutFoundationTest {
             assertEquals(0.0, assertIs<LogicalTextBlock>(layout(document,
                 input.copy(canvasWidth = Length(0.2999996))).blocks.single()).lines.single().bounds.xMm)
             // One whole grid step short is genuinely too narrow; rounding cannot hide it.
-            assertEquals("LAY101", assertIs<LayoutResult.Failure>(engine.layout(document,
-                input.copy(canvasWidth = Length(0.299999)))).diagnostics.single().code)
+            val wrapped = assertIs<LogicalTextBlock>(layout(document,
+                input.copy(canvasWidth = Length(0.299999))).blocks.single()).lines
+            assertEquals(listOf("AB", "C"), wrapped.map { it.runs.single().text })
+            assertEquals(listOf(0.2, 0.1), wrapped.map { it.advanceMm })
+            assertEquals(when (alignment) {
+                Alignment.LEFT -> listOf(0.0, 0.0)
+                Alignment.CENTER -> listOf(0.05, 0.1)
+                Alignment.RIGHT -> listOf(0.099999, 0.199999)
+            }, wrapped.map { it.bounds.xMm })
         }
         val right = layout(ThermalDocument(blocks = listOf(p("AB", Alignment.RIGHT))), input)
         assertEquals(0.1, assertIs<LogicalTextBlock>(right.blocks.single()).lines.single().bounds.xMm)
