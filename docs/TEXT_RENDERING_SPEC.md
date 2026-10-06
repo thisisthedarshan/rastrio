@@ -919,7 +919,7 @@ For proportional typography:
 tabStopWidth = 4 × resolved U+0020 SPACE advance
 ```
 
-The next stop is the smallest tab stop strictly greater than the current inline advance. Therefore a tab always advances by at least one column/space unit.
+Tab stops are spaced by four resolved columns. The selected stop is the smallest tab stop strictly greater than the current inline advance on the authoritative logical grid. A tab therefore always advances by a positive amount after quantization, but under proportional typography that amount need not equal or exceed one full SPACE advance. For example, a SPACE advance of 0.5 mm gives stops every 2.0 mm; from an inline advance of 1.75 mm, the tab advances 0.25 mm to the 2.0 mm stop. Fixed-cell/code content measured in whole cells naturally aligns with fixed columns.
 
 Rules:
 
@@ -3101,14 +3101,14 @@ child origins; LogicalSeparator retains rule bounds and spacing. All nested
 coordinates are absolute millimetres; all child collections are snapshots.
 There is no rasterization, printer strategy, protocol or platform state here.
 
-Ordinary ListItem.blocks and Quote.blocks must remain non-empty. Runtime
-layout permits empty checklist items and reserves their semantic marker/body
-line extent. TD_SPEC Section 44 does not explicitly prohibit empty checklist
-items, although the existing `.td` validator rejects them. This discrepancy
-is recorded for deliberate format-contract reconciliation; Phase 3C1 does not
-modify the validator or persisted format. Empty list containers are permitted.
+ListItem.blocks, ChecklistItem.blocks and Quote.blocks must be non-empty.
+Runtime layout enforces the same rule as the existing `.td` validator, now
+explicit in TD_SPEC Section 44. A checklist item containing a valid empty
+paragraph remains valid and retains normal marker and paragraph geometry.
+This reconciliation does not change the validator or persisted format.
+Empty list containers are permitted.
 
-New diagnostics: LAY105 rejects empty ordinary items/quotes; LAY106 rejects
+New diagnostics: LAY105 rejects empty item/quote block arrays, including checklist items; LAY106 rejects
 negative or overflowing ordered numbering; LAY107 rejects exhausted content
 width. Existing LAY100 still rejects excluded block types, LAY120 covers all
 runtime resource bounds, and LAY122 covers coordinate/zero-progress failures.

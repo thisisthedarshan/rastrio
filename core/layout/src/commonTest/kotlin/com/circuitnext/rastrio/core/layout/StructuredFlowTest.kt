@@ -43,10 +43,32 @@ class StructuredFlowTest {
             OrderedList(Long.MAX_VALUE, List(2) { ListItem(listOf(p("A"))) }))), input))
     }
 
-    @Test fun emptyChecklistItemsRetainSemanticMarkers() {
-        val output = layout(Checklist(listOf(ChecklistItem(false, emptyList()), ChecklistItem(true, listOf(p("A"))))))
-        assertEquals(12.5, output.heightMm)
-        assertEquals(output, layout(Checklist(listOf(ChecklistItem(false, emptyList()), ChecklistItem(true, listOf(p("A")))))))
+    @Test fun checklistItemsWithEmptyParagraphsRetainNormalGeometry() {
+        val paragraph = Paragraph(Alignment.LEFT, emptyList())
+        val block = Checklist(listOf(ChecklistItem(false, listOf(paragraph)), ChecklistItem(true, listOf(paragraph))))
+        val output = layout(block)
+        val list = assertIs<LogicalListBlock>(output.blocks.single())
+        assertEquals(LogicalBounds(0.0, 0.0, 40.0, 15.0), list.bounds)
+        assertEquals(4.0, list.markerColumnWidthMm)
+        assertEquals(9.0, list.contentOriginMm)
+        assertEquals(listOf(LogicalBounds(4.0, 0.0, 36.0, 7.5), LogicalBounds(4.0, 7.5, 36.0, 7.5)),
+            list.items.map { it.bounds })
+        val markers = list.items.map { assertIs<LogicalChecklistMarker>(it.marker) }
+        assertEquals(listOf(false, true), markers.map { it.checked })
+        assertEquals(listOf(LogicalBounds(4.0, 0.5, 4.0, 4.0), LogicalBounds(4.0, 8.0, 4.0, 4.0)), markers.map { it.bounds })
+        assertEquals(listOf(0.32, 0.32), markers.map { it.strokeWidthMm })
+        assertEquals(listOf(LogicalBounds(4.16, 0.66, 3.68, 3.68), LogicalBounds(4.16, 8.16, 3.68, 3.68)),
+            markers.map { it.outlineCenterlineBounds })
+        assertTrue(markers.first().checkPoints.isEmpty())
+        assertEquals(listOf(LogicalPoint(4.8, 10.0), LogicalPoint(5.6, 10.8), LogicalPoint(7.2, 9.0)), markers.last().checkPoints)
+        val lines = list.items.map { assertIs<LogicalTextBlock>(it.blocks.single()).lines.single() }
+        assertEquals(listOf(LogicalBounds(9.0, 0.0, 0.0, 5.0), LogicalBounds(9.0, 7.5, 0.0, 5.0)), lines.map { it.bounds })
+        assertEquals(listOf(31.0, 31.0), lines.map { it.availableWidthMm })
+        assertEquals(listOf(3.0, 10.5), lines.map { it.baselineMm })
+        assertTrue(lines.all { it.runs.single().text.isEmpty() })
+        assertEquals(15.0, output.heightMm)
+        assertTrue(output.diagnostics.isEmpty())
+        assertEquals(output, layout(block))
     }
 
     @Test fun quotesPreserveNestedFlowAndCodeSpacing() {
@@ -103,7 +125,7 @@ class StructuredFlowTest {
     }
 
     @Test fun checklistGraphicsContainExplicitCheckStrokesWithoutGlyphs() {
-        val output = layout(Checklist(listOf(ChecklistItem(false, listOf(p("A".repeat(32)))), ChecklistItem(true, emptyList()))))
+        val output = layout(Checklist(listOf(ChecklistItem(false, listOf(p("A".repeat(32)))), ChecklistItem(true, listOf(p("B"))))))
         val list = assertIs<LogicalListBlock>(output.blocks.single())
         assertEquals(9.0, list.contentOriginMm)
         val unchecked = assertIs<LogicalChecklistMarker>(list.items.first().marker)
@@ -118,7 +140,7 @@ class StructuredFlowTest {
         val lines = assertIs<LogicalTextBlock>(list.items.first().blocks.single()).lines
         assertEquals(listOf(9.0, 9.0), lines.map { it.bounds.xMm })
         assertEquals(listOf(31.0, 1.0), lines.map { it.advanceMm })
-        assertEquals(17.5, output.heightMm)
+        assertEquals(20.0, output.heightMm)
     }
 
     @Test fun nestedListKindsAndQuotesKeepFinalizedOrigins() {

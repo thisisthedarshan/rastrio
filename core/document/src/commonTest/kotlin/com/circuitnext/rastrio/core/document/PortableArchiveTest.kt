@@ -19,8 +19,34 @@ import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 
 class PortableArchiveTest {
+    @Test fun checklistEmptyBlockArraysAreRejectedByReaderAndWriter() {
+        val policy = TdResourcePolicy()
+        val privateTitle = "private-checklist-title"
+        val manifest = """{"format":"rastrio-td","containerVersion":1,"documentSchemaVersion":1,"encoding":"json","assets":[]}"""
+        for (checked in listOf(false, true)) {
+            val json = """{"schemaVersion":1,"metadata":{"title":"$privateTitle"},"layout":{"orientation":"portrait"},"blocks":[{"type":"checklist","items":[{"checked":$checked,"blocks":[]}]}]}"""
+            val archive = zipWrite(listOf(ArchiveEntry("manifest.json", manifest.encodeToByteArray()),
+                ArchiveEntry("document.json", json.encodeToByteArray())), policy)
+            val readerFailure = assertFailsWith<TdException.Invalid> { TdArchive.load(archive) }
+            val writerFailure = assertFailsWith<TdException.Invalid> { TdArchive.save(ThermalDocument(
+                metadata = DocumentMetadata(privateTitle), blocks = listOf(Checklist(listOf(ChecklistItem(checked, emptyList())))))) }
+            for (failure in listOf(readerFailure, writerFailure)) {
+                assertEquals("TD100", failure.diagnostic.code)
+                assertFalse(failure.diagnostic.message.contains(privateTitle))
+            }
+        }
+    }
+
+    @Test fun checklistItemsContainingEmptyParagraphsRoundTrip() {
+        val paragraph = Paragraph(Alignment.LEFT, emptyList())
+        val document = ThermalDocument(blocks = listOf(Checklist(listOf(
+            ChecklistItem(false, listOf(paragraph)), ChecklistItem(true, listOf(paragraph))))))
+        assertEquals(document, TdArchive.load(TdArchive.save(document)).document)
+    }
+
     @Test fun storedArchiveRoundTripsOnEveryCoreTarget() {
         val document = ThermalDocument(
             metadata = DocumentMetadata("portable"),

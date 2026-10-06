@@ -51,17 +51,34 @@ class StructuredResourceSafetyTest {
         }
     }
 
-    @Test fun checklistEmptyItemsHaveExactReservedBoundary() {
-        val unchecked = Checklist(listOf(ChecklistItem(false, emptyList())))
-        val exact = input.copy(resources = input.resources.copy(maxItems = 7))
+    @Test fun checklistEmptyParagraphsHaveExactReservedBoundary() {
+        val paragraph = Paragraph(Alignment.LEFT, emptyList())
+        val unchecked = Checklist(listOf(ChecklistItem(false, listOf(paragraph))))
+        val exact = input.copy(resources = input.resources.copy(maxItems = 10))
         val output = assertIs<LayoutResult.Success>(result(unchecked, exact)).document
-        assertEquals(5.0, output.heightMm)
-        failure(result(unchecked, exact.copy(resources = exact.resources.copy(maxItems = 6))))
-        val checked = Checklist(listOf(ChecklistItem(true, emptyList())))
-        assertIs<LayoutResult.Success>(result(checked, exact.copy(resources = exact.resources.copy(maxItems = 10))))
-        failure(result(checked, exact.copy(resources = exact.resources.copy(maxItems = 9))))
-        failure(result(Checklist(List(100_001) { ChecklistItem(false, emptyList()) })))
-        failure(result(Checklist(List(40_000) { ChecklistItem(false, emptyList()) })))
+        assertEquals(7.5, output.heightMm)
+        failure(result(unchecked, exact.copy(resources = exact.resources.copy(maxItems = 9))))
+        val checked = Checklist(listOf(ChecklistItem(true, listOf(paragraph))))
+        assertIs<LayoutResult.Success>(result(checked, exact.copy(resources = exact.resources.copy(maxItems = 13))))
+        failure(result(checked, exact.copy(resources = exact.resources.copy(maxItems = 12))))
+        failure(result(Checklist(List(100_001) { ChecklistItem(false, listOf(paragraph)) })))
+        failure(result(Checklist(List(40_000) { ChecklistItem(false, listOf(paragraph)) })))
+    }
+
+    @Test fun emptyChecklistBlocksFailPrivatelyBeforeAnyMeasurement() {
+        val privateText = "private-checklist-content"
+        var calls = 0
+        val service = TextMeasurer { request -> calls++; AsciiFixedCellMeasurer().measure(request) }
+        for (checked in listOf(false, true)) for (nested in listOf(false, true)) {
+            val checklist = Checklist(listOf(ChecklistItem(false, listOf(p(privateText))), ChecklistItem(checked, emptyList())))
+            val block = if (nested) Quote(listOf(checklist)) else checklist
+            val document = ThermalDocument(blocks = listOf(p(privateText), block))
+            val failed = assertIs<LayoutResult.Failure>(FoundationLayoutEngine(service).layout(document, input))
+            assertEquals("LAY105", failed.diagnostics.single().code)
+            assertEquals(1, failed.diagnostics.single().sourceBlockIndex)
+            assertFalse(failed.diagnostics.single().message.contains(privateText))
+            assertEquals(0, calls)
+        }
     }
 
     @Test fun emptyOrdinaryItemsAndQuotesFailWithoutCreatingGeometry() {

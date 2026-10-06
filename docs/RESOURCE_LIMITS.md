@@ -3281,8 +3281,8 @@ aggregate text, block, inline, inline-depth, width and backend bounds.
 `LayoutResourcePolicy.maxBlockDepth` has default/maximum 64. Top-level blocks
 have depth one; contained blocks add one. List-item wrappers count as resource
 work but do not add block depth. Preflight independently counts nested blocks,
-all items including empty checklist items, inline nodes and code/text code
-units before any service measurement. Empty ordinary item/quote arrays fail
+all items including checklist items, inline nodes and code/text code
+units before any service measurement. Empty ordinary/checklist item or quote block arrays fail
 with LAY105; numbered marker overflow is checked before allocating strings.
 
 Traversal retains bounded iterator frames rather than recursive calls or
@@ -3322,9 +3322,9 @@ LAY120 aborts the
 whole operation before further amplification and returns no partial document.
 
 The existing dedicated 128 MiB `:core:layout:resourceHeapProbe` additionally
-checks 40,000 empty checklist items, 65,536 tabs in code, 65,536 explicit code
+checks 40,000 checklist items containing valid empty paragraphs, 65,536 tabs in code, 65,536 explicit code
 boundaries, one-cluster-per-line code, and 30,000 measured ordered markers.
 Each must fail through LAY120 rather than heap or stack exhaustion. Common
-exact/one-over tests independently pin depth, empty checklist, checked marker,
+exact/one-over tests independently pin depth, checklist empty-paragraph flow, checked marker,
 code-boundary and narrow-list diagnostic budgets. These remain conservative
 operational controls, not a universal heap-occupancy guarantee.

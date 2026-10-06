@@ -1112,6 +1112,12 @@ blocks
 
 `checked` MUST be Boolean.
 
+`blocks` MUST be a non-empty array of document blocks, as for ordinary list items.
+Recursive nesting is subject to resource limits. An item may contain a valid
+paragraph whose `content` array is empty; its block array is still non-empty.
+This clarifies the existing v1 validator contract without changing the JSON
+shape or schema version.
+
 Checklist state is semantic content. It does not prescribe an emoji or a printer-native glyph. Physical checklist-marker rendering is resolved later by the text/printer preparation pipeline.
 
 ---

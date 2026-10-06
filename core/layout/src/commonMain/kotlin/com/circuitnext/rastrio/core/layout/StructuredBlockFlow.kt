@@ -74,7 +74,10 @@ internal fun preflightDocument(document: ThermalDocument, policy: LayoutResource
                             if (item.blocks.isEmpty()) abort("LAY105", "List item has no blocks", index)
                             yieldAll(item.blocks)
                         }
-                        is Checklist -> for (item in block.items) yieldAll(item.blocks)
+                        is Checklist -> for (item in block.items) {
+                            if (item.blocks.isEmpty()) abort("LAY105", "Checklist item has no blocks", index)
+                            yieldAll(item.blocks)
+                        }
                     }
                 }.iterator()
             }
