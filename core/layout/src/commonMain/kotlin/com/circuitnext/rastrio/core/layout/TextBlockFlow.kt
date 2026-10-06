@@ -17,7 +17,6 @@ package com.circuitnext.rastrio.core.layout
 
 import com.circuitnext.rastrio.core.document.*
 import com.circuitnext.rastrio.core.text.*
-import kotlin.math.roundToLong
 
 internal class LayoutAbort(val diagnostics: SnapshotList<LayoutDiagnostic>) : RuntimeException()
 internal fun abort(code: String, message: String, block: Int? = null): Nothing =
@@ -39,10 +38,10 @@ private data class FlowAtom(val span: MeasuredSpan?, val clusterIndex: Int = 0,
 
 /** Stop selection is layout geometry; all arithmetic uses the shared logical grid. */
 private fun tabAdvance(position: Double, column: Double): Double {
-    val stop = (LogicalGeometry.scale(column, 4.0) * 1_000_000).roundToLong()
+    val stop = LogicalGeometry.ticks(LogicalGeometry.scale(column, 4.0))
     require(stop > 0)
-    val current = (LogicalGeometry.normalize(position) * 1_000_000).roundToLong()
-    return LogicalGeometry.normalize((stop - current % stop).toDouble() / 1_000_000)
+    val current = LogicalGeometry.ticks(position)
+    return LogicalGeometry.millimetres(stop - current % stop)
 }
 
 /** One shared paragraph, heading and code flow; finalized run measurements include tab advances. */

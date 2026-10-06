@@ -143,6 +143,67 @@ class StructuredFlowTest {
         assertEquals(10.0, assertIs<LogicalListBlock>(quote.blocks.last()).contentOriginMm)
     }
 
+    @Test fun quoteListCodeChainPreservesAbsoluteGeometryAndSpacing() {
+        val output = layout(p("P"), Quote(listOf(UnorderedList(listOf(
+            ListItem(listOf(CodeBlock("A\tB\nC"))))))))
+        val quote = assertIs<LogicalQuoteBlock>(output.blocks.last())
+        assertEquals(4.0, quote.contentOriginMm)
+        assertEquals(LogicalBounds(0.0, 7.5, 40.0, 15.0), quote.bounds)
+        val list = assertIs<LogicalListBlock>(quote.blocks.single())
+        assertEquals(LogicalListKind.UNORDERED, list.kind)
+        assertEquals(1.0, list.markerColumnWidthMm)
+        assertEquals(10.0, list.contentOriginMm)
+        assertEquals(LogicalBounds(4.0, 7.5, 36.0, 15.0), list.bounds)
+        val item = list.items.single()
+        assertEquals(LogicalBounds(8.0, 9.5, 1.0, 1.0), assertIs<LogicalUnorderedMarker>(item.marker).bounds)
+        assertEquals(10.0, item.contentOriginMm)
+        assertEquals(LogicalBounds(8.0, 7.5, 32.0, 15.0), item.bounds)
+        val code = assertIs<LogicalTextBlock>(item.blocks.single())
+        assertEquals(LogicalTextKind.CODE, code.kind)
+        assertEquals(LogicalBounds(10.0, 10.0, 30.0, 10.0), code.bounds)
+        assertEquals(listOf(30.0, 30.0), code.lines.map { it.availableWidthMm })
+        assertEquals(listOf(LogicalBounds(10.0, 10.0, 5.0, 5.0), LogicalBounds(10.0, 15.0, 1.0, 5.0)),
+            code.lines.map { it.bounds })
+        assertEquals(listOf(13.0, 18.0), code.lines.map { it.baselineMm })
+        assertEquals(listOf("A\tB", "C"), code.lines.map { line -> line.runs.joinToString("") { it.text } })
+        assertEquals(listOf(LogicalBounds(10.0, 10.0, 1.0, 5.0), LogicalBounds(11.0, 10.0, 3.0, 5.0),
+            LogicalBounds(14.0, 10.0, 1.0, 5.0)), code.lines.first().runs.map { it.bounds })
+        assertEquals(2.5, code.bounds.yMm - item.bounds.yMm)
+        assertEquals(2.5, item.bounds.yMm + item.bounds.heightMm - (code.bounds.yMm + code.bounds.heightMm))
+        assertEquals(22.5, output.heightMm)
+        assertTrue(output.diagnostics.isEmpty())
+    }
+
+    @Test fun tallerOrderedMarkersDetermineItemAndFollowingItemExtents() {
+        val markerTypography = body.copy(identity = "tall-marker", style = TextStyle(role = TextRole.LIST_MARKER),
+            metrics = TypographyMetrics(7.0, 2.0, 1.0, 10.0, 7.0))
+        val constraints = input.copy(typography = TypographyContext(body, body, markerTypography))
+        val output = assertIs<LayoutResult.Success>(FoundationLayoutEngine(AsciiFixedCellMeasurer()).layout(
+            ThermalDocument(blocks = listOf(OrderedList(9, listOf(ListItem(listOf(p("A"))), ListItem(listOf(p("B"))))))),
+            constraints)).document
+        val list = assertIs<LogicalListBlock>(output.blocks.single())
+        assertEquals(3.0, list.markerColumnWidthMm)
+        assertEquals(8.0, list.contentOriginMm)
+        assertEquals(listOf(8.0, 8.0), list.items.map { it.contentOriginMm })
+        val markers = list.items.map { assertIs<LogicalOrderedMarker>(it.marker) }
+        assertEquals(listOf("9.", "10."), markers.map { it.run.text })
+        assertEquals(listOf(LogicalBounds(5.0, 0.0, 2.0, 10.0), LogicalBounds(4.0, 10.0, 3.0, 10.0)),
+            markers.map { it.bounds })
+        assertEquals(listOf(7.0, 17.0), markers.map { it.baselineMm })
+        assertTrue(markers.all { it.run.typography == markerTypography })
+        val content = list.items.map { assertIs<LogicalTextBlock>(it.blocks.single()) }
+        assertEquals(listOf(LogicalBounds(8.0, 0.0, 32.0, 5.0), LogicalBounds(8.0, 10.0, 32.0, 5.0)),
+            content.map { it.bounds })
+        assertEquals(listOf(LogicalBounds(8.0, 0.0, 1.0, 5.0), LogicalBounds(8.0, 10.0, 1.0, 5.0)),
+            content.map { it.lines.single().bounds })
+        assertEquals(listOf(3.0, 13.0), content.map { it.lines.single().baselineMm })
+        assertEquals(listOf(LogicalBounds(4.0, 0.0, 36.0, 10.0), LogicalBounds(4.0, 10.0, 36.0, 10.0)),
+            list.items.map { it.bounds })
+        assertEquals(LogicalBounds(0.0, 0.0, 40.0, 20.0), list.bounds)
+        assertEquals(20.0, output.heightMm)
+        assertTrue(output.diagnostics.isEmpty())
+    }
+
     @Test fun separatorInsideContainersUsesContentWidth() {
         val output = layout(Quote(listOf(Separator)))
         val quote = assertIs<LogicalQuoteBlock>(output.blocks.single())

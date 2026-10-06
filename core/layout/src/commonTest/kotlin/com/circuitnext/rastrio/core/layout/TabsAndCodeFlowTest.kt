@@ -63,14 +63,16 @@ class TabsAndCodeFlowTest {
 
     @Test fun proportionalTabsUseMeasuredSpaceRatherThanCharacterWidth() {
         val proportional = body.copy(fixedCell = null)
-        val measurer = TextMeasurer { request ->
-            val widths = request.text.map { if (it == ' ') 0.5 else 1.5 }
-            TextMeasureResult.Success(TextMeasurement(request.text.length, widths.sum(), request.typography.metrics,
-                SnapshotList(widths.mapIndexed { i, width -> MeasuredCluster(i, i + 1, width) }), SnapshotList(emptyList())))
+        for ((characterWidth, tabWidth, lineWidth) in listOf(Triple(1.5, 0.5, 3.5), Triple(1.75, 0.25, 3.75))) {
+            val measurer = TextMeasurer { request ->
+                val widths = request.text.map { if (it == ' ') 0.5 else characterWidth }
+                TextMeasureResult.Success(TextMeasurement(request.text.length, widths.sum(), request.typography.metrics,
+                    SnapshotList(widths.mapIndexed { i, width -> MeasuredCluster(i, i + 1, width) }), SnapshotList(emptyList())))
+            }
+            val output = layout(paragraph("A\tB"), typography = TypographyContext(proportional, code, proportional), measurer = measurer)
+            assertEquals(lineWidth, lines(output).single().advanceMm)
+            assertEquals(tabWidth, lines(output).single().runs[1].measurement.advanceMm)
         }
-        val output = layout(paragraph("A\tB"), typography = TypographyContext(proportional, code, proportional), measurer = measurer)
-        assertEquals(3.5, lines(output).single().advanceMm)
-        assertEquals(0.5, lines(output).single().runs[1].measurement.advanceMm)
     }
 
     @Test fun codePreservesEmptyAndTrailingExplicitLines() {

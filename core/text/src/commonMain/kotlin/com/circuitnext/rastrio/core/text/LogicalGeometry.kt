@@ -30,14 +30,16 @@ object LogicalGeometry {
     private const val ticksPerMm = 1_000_000.0
     internal const val maxTicks = 1_000_000_000_000_000L
 
-    internal fun ticks(mm: Double): Long {
+    /** Checked conversion to the authoritative logical grid, rounding nearest with ties to even. */
+    fun ticks(mm: Double): Long {
         require(mm.isFinite() && mm >= 0.0)
         val scaled = mm * ticksPerMm
         require(scaled.isFinite() && scaled <= maxTicks.toDouble())
         return round(scaled).toLong()
     }
 
-    internal fun millimetres(ticks: Long): Double {
+    /** Checked conversion from non-negative, representable logical ticks to canonical millimetres. */
+    fun millimetres(ticks: Long): Double {
         require(ticks in 0..maxTicks)
         return ticks.toDouble() / ticksPerMm
     }

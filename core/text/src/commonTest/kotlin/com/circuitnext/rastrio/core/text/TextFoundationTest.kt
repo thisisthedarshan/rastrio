@@ -101,6 +101,21 @@ class TextFoundationTest {
             SnapshotList((0..2).map { MeasuredCluster(it, it + 1, 0.1) }), SnapshotList(emptyList())).advanceMm)
     }
 
+    @Test fun logicalTickConversionsPreserveTiesAndCheckedRanges() {
+        assertEquals(0L, LogicalGeometry.ticks(0.0000005))
+        assertEquals(2L, LogicalGeometry.ticks(0.0000015))
+        assertEquals(2L, LogicalGeometry.ticks(0.0000025))
+        assertEquals(300000L, LogicalGeometry.ticks(0.3))
+        assertEquals(0.3, LogicalGeometry.millimetres(300000L))
+        assertEquals(0.0, LogicalGeometry.millimetres(0L))
+        assertEquals(1000000000000000L, LogicalGeometry.ticks(1000000000.0))
+        assertEquals(1000000000.0, LogicalGeometry.millimetres(1000000000000000L))
+        for (value in listOf(-0.0000001, Double.NaN, Double.POSITIVE_INFINITY, 1000000000.000001))
+            assertFailsWith<IllegalArgumentException> { LogicalGeometry.ticks(value) }
+        for (value in listOf(-1L, 1000000000000001L, Long.MAX_VALUE))
+            assertFailsWith<IllegalArgumentException> { LogicalGeometry.millimetres(value) }
+    }
+
     @Test fun logicalPrecisionHasExplicitTiesRangeAndOverflowBoundaries() {
         assertEquals(0.0, LogicalGeometry.normalize(0.0000005))
         assertEquals(0.000002, LogicalGeometry.normalize(0.0000015))
