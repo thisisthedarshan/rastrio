@@ -37,6 +37,13 @@ object LayoutResourceHeapProbe {
         rejected("zero-advance styled spans", ThermalDocument(blocks = listOf(Paragraph(Alignment.LEFT, List(100000) { i ->
             if (i % 2 == 0) Text("A") else Strong(listOf(Text("A")))
         }))), input.copy(typography = TypographyContext(zero, zero, zero)))
+        val structured = input.copy(canvasWidth = Length(1000.0))
+        rejected("many empty checklist items", ThermalDocument(blocks = listOf(Checklist(List(40000) { ChecklistItem(false, emptyList()) }))), structured)
+        rejected("tab-heavy code", ThermalDocument(blocks = listOf(CodeBlock("\t".repeat(65536)))), structured)
+        rejected("many explicit code lines", ThermalDocument(blocks = listOf(CodeBlock("\n".repeat(65536)))), structured)
+        rejected("narrow code amplification", ThermalDocument(blocks = listOf(CodeBlock(text))))
+        rejected("large marker columns", ThermalDocument(blocks = listOf(OrderedList(1,
+            List(30000) { ListItem(listOf(Paragraph(Alignment.LEFT, listOf(Text("A"))))) }))), structured)
         val normal = engine.layout(ThermalDocument(blocks = listOf(Paragraph(Alignment.LEFT, listOf(Text(text))))), input.copy(canvasWidth = Length(1000.0)))
         check(normal is LayoutResult.Success && (normal.document.blocks.single() as LogicalTextBlock).lines.size == 66)
         println("normal maximum ASCII paragraph: 66 lines")

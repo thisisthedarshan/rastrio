@@ -71,7 +71,7 @@ class LayoutFoundationTest {
     }
 
     @Test fun unsupportedContentFailsAtomically() {
-        for (block in listOf<DocumentBlock>(Separator, CodeBlock("code"))) {
+        for (block in listOf<DocumentBlock>(QrCode("data", Alignment.LEFT, QrErrorCorrection.AUTO))) {
             val failure = assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("ok"), block)), constraints))
             assertEquals("LAY100", failure.diagnostics.single().code)
             assertEquals(1, failure.diagnostics.single().sourceBlockIndex)

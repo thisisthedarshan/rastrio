@@ -30,10 +30,11 @@ data class LayoutResourcePolicy(
     val maxItems: Int = 100_000,
     val maxWidthMm: Double = 1_000.0,
     val maxInlineDepth: Int = 64,
+    val maxBlockDepth: Int = 64,
 ) {
     init {
         require(maxBlocks > 0 && maxInlineNodes > 0 && maxTextCodeUnits > 0 && maxItems > 0)
-        require(maxInlineDepth in 1..64)
+        require(maxInlineDepth in 1..64 && maxBlockDepth in 1..64)
         require(maxWidthMm.isFinite() && maxWidthMm > 0.0 && maxWidthMm <= 1_000.0)
     }
 }
@@ -78,10 +79,12 @@ sealed interface LogicalBlock {
     val sourceBlockIndex: Int
     val bounds: LogicalBounds
 }
+enum class LogicalTextKind { TEXT, CODE }
 data class LogicalTextBlock(
     override val sourceBlockIndex: Int,
     override val bounds: LogicalBounds,
     val lines: SnapshotList<LogicalTextLine>,
+    val kind: LogicalTextKind = LogicalTextKind.TEXT,
 ) : LogicalBlock {
     init { require(sourceBlockIndex >= 0) }
 }
@@ -130,3 +133,52 @@ sealed interface LayoutResult {
         init { require(diagnostics.isNotEmpty()) }
     }
 }
+
+/** Structured logical values retain finalized geometry; consumers never infer indentation. */
+enum class LogicalListKind { UNORDERED, ORDERED, CHECKLIST }
+data class LogicalListBlock(
+    override val sourceBlockIndex: Int,
+    override val bounds: LogicalBounds,
+    val kind: LogicalListKind,
+    val markerColumnWidthMm: Double,
+    val contentOriginMm: Double,
+    val items: SnapshotList<LogicalListItem>,
+) : LogicalBlock
+
+data class LogicalListItem(
+    val bounds: LogicalBounds,
+    val marker: LogicalListMarker,
+    val contentOriginMm: Double,
+    val blocks: SnapshotList<LogicalBlock>,
+)
+sealed interface LogicalListMarker { val bounds: LogicalBounds }
+data class LogicalUnorderedMarker(override val bounds: LogicalBounds) : LogicalListMarker
+
+data class LogicalOrderedMarker(val number: Long, val run: LogicalTextRun, val baselineMm: Double) : LogicalListMarker {
+    override val bounds: LogicalBounds get() = run.bounds
+}
+data class LogicalPoint(val xMm: Double, val yMm: Double) {
+    init { require(xMm.isFinite() && yMm.isFinite() && xMm >= 0.0 && yMm >= 0.0) }
+}
+/** Square outline is inset by half the stroke. Check segments use butt caps and bevel joins. */
+data class LogicalChecklistMarker(
+    override val bounds: LogicalBounds,
+    val checked: Boolean,
+    val strokeWidthMm: Double,
+    val outlineCenterlineBounds: LogicalBounds,
+    val checkPoints: SnapshotList<LogicalPoint>,
+) : LogicalListMarker
+
+data class LogicalQuoteBlock(
+    override val sourceBlockIndex: Int,
+    override val bounds: LogicalBounds,
+    val contentOriginMm: Double,
+    val blocks: SnapshotList<LogicalBlock>,
+) : LogicalBlock
+
+data class LogicalSeparator(
+    override val sourceBlockIndex: Int,
+    override val bounds: LogicalBounds,
+    val beforeSpacingMm: Double,
+    val afterSpacingMm: Double,
+) : LogicalBlock

@@ -3272,3 +3272,59 @@ Inline traversal remains iterative, with maximum depth 64 (root inline nodes at 
 Entire-tree preflight rejects depth/node/text violations before measurement. Coordinate
 range and quantized forward-progress failures remain `LAY122`. No persistent-format,
 platform or printer contract changes accompany this operational resource tightening.
+
+
+## Phase 3C1 Operational Structured-Flow Budgets
+
+Phase 3C1 retains the Phase 3B 100,000 cumulative cost-item ceiling and all
+aggregate text, block, inline, inline-depth, width and backend bounds.
+`LayoutResourcePolicy.maxBlockDepth` has default/maximum 64. Top-level blocks
+have depth one; contained blocks add one. List-item wrappers count as resource
+work but do not add block depth. Preflight independently counts nested blocks,
+all items including empty checklist items, inline nodes and code/text code
+units before any service measurement. Empty ordinary item/quote arrays fail
+with LAY105; numbered marker overflow is checked before allocating strings.
+
+Traversal retains bounded iterator frames rather than recursive calls or
+sibling-wide flattened work queues. No document-wide flattened copy exists.
+Code line boundaries are scanned incrementally without `split` collections or
+intermediate line substrings. Existing paragraph/heading cost boundaries do
+not change when no new structured content or tabs are present.
+
+Additional cumulative costs are reserved for:
+
+- two items per list/quote container: finalized container and iterator frame;
+- three items per list item: finalized item, marker, and its child iterator;
+- three additional point items for a checked checklist stroke;
+- each measured ordered-marker slot, before marker string/service allocation;
+- each ordered marker/SPACE measurement span and returned cluster, using the
+  existing span/cluster cost families before retaining the returned result;
+- each tab span and cluster/atom before construction, plus any measured SPACE
+  metric span/clusters; selected line slices remain covered by cluster/run costs;
+- each code explicit boundary atom before retention, followed by ordinary
+  line/run costs; each separator before construction.
+
+Marker slots cover their final run/bounds/string/measurement copies. Each
+container/item cost covers its bounded child builder/snapshot backing copies.
+Tab-column caches are scoped to a text block, with entries covered by their
+reserved tab/metric families. Returned backend measurements are still subject
+to the backend's independent allocation bounds. Large maximum marker columns
+are measured under budget rather than inferred from numeral length or endpoint
+width; a proportional backend cannot assume all same-length numbers have equal
+width. Empty containers create no marker column or child frame amplification.
+
+LAY101 is coalesced per actual affected text block, including nested children;
+multiple affected children of one top-level semantic block may therefore share
+its sourceBlockIndex. Every retained diagnostic is charged, including bounded copies of backend
+failure diagnostics. All backend diagnostics are preserved when they fit;
+otherwise the conversion fails through LAY120 before allocating its copy.
+LAY120 aborts the
+whole operation before further amplification and returns no partial document.
+
+The existing dedicated 128 MiB `:core:layout:resourceHeapProbe` additionally
+checks 40,000 empty checklist items, 65,536 tabs in code, 65,536 explicit code
+boundaries, one-cluster-per-line code, and 30,000 measured ordered markers.
+Each must fail through LAY120 rather than heap or stack exhaustion. Common
+exact/one-over tests independently pin depth, empty checklist, checked marker,
+code-boundary and narrow-list diagnostic budgets. These remain conservative
+operational controls, not a universal heap-occupancy guarantee.

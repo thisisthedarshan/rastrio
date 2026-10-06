@@ -3099,3 +3099,21 @@ Shared Compose UI renders this Core output.
 It does not reconstruct printer layout.
 
 These requirements are mandatory because Rastrio's physical preview is not merely illustrative UI: it is the user-visible representation of the same immutable physical plan that Rastrio sends to the printer.
+
+## Phase 3C1 Logical Structured-Text Consumer Contract
+
+Logical preview consumers use the finalized absolute geometry and snapshots in
+LogicalListBlock/LogicalListItem, marker values, LogicalQuoteBlock,
+LogicalTextBlock.kind=CODE, and LogicalSeparator. Ordered markers share the
+container's common measured column and are already positioned within it;
+preview MUST NOT derive marker width, indentation, hanging indents, wrapping,
+checklist stroke points or separator dimensions from semantic document text.
+Checklist outline centerlines/stroke widths and check points are explicit;
+check strokes use the specified butt caps and bevel joins. Unordered markers
+are the supplied solid square bounds, independent of glyph/font availability.
+
+Logical run measurements include finalized position-dependent tab advances.
+Preview MUST NOT pass tabs through a platform's default tab expansion. It may
+apply the normal logical-to-screen coordinate transform to supplied geometry.
+This is a logical consumer contract only; Phase 3C1 implements no preview UI,
+physical rendering or printer preparation.

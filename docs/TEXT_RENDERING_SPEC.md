@@ -3020,3 +3020,96 @@ Existing schema (`LAY102`), inconsistent measurement (`LAY103`), coordinate/prog
 (`LAY122`) and backend (`TXTxxx`) diagnostics remain structured and content-free. Fatal
 failures return no partial logical document. No `.td`/`.tcfg` schema or printer/platform
 contract changes are introduced.
+
+
+## Phase 3C1 Structured Text and Tabs
+
+This section extends the committed Phase 3A/3B operational subset above.
+Those earlier subsets describe their implementation milestones; their tab and
+structured-block exclusions no longer apply to the Phase 3C1 layout engine.
+The low-level ASCII text measurer still rejects tabs and line controls: layout
+owns resolving their geometry, using portable metric inputs from core-text.
+
+### Authoritative tab and code flow
+
+`core-layout` selects the next strictly greater four-column stop from the
+current line advance relative to its content origin. Stop arithmetic is on
+`LogicalGeometry`'s normalized integer grid. Code uses resolved fixed-cell
+advance when supplied; proportional text uses a measured U+0020 SPACE advance
+under the resolved span typography. Stops do not reset at style/run boundaries.
+When wrapping moves a tab, resolve it again from the new line's content origin.
+Zero-progress or out-of-range tab metrics fail with a structured diagnostic.
+
+Semantic tabs remain `\t` in finalized logical run text. Final run measurements
+include the actual selected tab advances. Consumers MUST use this geometry,
+not expand tabs through host text defaults. Tabs are break opportunities after
+their advance; no whitespace is discarded.
+
+Code uses the same cluster-safe flow as paragraphs/headings, with code
+typography, no syntax highlighting and no horizontal scrolling. CRLF is one
+explicit boundary; CR and LF independently delimit explicit lines. Empty code
+text creates one empty logical code line. A trailing boundary preserves its
+final empty line: `""` has one line, `"a\n"` and `"\n"` have two, and
+`"\n\n"` has three. Semantic document text is not rewritten. All remaining
+spaces and tabs are preserved. Before/after code spacing is 0.5 body line
+advance, with zero additional inter-line spacing.
+
+### Centrally versioned structured geometry
+
+`TextLayoutPolicyV1` defines the following output-affecting v1 policies:
+
+- Body em is resolved body ascent plus descent, excluding line gap.
+- Outer list indentation is one body em; each nested list uses two body em
+  from its enclosing item content origin. Quotes retain list nesting context.
+- Marker/content gap is one measured body SPACE advance.
+- Ordered markers are decimal non-negative `start + itemIndex`, followed by
+  a period, measured under resolved list-marker typography. One common column
+  per list reserves the maximum measured marker width. Each marker is
+  right-aligned within it. Continuations and later child blocks share the
+  common content origin, including across digit-width changes. Checked Long
+  arithmetic rejects numbering overflow before measurement.
+- Unordered markers are font-independent filled squares of side 0.25 body em.
+- Checklist markers are outlined squares of side one body em, with stroke
+  width 0.08 em. Outline centerlines are inset by half their stroke width.
+  Checked markers additionally contain explicit points at square-local
+  fractions (0.2, 0.5), (0.4, 0.7), (0.8, 0.25), with butt caps and bevel joins.
+  No font glyph is queried for either checklist state.
+- Graphic markers are vertically centered in a body line box at item flow
+  start, even if the first child is another container. Item height contains
+  both marker extent and complete child flow. Ordered markers carry their
+  resolved baseline and line height; those extents participate in item height.
+- Adjacent items add zero extra spacing. Child paragraph/code spacing remains
+  explicit; list containers add no additional gap.
+- Quotes preserve nested semantics and indent content by one body em per
+  level. They add no decorative rule or container spacing.
+- Separators are semantic solid rules spanning the current content width.
+  Thickness is 0.05 body em; before/after spacing is 0.5 body line advance.
+
+Every dimension is normalized through LogicalGeometry. Indentation/markers
+that exhaust content width fail with LAY107. Positive remaining width that
+cannot fit an indivisible cluster retains it and reports LAY101 as before.
+No negative, artificial minimum or clamped content width is invented.
+
+### Logical output and runtime validity
+
+LogicalTextBlock.kind distinguishes CODE from ordinary TEXT without changing
+existing paragraph/heading geometry. LogicalListBlock and LogicalListItem
+retain common marker/content geometry and finalized child blocks.
+LogicalUnorderedMarker, LogicalOrderedMarker and LogicalChecklistMarker carry
+explicit marker geometry/semantics. LogicalQuoteBlock retains quote nesting and
+child origins; LogicalSeparator retains rule bounds and spacing. All nested
+coordinates are absolute millimetres; all child collections are snapshots.
+There is no rasterization, printer strategy, protocol or platform state here.
+
+Ordinary ListItem.blocks and Quote.blocks must remain non-empty. Runtime
+layout permits empty checklist items and reserves their semantic marker/body
+line extent. TD_SPEC Section 44 does not explicitly prohibit empty checklist
+items, although the existing `.td` validator rejects them. This discrepancy
+is recorded for deliberate format-contract reconciliation; Phase 3C1 does not
+modify the validator or persisted format. Empty list containers are permitted.
+
+New diagnostics: LAY105 rejects empty ordinary items/quotes; LAY106 rejects
+negative or overflowing ordered numbering; LAY107 rejects exhausted content
+width. Existing LAY100 still rejects excluded block types, LAY120 covers all
+runtime resource bounds, and LAY122 covers coordinate/zero-progress failures.
+Diagnostics contain no printable content. Failures return no partial document.

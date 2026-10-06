@@ -20,7 +20,7 @@ plugins {
 val jvmTestCompilation = kotlin.targets.getByName("jvm").compilations.getByName("test")
 tasks.register<JavaExec>("resourceHeapProbe") {
     group = "verification"
-    description = "Checks Phase 3B resource amplification in a dedicated 128 MiB JVM."
+    description = "Checks text and structured layout resource amplification in a dedicated 128 MiB JVM."
     dependsOn("jvmTestClasses")
     classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
     mainClass.set("com.circuitnext.rastrio.core.layout.LayoutResourceHeapProbe")

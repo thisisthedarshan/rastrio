@@ -143,7 +143,7 @@ class ParagraphFlowTest {
         val constraints = input.copy(canvasWidth = Length(2.0), resources = input.resources.copy(maxItems = 10))
         val result = engine.layout(ThermalDocument(blocks = listOf(p("ABCDE"))), constraints)
         assertEquals("LAY120", assertIs<LayoutResult.Failure>(result).diagnostics.single().code)
-        assertEquals("LAY100", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("A"), Separator)), input)).diagnostics.single().code)
+        assertEquals("LAY100", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("A"), QrCode("data", Alignment.LEFT, QrErrorCorrection.AUTO))), input)).diagnostics.single().code)
         assertEquals("TXT100", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("é"))), input)).diagnostics.single().code)
     }
 
@@ -211,7 +211,7 @@ class ParagraphFlowTest {
             Paragraph(Alignment.LEFT, listOf(InlineCode("ABC"))))), limited)).diagnostics.single().code)
         for (level in listOf(0, 7)) assertEquals("LAY104", assertIs<LayoutResult.Failure>(engine.layout(
             ThermalDocument(blocks = listOf(Heading(level, Alignment.LEFT, listOf(Text("A"))))), input)).diagnostics.single().code)
-        for (text in listOf("a\tb", "a\nb", "e\u0301", "\u001b")) {
+        for (text in listOf("a\nb", "e\u0301", "\u001b")) {
             val diagnostic = assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p(text))), input)).diagnostics.single()
             assertEquals("TXT100", diagnostic.code)
             assertFalse(diagnostic.message.contains(text))
