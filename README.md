@@ -288,6 +288,19 @@ A few rules are especially important:
 - printer-specific behavior should be data-driven rather than hard-coded into generic Core.
 - shared screens stay shared unless a concrete platform limitation requires otherwise.
 
+### Optional Git hooks
+
+Rastrio provides repository-managed Git hooks under `.githooks/`.
+
+They are optional and are not enabled automatically after cloning. To enable
+them for your local checkout:
+
+```bash
+  git config core.hooksPath .githooks
+```
+
+> On Windows, run these commands from Git Bash provided by Git for Windows
+
 ## Reference hardware
 
 The initial reference printer is the **Helett H50i BillQuick Go**. It is a development/reference device, not a hard-coded architectural target.

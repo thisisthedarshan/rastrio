@@ -15,3 +15,7 @@ gradlew text eol=lf
 *.webp binary
 *.jar binary
 graphify-out/graph.json merge=graphify
+
+# Shell scripts and Git hooks must use Unix line endings.
+*.sh text eol=lf
+.githooks/* text eol=lf

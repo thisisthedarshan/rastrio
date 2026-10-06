@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+    BOLD='\033[1m'
+    CYAN='\033[36m'
+    GREEN='\033[32m'
+    RED='\033[31m'
+    RESET='\033[0m'
+else
+    BOLD=''
+    CYAN=''
+    GREEN=''
+    RED=''
+    RESET=''
+fi
+
+echo -e "${BOLD}${CYAN}▶ Pre-commit: checking staged changes...${RESET}"
+
+if git diff --cached --check; then
+    echo -e "${BOLD}${GREEN}✓ Pre-commit checks passed.${RESET}"
+else
+    echo -e "${BOLD}${RED}✗ Pre-commit checks failed.${RESET}" >&2
+    exit 1
+fi
