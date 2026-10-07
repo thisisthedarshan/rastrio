@@ -77,6 +77,20 @@ class AuthoringUiTest {
         onAllNodesWithText("Warning · Markdown · MD101", substring = true).assertCountEquals(0)
     }
 
+    @Test fun homeRoundTripRetainsSourceResultAndDiagnostics() = runComposeUiTest {
+        setContent { RastrioApp() }
+        onNodeWithText("Open Markdown").performClick()
+        onNodeWithTag("markdown-source").performTextInput("<b>retained</b>")
+        onNodeWithText("Compile").performClick()
+        onNodeWithText("Back to Home").performClick()
+        onNodeWithText("Open Markdown").performClick()
+        onNodeWithTag("markdown-source").assertTextContains("<b>retained</b>")
+        onNodeWithText("Open logical preview").assertIsEnabled()
+        onNodeWithText("Warning · Markdown · MD101 · normalized UTF-16 range 0–3").assertExists()
+        onNodeWithText("Open logical preview").performClick()
+        onNodeWithText("<b>retained</b>").assertExists()
+    }
+
     @Test fun unsupportedTextShowsLayoutErrorAndDisablesPreview() = runComposeUiTest {
         setContent { RastrioApp() }
         onNodeWithText("Open Markdown").performClick()
@@ -120,7 +134,11 @@ class AuthoringUiTest {
         onNodeWithText("Line 1").assertExists()
         onNodeWithText("Line 2000").assertDoesNotExist()
         // A tall document retains geometry references; it is never one composed receipt bitmap.
-        assertTrue(PreviewBands(ready.preview).count > 100)
+        val bands = PreviewBands(ready.preview).count
+        assertTrue(bands > 100)
+        onNode(hasScrollToIndexAction()).performScrollToIndex(bands - 1)
+        onNodeWithText("Line 2000").assertIsDisplayed()
+        onNodeWithText("Line 1").assertDoesNotExist()
     }
 
     @Test fun compilationFailureIsPersistentAndDistinctFromLayoutFailure() = runComposeUiTest {
