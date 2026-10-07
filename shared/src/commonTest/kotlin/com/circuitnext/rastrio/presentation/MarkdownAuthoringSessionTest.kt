@@ -114,7 +114,7 @@ class MarkdownAuthoringSessionTest {
 
     @Test fun invalidSourceAndSourceBudgetFailuresDoNotInvokeLayout() {
         val engine = engine { _, _ -> error("Rejected Markdown must not reach layout") }
-        for ((source, policy, code) in listOf(Triple("\uD800", MarkdownResourcePolicy(), "MD100"),
+        for ((source, policy, code) in listOf(Triple(0xD800.toChar().toString(), MarkdownResourcePolicy(), "MD100"),
             Triple("ABC", MarkdownResourcePolicy(maxSourceBytes = 2), "MD120"))) {
             val session = session(engine = engine, policy = policy)
             val failure = assertIs<MarkdownAuthoringResult.CompilationFailed>(compile(session, source))
@@ -233,7 +233,7 @@ class MarkdownAuthoringSessionTest {
         val session = session()
         compile(session, "A")
         val first = ready(session)
-        assertIs<MarkdownAuthoringResult.CompilationFailed>(compile(session, "\uD800"))
+        assertIs<MarkdownAuthoringResult.CompilationFailed>(compile(session, 0xD800.toChar().toString()))
         assertIs<MarkdownAuthoringResult.LayoutFailed>(compile(session, "é"))
         val recovered = assertIs<MarkdownAuthoringResult.Ready>(compile(session, "B"))
         assertEquals(listOf("B"), text(recovered))
