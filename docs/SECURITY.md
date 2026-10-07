@@ -1,8 +1,8 @@
-# Rastrio Security Specification and Threat Model
+# RastrIO Security Specification and Threat Model
 
 **Status:** Normative engineering specification  
 **Specification revision:** 1.1  
-**Applies to:** Rastrio repository  
+**Applies to:** RastrIO repository
 **Primary target:** Android  
 **Secondary targets:** Desktop/JVM and Web/Wasm where applicable  
 **Governing baseline:** `PRD.md` v2.1 and `docs/ARCHITECTURE.md`  
@@ -12,9 +12,9 @@
 
 ## 1. Purpose
 
-This document defines Rastrio's application-security architecture, trust model, threat model, mandatory controls, privacy rules, network policy, platform security boundaries, supply-chain policy, and security-testing requirements.
+This document defines RastrIO's application-security architecture, trust model, threat model, mandatory controls, privacy rules, network policy, platform security boundaries, supply-chain policy, and security-testing requirements.
 
-It is intentionally specific to Rastrio's architecture and data flows. It is not a generic secure-coding checklist.
+It is intentionally specific to RastrIO's architecture and data flows. It is not a generic secure-coding checklist.
 
 The guiding rules are:
 
@@ -41,7 +41,7 @@ A security-sensitive feature is not complete until its relevant validation, fail
 
 ## 3. Security Goals
 
-Rastrio MUST protect the following security properties.
+RastrIO MUST protect the following security properties.
 
 ### 3.1 Local integrity
 
@@ -73,13 +73,13 @@ Inputs exceeding policy MUST fail with a structured diagnostic rather than relyi
 
 ### 3.3 Privacy
 
-Rastrio is offline-first. Printable content MUST remain local unless the user explicitly invokes a feature that requires external access or sharing.
+RastrIO is offline-first. Printable content MUST remain local unless the user explicitly invokes a feature that requires external access or sharing.
 
 Normal logging MUST NOT contain printable content, credentials, authentication tokens, private asset bodies, or unnecessary physical-device identifiers.
 
 ### 3.4 Predictable physical side effects
 
-Printing is a physical side effect. Rastrio MUST avoid silently causing duplicate output, unintended cutter operations, or profile-controlled arbitrary printer commands.
+Printing is a physical side effect. RastrIO MUST avoid silently causing duplicate output, unintended cutter operations, or profile-controlled arbitrary printer commands.
 
 The application MUST distinguish:
 
@@ -96,7 +96,7 @@ Unknown future versions MUST NOT be silently interpreted as current versions.
 
 ## 4. Security Non-Goals and Assumptions
 
-Rastrio cannot provide guarantees outside the trust boundaries it controls.
+RastrIO cannot provide guarantees outside the trust boundaries it controls.
 
 The following are not assumed to be trustworthy:
 
@@ -110,9 +110,9 @@ The following are not assumed to be trustworthy:
 - image metadata;
 - printer status responses.
 
-Rastrio does not claim to provide cryptographic attestation of inexpensive ESC/POS printers. A paired or selected device may still be mislabeled, cloned, replaced, or running malicious or defective firmware.
+RastrIO does not claim to provide cryptographic attestation of inexpensive ESC/POS printers. A paired or selected device may still be mislabeled, cloned, replaced, or running malicious or defective firmware.
 
-Rastrio also cannot guarantee secure deletion from flash storage or operating-system caches after content has been decoded or printed. The application SHOULD minimize sensitive temporary data and clean it up promptly, but MUST NOT claim forensic erasure.
+RastrIO also cannot guarantee secure deletion from flash storage or operating-system caches after content has been decoded or printed. The application SHOULD minimize sensitive temporary data and clean it up promptly, but MUST NOT claim forensic erasure.
 
 Compromise of the host operating system, a rooted device with hostile privileged software, a malicious JVM/runtime, or a malicious build toolchain is outside this application's primary threat model. Supply-chain controls in this document reduce but do not eliminate those risks.
 
@@ -142,13 +142,13 @@ The following inputs MUST be treated as untrusted regardless of where they origi
 - printer status or response bytes where status-query features exist;
 - persisted data created by older application versions until migration and validation complete.
 
-"Created by Rastrio" is not sufficient reason to skip validation when data crosses a persistent or import boundary. Files may have been modified after creation, produced by an older buggy version, or copied from another device.
+"Created by RastrIO" is not sufficient reason to skip validation when data crosses a persistent or import boundary. Files may have been modified after creation, produced by an older buggy version, or copied from another device.
 
 ---
 
 ## 6. Assets to Protect
 
-Rastrio's security design protects:
+RastrIO's security design protects:
 
 - printable document content;
 - Markdown source;
@@ -171,7 +171,7 @@ Rastrio's security design protects:
 
 ## 7. Major Trust Boundaries
 
-Rastrio has the following security-relevant boundaries.
+RastrIO has the following security-relevant boundaries.
 
 ### 7.1 File/import boundary
 
@@ -328,7 +328,7 @@ Printable content MUST NOT be logged by default.
 
 ### SEC-INV-07 — Ambiguous physical output is not idempotent
 
-If bytes may have reached the printer, Rastrio MUST NOT automatically retry the job.
+If bytes may have reached the printer, RastrIO MUST NOT automatically retry the job.
 
 ### SEC-INV-08 — Preview does not create a second execution path
 
@@ -344,7 +344,7 @@ Markdown, document text, filenames, QR payloads, profile labels, device names, d
 
 ### SEC-INV-11 — Parser libraries do not define portable-format validity
 
-`.td` and `.tcfg` validation MUST enforce Rastrio's strict JSON rules even when the selected parser is more permissive.
+`.td` and `.tcfg` validation MUST enforce RastrIO's strict JSON rules even when the selected parser is more permissive.
 
 Duplicate keys, unknown v1 properties, prohibited lenient syntax, invalid numerics, and unsupported discriminators/identifiers MUST be detected before parser behavior can erase or normalize the evidence.
 
@@ -379,7 +379,7 @@ A future protocol family requires an explicit schema/specification extension and
 | ZIP bomb | tiny compressed archive expands massively | memory/disk/CPU exhaustion | bounded compressed and expanded sizes; streaming limits; stop on violation |
 | Excessive archive entries | huge number of tiny ZIP entries | CPU/memory exhaustion | bounded entry count |
 | Oversized JSON | giant `document.json` or `.tcfg` | memory/CPU exhaustion | byte limit before parse; bounded depth/structure; fail closed |
-| Lenient JSON ambiguity | duplicate keys, comments, trailing commas, ignored unknown fields | validation bypass / parser disagreement | Rastrio-defined strict prevalidation/token inspection before lossy decode |
+| Lenient JSON ambiguity | duplicate keys, comments, trailing commas, ignored unknown fields | validation bypass / parser disagreement | RastrIO-defined strict prevalidation/token inspection before lossy decode |
 | Malformed serialization | invalid discriminators, types, references | crashes or inconsistent models | strict decoding plus semantic validation |
 | Image decompression bomb | small image declares enormous dimensions | OOM/CPU exhaustion | pixel and decode-memory limits; checked arithmetic; bounded decode |
 | Malicious font | crafted font causes parser recursion/allocation/native crash | availability / possible native-memory risk | bounded input/work; reviewed HarfBuzz/FreeType boundary; fuzz/regression testing; explicit import only |
@@ -408,7 +408,7 @@ All untrusted-input pipelines MUST follow these principles.
 
 ### 10.1 Bound before expensive work
 
-Where practical, Rastrio MUST check inexpensive metadata and byte-count limits before:
+Where practical, RastrIO MUST check inexpensive metadata and byte-count limits before:
 
 - allocating large buffers;
 - decompressing;
@@ -441,7 +441,7 @@ An overflow or impossible dimension MUST produce a structured failure.
 
 ### 10.3 Fail closed
 
-When security validation is ambiguous, Rastrio MUST reject the affected import or operation rather than guessing a permissive interpretation.
+When security validation is ambiguous, RastrIO MUST reject the affected import or operation rather than guessing a permissive interpretation.
 
 Security failures MUST NOT silently downgrade to an unsafe code path.
 
@@ -453,7 +453,7 @@ For `.td` and `.tcfg`, strict JSON conformance MUST be established before a loss
 
 A parser configuration that ignores unknown fields or collapses duplicate keys is not sufficient by itself.
 
-Where necessary, Rastrio MUST use bounded lexical pre-validation, token inspection, parser wrapping, or equivalent checks before schema/model decode.
+Where necessary, RastrIO MUST use bounded lexical pre-validation, token inspection, parser wrapping, or equivalent checks before schema/model decode.
 
 After syntactic conformance, the result MUST still pass format-specific semantic validation before it becomes a trusted Core model.
 
@@ -655,7 +655,7 @@ Invalid profiles MUST NOT become partially active.
 
 ### 13.3 Protocol-strategy allowlist
 
-Profiles MAY select only protocol-family and strategy identifiers implemented and recognized by Rastrio.
+Profiles MAY select only protocol-family and strategy identifiers implemented and recognized by RastrIO.
 
 For schema v1, `protocol.family` MUST be `escpos`.
 
@@ -701,7 +701,7 @@ User overrides MUST pass the same safety rules as base profile data. Overrides M
 
 ## 14. Protocol Command-Injection Controls
 
-Rastrio's printer output streams contain control bytes by design. Therefore the boundary between **document data** and **printer commands** must be explicit.
+RastrIO's printer output streams contain control bytes by design. Therefore the boundary between **document data** and **printer commands** must be explicit.
 
 The concrete v1 encoder is ESC/POS, but the security rules in this section apply to any future trusted protocol encoder.
 
@@ -919,7 +919,7 @@ Large images MUST be resized, rejected, tiled, or otherwise processed within res
 
 QR payloads are arbitrary user data.
 
-Rastrio MUST treat QR payloads as opaque content except for validations explicitly required by the QR implementation.
+RastrIO MUST treat QR payloads as opaque content except for validations explicitly required by the QR implementation.
 
 A QR payload MUST NOT:
 
@@ -938,13 +938,13 @@ If a QR payload cannot be represented under the selected native QR strategy, pre
 
 ## 19A. Font Security
 
-Rastrio's default bundled fonts are reviewed repository/build inputs.
+RastrIO's default bundled fonts are reviewed repository/build inputs.
 
 Explicit user-selected/imported font files are untrusted binary input.
 
 ### 19A.1 Bounded acquisition and parsing
 
-Before invoking FreeType/HarfBuzz or another approved font backend, Rastrio MUST enforce applicable input/resource limits from `docs/RESOURCE_LIMITS.md`.
+Before invoking FreeType/HarfBuzz or another approved font backend, RastrIO MUST enforce applicable input/resource limits from `docs/RESOURCE_LIMITS.md`.
 
 Font parsing/shaping MUST remain bounded with respect to:
 
@@ -965,7 +965,7 @@ Malformed-font failures from native libraries MUST be converted into controlled 
 
 The default deterministic fallback chain MUST use project-controlled bundled font resources.
 
-Rastrio MUST NOT scan or silently select arbitrary platform fonts merely because a glyph is missing.
+RastrIO MUST NOT scan or silently select arbitrary platform fonts merely because a glyph is missing.
 
 Platform-installed fonts are allowed only through explicit product/user choice as defined by `TEXT_RENDERING_SPEC.md`.
 
@@ -987,7 +987,7 @@ If a selected font changes between measurement and rasterization in a way that c
 
 ## 20. Resource-Exhaustion and Denial-of-Service Controls
 
-Rastrio accepts potentially very long documents. Long-document support does not mean unbounded-resource support.
+RastrIO accepts potentially very long documents. Long-document support does not mean unbounded-resource support.
 
 ### 20.1 Central limits
 
@@ -1107,7 +1107,7 @@ Exact field names may differ.
 
 ### 22.2 No unsafe automatic retry
 
-If `outputMayHaveOccurred` is true or cannot be ruled out, Rastrio MUST NOT automatically retry the job.
+If `outputMayHaveOccurred` is true or cannot be ruled out, RastrIO MUST NOT automatically retry the job.
 
 The UI MAY offer a user-controlled retry only after communicating that duplicate or partial output is possible.
 
@@ -1119,7 +1119,7 @@ A dropped Bluetooth/USB connection followed by successful reconnection MUST NOT 
 
 `COMPLETED` means the intended bytes were transmitted according to the transport contract.
 
-Rastrio MUST NOT claim physical paper output succeeded unless a supported printer protocol provides reliable confirmation.
+RastrIO MUST NOT claim physical paper output succeeded unless a supported printer protocol provides reliable confirmation.
 
 ---
 
@@ -1245,7 +1245,7 @@ If a path must be shown to the user, it SHOULD appear in local UI diagnostics ra
 
 ### 25.4 Bug-report export
 
-If Rastrio provides a diagnostic export:
+If RastrIO provides a diagnostic export:
 
 - the export MUST be explicit;
 - content fields MUST remain redacted by default;
@@ -1257,7 +1257,7 @@ If Rastrio provides a diagnostic export:
 
 ## 26. Diagnostics and Error Handling
 
-Security errors SHOULD use structured diagnostics consistent with Rastrio's diagnostic model.
+Security errors SHOULD use structured diagnostics consistent with RastrIO's diagnostic model.
 
 Examples of security-relevant diagnostic categories include:
 
@@ -1297,7 +1297,7 @@ Cancellation paths MUST be tested for:
 - protocol encoding/streaming;
 - transport writes.
 
-On cancellation, Rastrio MUST:
+On cancellation, RastrIO MUST:
 
 - stop scheduling further work;
 - close streams and device handles;
@@ -1317,7 +1317,7 @@ Cancellation MUST NOT be reported as "nothing printed" if bytes may already have
 
 Bluetooth names, advertised metadata, USB product strings, VID/PID values, and similar descriptors can be incorrect or spoofed.
 
-Rastrio MUST treat them as discovery/selection metadata, not cryptographic identity.
+RastrIO MUST treat them as discovery/selection metadata, not cryptographic identity.
 
 ### 28.2 User-selected `PrinterInstance`
 
@@ -1417,7 +1417,7 @@ Where browser APIs are used:
 - hardware access MUST use explicit browser capability/permission flows;
 - feature detection is required;
 - external assets MUST still use explicit resolver policy;
-- browser-origin/network restrictions do not replace Rastrio's own resource limits;
+- browser-origin/network restrictions do not replace RastrIO's own resource limits;
 - imported files MUST be validated exactly as on other platforms;
 - unavailable WebUSB/WebSerial support MUST fail as an unsupported capability, not cause a Core fork.
 
@@ -1427,7 +1427,7 @@ Raw HTML from Markdown MUST NOT be injected into an execution-capable DOM path.
 
 ## 32. Dependency and Supply-Chain Policy
 
-Rastrio is Apache-2.0 licensed, FOSS-oriented, and intended to be F-Droid compatible.
+RastrIO is Apache-2.0 licensed, FOSS-oriented, and intended to be F-Droid compatible.
 
 ### 32.1 Dependency review
 
@@ -1688,9 +1688,9 @@ High-value fuzz targets include:
 11. imported font boundary/parser integration where practical;
 12. status-response parsers when printer queries are implemented.
 
-For image formats primarily decoded by platform libraries, Rastrio SHOULD fuzz or property-test its boundary logic—dimension checks, size accounting, metadata interpretation, and decoder result validation—even when the underlying codec itself is outside the project.
+For image formats primarily decoded by platform libraries, RastrIO SHOULD fuzz or property-test its boundary logic—dimension checks, size accounting, metadata interpretation, and decoder result validation—even when the underlying codec itself is outside the project.
 
-For FreeType/HarfBuzz or equivalent native font backends, Rastrio SHOULD reuse upstream fuzz-tested stable releases and additionally fuzz/property-test its own resource/accounting/adapter boundary where practical.
+For FreeType/HarfBuzz or equivalent native font backends, RastrIO SHOULD reuse upstream fuzz-tested stable releases and additionally fuzz/property-test its own resource/accounting/adapter boundary where practical.
 
 Fuzz targets MUST use bounded execution and MUST treat crashes, hangs, stack overflows, unbounded growth, and invariant violations as failures.
 
@@ -1946,7 +1946,7 @@ It MUST NOT be introduced as an undocumented profile field, normal import option
 
 ### 43.4 Printer attestation
 
-Rastrio v1 has no cross-printer cryptographic attestation mechanism.
+RastrIO v1 has no cross-printer cryptographic attestation mechanism.
 
 Bluetooth/USB names, descriptors, addresses, VID/PID values, product strings, and similar metadata remain discovery/selection hints rather than proof of firmware or device identity.
 
@@ -1970,7 +1970,7 @@ This is a measurement/hardening task governed by `RESOURCE_LIMITS.md`, not a rea
 
 ## 44. Summary of Mandatory Security Contracts
 
-Rastrio's minimum security contract is:
+RastrIO's minimum security contract is:
 
 ```text
 Untrusted input

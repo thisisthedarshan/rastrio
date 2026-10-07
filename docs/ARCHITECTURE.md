@@ -1,8 +1,8 @@
-# Rastrio Architecture
+# RastrIO Architecture
 
 **Status:** Implementation Architecture  
 **Governing specification:** `PRD.md` v2.1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **License:** Apache-2.0  
 **Primary release target:** Android  
 **Secondary targets:** Desktop/JVM and Web/Wasm  
@@ -12,7 +12,7 @@
 
 ## 1. Purpose
 
-This document defines the technical architecture of Rastrio beneath the product and engineering requirements established by `PRD.md`.
+This document defines the technical architecture of RastrIO beneath the product and engineering requirements established by `PRD.md`.
 
 It is intended for:
 
@@ -46,7 +46,7 @@ Changes affecting any of the following MUST be treated as architecture changes r
 
 ## 2. Architectural Goals
 
-Rastrio is an offline-first Kotlin Multiplatform application and thermal-printing stack.
+RastrIO is an offline-first Kotlin Multiplatform application and thermal-printing stack.
 
 The architecture exists to satisfy several goals simultaneously.
 
@@ -283,7 +283,7 @@ Each transformation owns a different category of decision.
 
 # 5. Architectural Layers of Meaning
 
-Rastrio distinguishes six architectural stages that MUST NOT be collapsed together.
+RastrIO distinguishes six architectural stages that MUST NOT be collapsed together.
 
 ## 5.1 Semantic document representation
 
@@ -712,7 +712,7 @@ The UI MUST NOT mutate or visually patch `PreparedPrint A` to imitate `PreparedP
 
 # 7. LayoutConstraints and Target-Constrained Logical Layout
 
-One subtle but fundamental Rastrio rule is:
+One subtle but fundamental RastrIO rule is:
 
 ```text
 LogicalDocument
@@ -860,7 +860,7 @@ GFM parser
     ↓
 Markdown AST
     ↓
-Rastrio compiler
+RastrIO compiler
     ↓
 ThermalDocument + Diagnostics
 ```
@@ -1682,7 +1682,7 @@ Kotlin Multiplatform supports both `expect`/`actual` declarations and injected s
 
 They serve different architectural purposes.
 
-Rastrio SHOULD prefer explicit interfaces/adapters for operations involving state, policy, I/O, permissions, external resources, or replaceable behavior.
+RastrIO SHOULD prefer explicit interfaces/adapters for operations involving state, policy, I/O, permissions, external resources, or replaceable behavior.
 
 Examples:
 
@@ -2261,7 +2261,7 @@ The platform reports events/results back to shared orchestration.
 
 ### Meaning of completion
 
-`COMPLETED` means Rastrio successfully transmitted the intended bytes according to the transport contract.
+`COMPLETED` means RastrIO successfully transmitted the intended bytes according to the transport contract.
 
 It does not necessarily prove that physical paper output occurred successfully.
 
@@ -2286,7 +2286,7 @@ Exact model fields may differ.
 
 ### Retry invariant
 
-If output may already have partially occurred, Rastrio MUST NOT automatically retry the job.
+If output may already have partially occurred, RastrIO MUST NOT automatically retry the job.
 
 A user-controlled retry MAY be offered after warning that duplicate or partial output is possible.
 
@@ -2793,7 +2793,7 @@ printer strategy selection
 
 # 29. Extension Strategy for Future Printer Protocols
 
-Rastrio's current primary protocol implementation is ESC/POS.
+RastrIO's current primary protocol implementation is ESC/POS.
 
 The architecture MUST support future evolution without prematurely building a generic multi-protocol framework that has no second real consumer.
 
@@ -2878,7 +2878,7 @@ PrinterProfile
             └── future family       // future schema/specification
 ```
 
-The internal fields of a future family MAY differ from ESC/POS dialect/initialization fields. The family-specific schema and encoder remain trusted Rastrio implementation behavior.
+The internal fields of a future family MAY differ from ESC/POS dialect/initialization fields. The family-specific schema and encoder remain trusted RastrIO implementation behavior.
 
 Profiles MUST continue to choose among safe, known strategies.
 
@@ -3629,7 +3629,7 @@ This is no longer an architecture ownership question. It is a controlled impleme
 
 # 41. Final Architecture Summary
 
-Rastrio's architecture can be reduced to the following contracts.
+RastrIO's architecture can be reduced to the following contracts.
 
 ## Document contract
 

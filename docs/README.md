@@ -1,4 +1,4 @@
-# Rastrio Documentation
+# RastrIO Documentation
 
 This directory contains the technical, security, testing, and visual specifications that support the repository-level `PRD.md`.
 
@@ -16,7 +16,7 @@ This directory contains the technical, security, testing, and visual specificati
 | `RESOURCE_LIMITS.md` | Resource, memory, archive, and input limits |
 | `ESC_POS_NOTES.md` | Verified ESC/POS observations and printer quirks |
 | `HARDWARE_TESTS.md` | Permanent manual hardware regression tests |
-| `BRAND_GUIDE.md` | Rastrio brand identity and usage direction |
+| `BRAND_GUIDE.md` | RastrIO brand identity and usage direction |
 | `VISUAL_SYSTEM.md` | Production colors, themes, and iconography |
 
 When documents disagree, resolve the conflict against `PRD.md` rather than silently inventing a new contract.

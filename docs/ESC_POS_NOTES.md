@@ -1,8 +1,8 @@
-# Rastrio ESC/POS Engineering Notes
+# RastrIO ESC/POS Engineering Notes
 
 **Status:** Living engineering notebook  
 **Notebook revision:** 1.1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **Protocol family covered by this notebook:** ESC/POS-compatible thermal printers  
 **Current available reference device:** Helett H50i BillQuick Go  
 **Last baseline review:** 2026-10-02  
@@ -14,7 +14,7 @@
 
 ## 1. Purpose
 
-`docs/ESC_POS_NOTES.md` is Rastrio's living protocol notebook.
+`docs/ESC_POS_NOTES.md` is RastrIO's living protocol notebook.
 
 It exists to capture the engineering evidence needed to implement, test, and maintain ESC/POS-compatible output without turning unverified assumptions into permanent application behavior.
 
@@ -26,7 +26,7 @@ protocol.family = escpos
 
 A future non-ESC/POS printer language requires its own protocol-specific engineering evidence and trusted encoder work. It MUST NOT be documented here as though it were merely another ESC/POS dialect.
 
-This document SHOULD grow as Rastrio gains:
+This document SHOULD grow as RastrIO gains:
 
 - automated byte-level encoder tests;
 - new `PrinterProfile` capabilities and protocol strategies;
@@ -42,7 +42,7 @@ It MUST NOT silently promote an inference into a verified printer capability.
 
 ---
 
-## 2. Relationship to the Rastrio Architecture
+## 2. Relationship to the RastrIO Architecture
 
 For `.tcfg` schema v1, the ESC/POS protocol boundary is:
 
@@ -137,7 +137,7 @@ Every durable observation SHOULD carry an explicit evidence classification.
 | Code | Evidence class | Meaning |
 |---|---|---|
 | `DOC` | Specification/documentation-derived | Supported by a protocol or vendor reference. This proves what the referenced documentation says, not that a particular clone printer implements it correctly. |
-| `BYTE` | Automated byte-level test | Confirmed by deterministic encoder/golden tests. This proves Rastrio emitted the intended bytes, not that hardware accepted them. |
+| `BYTE` | Automated byte-level test | Confirmed by deterministic encoder/golden tests. This proves RastrIO emitted the intended bytes, not that hardware accepted them. |
 | `HW` | Physical hardware test | Confirmed on physical hardware with a recorded test procedure and result. |
 | `INF` | Inferred/unverified | Plausible engineering hypothesis, reverse-engineered expectation, or untested assumption. MUST NOT be used as established capability evidence. |
 | `MODEL` | Printer-specific | Observation applies to an identified printer model, firmware, hardware revision, or profile. Normally combined with `HW`, `DOC`, or both. |
@@ -149,11 +149,11 @@ Multiple evidence codes MAY apply to one observation, for example `DOC + BYTE + 
 Use one of these statuses:
 
 - `TBD` — not yet investigated;
-- `Candidate` — documented or hypothesized but not adopted as a reliable Rastrio behavior;
+- `Candidate` — documented or hypothesized but not adopted as a reliable RastrIO behavior;
 - `Byte Verified` — encoder output covered by automated exact-byte tests;
 - `Hardware Observed` — directly observed on named physical hardware, but not yet captured by the repository's permanent numbered hardware-test procedure and evidence record;
 - `Hardware Verified` — behavior reproduced through a recorded/repeatable physical hardware test with sufficient context;
-- `Adopted` — Rastrio architecture/project rule intentionally accepted as the current engineering baseline; this status is for project-owned rules, not a substitute for hardware evidence;
+- `Adopted` — RastrIO architecture/project rule intentionally accepted as the current engineering baseline; this status is for project-owned rules, not a substitute for hardware evidence;
 - `Rejected` — tested and found unsuitable or incorrect for the stated scope;
 - `Superseded` — retained for history but replaced by a newer observation or strategy.
 
@@ -206,12 +206,12 @@ Sources are evidence inputs, not universal compatibility guarantees.
 
 | Source key | Source | Use in this notebook | Limitation |
 |---|---|---|---|
-| `PRD-2.1` | Rastrio Product Requirements Document v2.1 | Governing architecture, roadmap, test IDs, required protocol capabilities | Does not establish exact command behavior for a particular printer |
+| `PRD-2.1` | RastrIO Product Requirements Document v2.1 | Governing architecture, roadmap, test IDs, required protocol capabilities | Does not establish exact command behavior for a particular printer |
 | `EPSON-CMDREF` | Epson ESC/POS Command Reference for TM Printers, consulted 2026-10-02 | Generic command names, byte forms, parameter semantics, and model-dependent warnings | Epson TM behavior is not proof of third-party clone behavior |
 | `H50I-VENDOR` | Helett H50i vendor protocol/manual material | `TBD — locate and record authoritative material if available` | No authoritative protocol manual is currently recorded here |
-| `H50I-SELFTEST-2026-10-02` | H50i physical self-test/configuration page reported during Rastrio engineering review | Printer-reported model/configuration/capability observations | Self-test output does not prove host-accessible command selectors or every supported capability |
-| `H50I-RAWBT-2026-10-02` | Physical RawBT-based ESC/POS compatibility test reported during Rastrio engineering review | Confirms that the observed H50i accepts ESC/POS-compatible printing through the tested Android/RawBT path | Exact transmitted bytes/individual command families were not captured here; not a substitute for Rastrio byte-level + numbered hardware tests |
-| `RASTRIO-BYTE-TESTS` | Rastrio `core-escpos` golden/byte-level tests | Exact encoder byte behavior | Does not prove physical printer compatibility |
+| `H50I-SELFTEST-2026-10-02` | H50i physical self-test/configuration page reported during RastrIO engineering review | Printer-reported model/configuration/capability observations | Self-test output does not prove host-accessible command selectors or every supported capability |
+| `H50I-RAWBT-2026-10-02` | Physical RawBT-based ESC/POS compatibility test reported during RastrIO engineering review | Confirms that the observed H50i accepts ESC/POS-compatible printing through the tested Android/RawBT path | Exact transmitted bytes/individual command families were not captured here; not a substitute for RastrIO byte-level + numbered hardware tests |
+| `RASTRIO-BYTE-TESTS` | RastrIO `core-escpos` golden/byte-level tests | Exact encoder byte behavior | Does not prove physical printer compatibility |
 | `RASTRIO-HW-TESTS` | `docs/HARDWARE_TESTS.md` | Physical verification and regression history | Must identify device/profile/context |
 
 When a source has a revision, firmware version, document date, or stable document identifier, record it. A generic web page title without a revision is weaker evidence than a versioned technical manual.
@@ -238,13 +238,13 @@ The following entries establish the initial notebook. Generic command entries ar
 | `ESC-OBS-0012` | Native barcode | `1D 6B ...` (`GS k`) family | Epson ESC/POS reference family | `DOC` | Candidate | Symbology and data rules depend on function/dialect. Barcode support is not required merely because parser accepts a barcode operation. |
 | `ESC-OBS-0013` | Cut | `1D 56 ...` (`GS V`) family | Epson ESC/POS reference family | `DOC` | Candidate | Full/partial semantics and supported parameter values are model-dependent. The observed H50i unit has no automatic cutter, so this strategy is not applicable to that profile; see `ESC-OBS-0110`. |
 | `ESC-OBS-0014` | Real-time status | `10 04 n` (`DLE EOT n`) | Epson ESC/POS reference family | `DOC` | Candidate | Requires bidirectional handling and careful sequencing. H50i support: TBD. |
-| `ESC-OBS-0015` | Architecture | Code-page selection occurs before encoding | Rastrio | `PRD-2.1` | Adopted | `core-printer` selects code page; `core-escpos` serializes it. |
-| `ESC-OBS-0016` | Architecture | Raster/native strategy occurs before encoding | Rastrio | `PRD-2.1` | Adopted | Encoder may not re-decide native vs raster. |
-| `ESC-OBS-0017` | Raster streaming | Raster output is banded/spoolable; no giant job-wide byte array | Rastrio | `PRD-2.1` | Adopted | Raster bands/prepared artifacts are physical-preparation concerns; transport chunks are separate. |
-| `ESC-OBS-0018` | Transport | Printer buffering and transport buffering are separate | Rastrio | `PRD-2.1` | Adopted | Effective send policy is safe intersection of printer guidance and transport constraints. |
-| `ESC-OBS-0019` | Retry behavior | No automatic retry after ambiguous partial transmission | Rastrio | `PRD-2.1` | Adopted | Duplicate/partial paper output may already have occurred. |
-| `ESC-OBS-0020` | Protocol family | `.tcfg` schema v1 accepts `protocol.family = escpos`; future families require separate trusted encoders | Rastrio | `PRD-2.1` | Adopted | An unknown family must not fall back to ESC/POS or load profile-supplied code. |
-| `ESC-OBS-0021` | Prepared artifacts | ESC/POS encoding consumes finalized prepared raster/graphic content without regenerating it | Rastrio | `PRD-2.1` | Adopted | Preview and encoder must observe identical finalized content. |
+| `ESC-OBS-0015` | Architecture | Code-page selection occurs before encoding | RastrIO | `PRD-2.1` | Adopted | `core-printer` selects code page; `core-escpos` serializes it. |
+| `ESC-OBS-0016` | Architecture | Raster/native strategy occurs before encoding | RastrIO | `PRD-2.1` | Adopted | Encoder may not re-decide native vs raster. |
+| `ESC-OBS-0017` | Raster streaming | Raster output is banded/spoolable; no giant job-wide byte array | RastrIO | `PRD-2.1` | Adopted | Raster bands/prepared artifacts are physical-preparation concerns; transport chunks are separate. |
+| `ESC-OBS-0018` | Transport | Printer buffering and transport buffering are separate | RastrIO | `PRD-2.1` | Adopted | Effective send policy is safe intersection of printer guidance and transport constraints. |
+| `ESC-OBS-0019` | Retry behavior | No automatic retry after ambiguous partial transmission | RastrIO | `PRD-2.1` | Adopted | Duplicate/partial paper output may already have occurred. |
+| `ESC-OBS-0020` | Protocol family | `.tcfg` schema v1 accepts `protocol.family = escpos`; future families require separate trusted encoders | RastrIO | `PRD-2.1` | Adopted | An unknown family must not fall back to ESC/POS or load profile-supplied code. |
+| `ESC-OBS-0021` | Prepared artifacts | ESC/POS encoding consumes finalized prepared raster/graphic content without regenerating it | RastrIO | `PRD-2.1` | Adopted | Preview and encoder must observe identical finalized content. |
 
 ---
 
@@ -259,11 +259,11 @@ Hex: 1B 40
 ASCII: ESC @
 Semantic intent: initialize printer / reset relevant runtime modes
 Evidence: DOC (`EPSON-CMDREF`)
-Rastrio status: Candidate protocol operation
+RastrIO status: Candidate protocol operation
 H50i: TBD — verify on H50i
 ```
 
-Rastrio SHOULD use initialization only when the selected protocol strategy/profile says it is appropriate.
+RastrIO SHOULD use initialization only when the selected protocol strategy/profile says it is appropriate.
 
 The presence of `Initialize` in an encoded stream MUST NOT be used as a substitute for explicit prepared state. The encoder should still serialize the prepared font, code page, styles, alignment, and other state needed for deterministic output rather than relying on undocumented device defaults.
 
@@ -273,7 +273,7 @@ The presence of `Initialize` in an encoded stream MUST NOT be used as a substitu
 - Does initialization clear buffered-but-unprinted content on H50i?
 - Which state survives initialization?
 - Does initialization alter density, code page, or other persistent/nonvolatile settings?
-- Is an initialization command required at the start of every Rastrio print job, merely recommended, or actively harmful in any workflow?
+- Is an initialization command required at the start of every RastrIO print job, merely recommended, or actively harmful in any workflow?
 
 ### 6.3 Planned test linkage
 
@@ -284,9 +284,9 @@ The presence of `Initialize` in an encoded stream MUST NOT be used as a substitu
 
 ## 7. Native Text
 
-Native text means bytes interpreted by the printer's resident character generator rather than text rasterized by Rastrio.
+Native text means bytes interpreted by the printer's resident character generator rather than text rasterized by RastrIO.
 
-### 7.1 Rastrio ownership rules
+### 7.1 RastrIO ownership rules
 
 Before `core-escpos` receives a native-text operation, `PreparedPrint` must already contain the decisions needed to serialize it, conceptually including:
 
@@ -352,7 +352,7 @@ Status: Candidate
 
 Epson documentation uses values such as Font A and Font B, but accepted values and defaults differ across models.
 
-### 8.2 Rastrio rule
+### 8.2 RastrIO rule
 
 A profile MUST NOT merely say “supports `ESC M`.” It needs enough validated font geometry for `core-text` and `core-printer` to make layout decisions.
 
@@ -400,7 +400,7 @@ bold/underline/scaling interactions
 firmware-to-firmware stability
 ```
 
-Those remain to be verified through controlled Rastrio byte/hardware tests before they become maintained production-profile claims.
+Those remain to be verified through controlled RastrIO byte/hardware tests before they become maintained production-profile claims.
 
 ---
 
@@ -430,7 +430,7 @@ A clone may:
 
 These are hypotheses until tested on a concrete device.
 
-### 9.3 Rastrio requirement
+### 9.3 RastrIO requirement
 
 If bold changes native text geometry for a profile, that fact MUST be represented in the profile/text metrics used during preparation. The encoder must not discover a geometry change after layout.
 
@@ -501,9 +501,9 @@ Status: Candidate
 
 ### 11.2 Important state note
 
-In Epson documentation, `ESC a` has state/position constraints, including line-boundary behavior in standard mode. Rastrio SHOULD therefore serialize alignment as a state transition at a safe operation boundary rather than blindly inserting it in the middle of arbitrary native text bytes.
+In Epson documentation, `ESC a` has state/position constraints, including line-boundary behavior in standard mode. RastrIO SHOULD therefore serialize alignment as a state transition at a safe operation boundary rather than blindly inserting it in the middle of arbitrary native text bytes.
 
-### 11.3 Rastrio geometry rule
+### 11.3 RastrIO geometry rule
 
 Alignment geometry is already resolved in `PreparedPrint`.
 
@@ -553,7 +553,7 @@ Evidence: DOC (`EPSON-CMDREF`)
 Status: Candidate
 ```
 
-### 12.3 Rastrio requirements
+### 12.3 RastrIO requirements
 
 Feed is a physical operation when it affects paper output. Therefore:
 
@@ -565,7 +565,7 @@ Feed is a physical operation when it affects paper output. Therefore:
 ### 12.4 To verify per profile
 
 - default line spacing;
-- supported explicit line-spacing commands if Rastrio adopts them;
+- supported explicit line-spacing commands if RastrIO adopts them;
 - maximum reliable feed count per command;
 - whether repeated `LF` and `ESC d n` are physically equivalent for intended use;
 - feed behavior before cut;
@@ -591,7 +591,7 @@ Evidence: DOC (`EPSON-CMDREF`)
 Status: Candidate
 ```
 
-### 13.2 Rastrio rule
+### 13.2 RastrIO rule
 
 `PreparedPrint` may contain resolved width/height scale for native text. The profile must declare which scales are reliable and what geometry they produce.
 
@@ -629,7 +629,7 @@ Status: Candidate
 
 The numeric value `n` is not globally trustworthy across all ESC/POS-compatible devices.
 
-A `PrinterProfile` MUST carry a validated mapping between Rastrio's code-page capability and the protocol selector used by that printer/dialect.
+A `PrinterProfile` MUST carry a validated mapping between RastrIO's code-page capability and the protocol selector used by that printer/dialect.
 
 Do not encode assumptions such as:
 
@@ -709,9 +709,9 @@ The PRD explicitly expects character-set tests in Printer Lab. Those tests SHOUL
 
 ESC/POS-compatible native text is generally not equivalent to accepting arbitrary Unicode strings.
 
-Rastrio's initial architecture explicitly requires raster fallback for unsupported Unicode, complex scripts, combining characters, emoji policy, and other content that cannot be represented reliably by a validated native strategy.
+RastrIO's initial architecture explicitly requires raster fallback for unsupported Unicode, complex scripts, combining characters, emoji policy, and other content that cannot be represented reliably by a validated native strategy.
 
-### 15.1 Rastrio initial fallback rule
+### 15.1 RastrIO initial fallback rule
 
 If a resolved physical line contains content that cannot be represented reliably as native printer text, the initial implementation may rasterize the complete physical line.
 
@@ -738,7 +738,7 @@ HW-015 Mixed supported/unsupported text
 HW-016 Complex-script sample
 ```
 
-These tests validate Rastrio's fallback path even if the H50i has no useful native Unicode support.
+These tests validate RastrIO's fallback path even if the H50i has no useful native Unicode support.
 
 ---
 
@@ -771,9 +771,9 @@ Evidence: `DOC` (`EPSON-CMDREF`) plus architecture mention in `PRD-2.1`.
 
 Status: `Candidate`.
 
-Important: current Epson documentation labels `GS v 0` obsolete. That does **not** mean Rastrio must reject it. Many ESC/POS-compatible devices may implement older command families. It means support MUST be profile/dialect-driven and verified for each target rather than treated as universal.
+Important: current Epson documentation labels `GS v 0` obsolete. That does **not** mean RastrIO must reject it. Many ESC/POS-compatible devices may implement older command families. It means support MUST be profile/dialect-driven and verified for each target rather than treated as universal.
 
-### 16.2 Rastrio raster ownership
+### 16.2 RastrIO raster ownership
 
 `core-raster` and `core-printer` own:
 
@@ -853,7 +853,7 @@ ESC/POS serialization
 transport-safe byte chunks
 ```
 
-Changing a Bluetooth write chunk size MUST NOT cause Rastrio to re-dither or re-layout the document.
+Changing a Bluetooth write chunk size MUST NOT cause RastrIO to re-dither or re-layout the document.
 
 ### 17.3 Profile data to gather
 
@@ -897,7 +897,7 @@ Evidence: DOC (`EPSON-CMDREF`)
 Status: Candidate
 ```
 
-The family contains multiple functions. Rastrio SHOULD implement native QR as a validated protocol strategy, not as arbitrary raw command templates loaded from `.tcfg`.
+The family contains multiple functions. RastrIO SHOULD implement native QR as a validated protocol strategy, not as arbitrary raw command templates loaded from `.tcfg`.
 
 ### 18.2 Preparation ownership
 
@@ -941,7 +941,7 @@ payload-length limits
 binary/non-ASCII payload behavior
 alignment behavior
 buffer sensitivity
-scan reliability for Rastrio-generated commands
+scan reliability for RastrIO-generated commands
 ```
 
 Those remain to be verified through:
@@ -952,7 +952,7 @@ HW-018 Raster QR
 HW-019 QR size variations
 ```
 
-Native QR SHOULD only become the H50i profile's reliable `Auto` choice after Rastrio-controlled command-path verification.
+Native QR SHOULD only become the H50i profile's reliable `Auto` choice after RastrIO-controlled command-path verification.
 
 ---
 
@@ -1015,7 +1015,7 @@ Status: Candidate
 
 Parameter values and supported modes are model-dependent.
 
-### 20.2 Rastrio ownership
+### 20.2 RastrIO ownership
 
 A cutter operation must already exist in `PreparedPrint` as an operation such as `AutomaticCut`.
 
@@ -1052,7 +1052,7 @@ A permanent numbered hardware record should capture the no-cutter observation be
 
 ## 21. Full Versus Partial Cut
 
-Generic ESC/POS references contain multiple cut parameter forms and historical command variants. Rastrio must avoid assuming identical semantics across clones.
+Generic ESC/POS references contain multiple cut parameter forms and historical command variants. RastrIO must avoid assuming identical semantics across clones.
 
 For each cutter-capable profile record:
 
@@ -1109,9 +1109,9 @@ Status support is one of the most dangerous areas for clone assumptions because:
 
 ### 22.3 Completion semantics
 
-Rastrio's baseline `COMPLETED` state means the intended bytes were transmitted according to the transport contract.
+RastrIO's baseline `COMPLETED` state means the intended bytes were transmitted according to the transport contract.
 
-Rastrio MUST NOT claim physical print success unless the selected printer protocol/profile/transport provides reliable confirmation.
+RastrIO MUST NOT claim physical print success unless the selected printer protocol/profile/transport provides reliable confirmation.
 
 ### 22.4 H50i
 
@@ -1206,7 +1206,7 @@ No fixed H50i delay is currently established.
 
 ## 25. Bluetooth Classic / SPP Observations
 
-Android Bluetooth Classic is Rastrio's first production transport. The planned Android implementation includes RFCOMM/SPP connection, paired-device selection, write/chunking behavior, cancellation, and partial-transmission reporting.
+Android Bluetooth Classic is RastrIO's first production transport. The planned Android implementation includes RFCOMM/SPP connection, paired-device selection, write/chunking behavior, cancellation, and partial-transmission reporting.
 
 ### 25.1 Architectural boundary
 
@@ -1240,7 +1240,7 @@ Bluetooth transport receives already-encoded byte chunks. It MUST NOT know:
 
 A Bluetooth failure after some bytes were accepted may have produced partial paper output.
 
-Rastrio MUST surface that ambiguity and MUST NOT automatically retry the print job.
+RastrIO MUST surface that ambiguity and MUST NOT automatically retry the print job.
 
 ### 25.4 H50i
 
@@ -1254,9 +1254,9 @@ HW + MODEL
 Status: Hardware Observed
 ```
 
-This is useful protocol-family/transport-path evidence, but RawBT is a third-party application. Without capturing its exact Bluetooth service selection, command bytes, chunk sizes, and pacing behavior, the result does not establish Rastrio's transport implementation details.
+This is useful protocol-family/transport-path evidence, but RawBT is a third-party application. Without capturing its exact Bluetooth service selection, command bytes, chunk sizes, and pacing behavior, the result does not establish RastrIO's transport implementation details.
 
-The following still require Rastrio-controlled verification:
+The following still require RastrIO-controlled verification:
 
 ```text
 paired-device identity/locator behavior
@@ -1322,10 +1322,10 @@ USB class/protocol details
 bulk-transfer behavior
 status/read support
 safe write size
-Rastrio Android USB compatibility
+RastrIO Android USB compatibility
 ```
 
-Those remain `TBD` until a Rastrio-controlled USB test exists.
+Those remain `TBD` until a RastrIO-controlled USB test exists.
 
 ---
 
@@ -1367,7 +1367,7 @@ When a behavior is confirmed:
 
 ## 28. Known Dialect Variations
 
-This section records protocol families that Rastrio may need to model explicitly.
+This section records protocol families that RastrIO may need to model explicitly.
 
 ### 28.1 Raster strategy
 
@@ -1424,7 +1424,7 @@ Only promote sequencing rules after documentation or hardware evidence.
 
 Failures should be recorded in terms that help determine the owning layer.
 
-| Failure | Likely investigation area | Required Rastrio response |
+| Failure | Likely investigation area | Required RastrIO response |
 |---|---|---|
 | Encoder cannot represent prepared operation | `core-escpos` / inconsistent strategy | Fail with structured `ESCxxx` diagnostic; do not improvise a new physical strategy |
 | Printer prints wrong wrapping | `core-layout`, metrics, profile, or preparation | Fix upstream geometry/profile; encoder must not re-wrap |
@@ -1455,7 +1455,7 @@ Printable user content SHOULD NOT be embedded in logs or diagnostics unless requ
 
 ## 30. Encoder State and Determinism Notes
 
-ESC/POS is stateful. Rastrio should make serialization deterministic even when a printer retains state between commands.
+ESC/POS is stateful. RastrIO should make serialization deterministic even when a printer retains state between commands.
 
 ### 30.1 Recommended encoder discipline
 
@@ -1508,9 +1508,9 @@ These are explicit Phase 8 PRD requirements.
 
 ## 31. Helett H50i BillQuick Go — Available Reference-Device Notebook
 
-The Helett H50i BillQuick Go is one physical ESC/POS-compatible printer currently available for Rastrio development and validation.
+The Helett H50i BillQuick Go is one physical ESC/POS-compatible printer currently available for RastrIO development and validation.
 
-It is **not** Rastrio's generic printer model, compatibility baseline for every ESC/POS device, or source of universal defaults.
+It is **not** RastrIO's generic printer model, compatibility baseline for every ESC/POS device, or source of universal defaults.
 
 The same evidence rules in this notebook apply to the H50i and to every future maintained printer profile.
 
@@ -1522,8 +1522,8 @@ The following table separates direct device/self-test observations from capabili
 |---|---|---|---|
 | Role | Available physical reference device | Project context | Useful for implementation validation; not architecturally privileged |
 | Protocol family | ESC/POS-compatible behavior physically observed through RawBT | `H50I-RAWBT-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Establishes ESC/POS-family compatibility on the tested path; exact commands/dialect remain to be captured |
-| Android transport path | Bluetooth printing observed through RawBT | `H50I-RAWBT-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Does not yet establish Rastrio RFCOMM UUID/chunk/pacing behavior |
-| USB | Self-test reports `USB: Printing Port` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Establishes reported USB printing interface presence, not Rastrio USB endpoint/protocol behavior |
+| Android transport path | Bluetooth printing observed through RawBT | `H50I-RAWBT-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Does not yet establish RastrIO RFCOMM UUID/chunk/pacing behavior |
+| USB | Self-test reports `USB: Printing Port` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Establishes reported USB printing interface presence, not RastrIO USB endpoint/protocol behavior |
 | Bluetooth firmware | Self-test reports `BT_ver: 3.16.1` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Informational device/version context only |
 | Font firmware | Self-test reports `FontVer: 1.00.00` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Informational; may help scope future reproducibility findings |
 | Reported print width | `48 mm` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Does not establish `printableWidthDots` without validated horizontal dot geometry |
@@ -1540,9 +1540,9 @@ The following table separates direct device/self-test observations from capabili
 | Full/partial cut commands | Not applicable to observed unit while cutter support is false | derived from physical absence | Generic ESC/POS cut commands remain valid for other cutter-capable profiles |
 | Status queries | `To Verify` | later/optional capability | Do not poll until command behavior is verified |
 | Printer buffer guidance | `To Verify` | long-job/raster experiments required | Separate from Android transport buffering |
-| Bluetooth safe write chunk | `To Verify` | Rastrio transport evidence required | RawBT success does not reveal RawBT's internal chunk/pacing policy |
-| Bluetooth pacing | `To Verify` | Rastrio transport evidence required | No arbitrary sleep constant |
-| Reported max print speed | `60 mm/sec (Max)` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Printer-reported maximum; not a Rastrio transport throughput or pacing guarantee |
+| Bluetooth safe write chunk | `To Verify` | RastrIO transport evidence required | RawBT success does not reveal RawBT's internal chunk/pacing policy |
+| Bluetooth pacing | `To Verify` | RastrIO transport evidence required | No arbitrary sleep constant |
+| Reported max print speed | `60 mm/sec (Max)` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Printer-reported maximum; not a RastrIO transport throughput or pacing guarantee |
 | Current print density | `5` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Current/configuration state; not automatically portable profile capability |
 | Current autofeed | `0 mm` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Current/configuration state; semantics/range not established |
 | Runtime temperature | `33` | `H50I-SELFTEST-2026-10-02`; `HW + MODEL`; **Hardware Observed** | Runtime telemetry; unit/meaning not promoted without documentation |
@@ -1554,7 +1554,7 @@ The self-test also exposes Bluetooth pairing/configuration fields. Their values 
 
 | ID | Feature | Command/Behavior | Scope | Evidence | Status | Hardware test | Notes |
 |---|---|---|---|---|---|---|---|
-| `ESC-OBS-0100` | Initialization | `1B 40` candidate | H50i | `INF + MODEL` | TBD | `HW-001` | Exact initialization behavior still requires Rastrio-controlled bytes |
+| `ESC-OBS-0100` | Initialization | `1B 40` candidate | H50i | `INF + MODEL` | TBD | `HW-001` | Exact initialization behavior still requires RastrIO-controlled bytes |
 | `ESC-OBS-0101` | ASCII/native text | ESC/POS-compatible printing through RawBT | H50i + Android | `HW + MODEL` | Hardware Observed | `HW-001` pending | Confirms ESC/POS-family behavior; exact transmitted sequence not captured in this notebook |
 | `ESC-OBS-0102` | Wrapping geometry | prepared line breaks must match physical output | H50i | `MODEL` | TBD | `HW-002` | Measure against validated profile font metrics |
 | `ESC-OBS-0103` | Alignment | `1B 61 n` candidate | H50i | `INF + MODEL` | TBD | `HW-003` | Verify left/center/right with captured bytes |
@@ -1622,7 +1622,7 @@ The repository hardware-test specification defines the following permanent range
 
 ---
 
-## 33. How Observations Feed Back into Rastrio
+## 33. How Observations Feed Back into RastrIO
 
 A verified observation is useful only if it is reflected in the correct owning artifact.
 
@@ -1707,7 +1707,7 @@ Use this sequence:
 
 1. Establish that the device belongs to the intended ESC/POS-compatible protocol family using controlled evidence.
 2. Create or select a conservative `PrinterProfile` with unsupported/unverified capabilities disabled by default.
-3. Establish basic native ASCII output with captured/known Rastrio bytes.
+3. Establish basic native ASCII output with captured/known RastrIO bytes.
 4. Verify printable width in dots/effective dot geometry and native font geometry.
 5. Verify alignment and styles.
 6. Map code pages using transmitted-byte fixtures.
@@ -1751,7 +1751,7 @@ For large payloads, do not paste megabytes of raster data into this file. Instea
 A reproduction record SHOULD identify:
 
 ```text
-Rastrio commit
+RastrIO commit
 profile ID/version
 PreparedPrint fixture
 encoder strategy
@@ -1765,7 +1765,7 @@ result
 
 ## 36. Security Notes for Protocol Work
 
-Protocol experimentation must preserve Rastrio's security model.
+Protocol experimentation must preserve RastrIO's security model.
 
 ### 36.1 Imported profiles
 
@@ -1849,15 +1849,15 @@ The backlog distinguishes generic ESC/POS engineering from work on the currently
 - [x] Self-test reports USB printing interface presence.
 - [x] Self-test configuration/version/telemetry values recorded at the appropriate evidence strength.
 
-These are `Hardware Observed`, not replacements for command-specific Rastrio hardware tests.
+These are `Hardware Observed`, not replacements for command-specific RastrIO hardware tests.
 
 ### H50i — command/profile verification still required
 
 - [ ] Obtain or identify trustworthy H50i protocol documentation, if available.
 - [ ] Record additional hardware/firmware revision information where useful.
-- [ ] Capture Rastrio-controlled Bluetooth RFCOMM/SPP service/connection behavior.
+- [ ] Capture RastrIO-controlled Bluetooth RFCOMM/SPP service/connection behavior.
 - [ ] Verify `ESC @` initialization behavior with exact captured bytes.
-- [ ] Verify simple ASCII native text through Rastrio's encoder/transport path.
+- [ ] Verify simple ASCII native text through RastrIO's encoder/transport path.
 - [ ] Determine authoritative printable width in dots/effective horizontal dot geometry.
 - [ ] Verify the reported `12x24` font's selector, exact advance/line metrics, and reset behavior.
 - [ ] Verify native scaling.
@@ -1909,9 +1909,9 @@ Append new entries below rather than rewriting history when the historical seque
 
 At this revision, the reliable conclusions are:
 
-1. Rastrio `.tcfg` schema v1 targets ESC/POS-compatible printers and MUST model dialect/model differences explicitly.
+1. RastrIO `.tcfg` schema v1 targets ESC/POS-compatible printers and MUST model dialect/model differences explicitly.
 2. The H50i is one available reference device, not the generic compatibility baseline.
-3. A physical RawBT test provides **Hardware Observed** evidence that the tested H50i accepts ESC/POS-compatible printing, but exact command strategies still require Rastrio-controlled byte/hardware tests.
+3. A physical RawBT test provides **Hardware Observed** evidence that the tested H50i accepts ESC/POS-compatible printing, but exact command strategies still require RastrIO-controlled byte/hardware tests.
 4. The H50i self-test provides **printer-reported** evidence for `48 mm` print width, `12x24` font, `CP437` charset, QR/EAN-13 self-test generation, USB printing-interface presence, and several configuration/version/telemetry values.
 5. Those self-test facts must not be promoted beyond what they prove: `48 mm` is not `printableWidthDots`; `CP437` is not an `ESC t` selector mapping; a self-test QR/EAN-13 print is not proof of the host native command strategy.
 6. The observed H50i has no automatic cutter; the H50i profile should therefore remain no-cutter unless contradictory model/revision evidence appears.

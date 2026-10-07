@@ -1,9 +1,9 @@
-# Rastrio `.td` Thermal Document Specification
+# RastrIO `.td` Thermal Document Specification
 
 **Status:** Normative specification  
 **Specification version:** 1.1  
 **Target format:** `.td` container version 1 / document schema version 1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **License context:** Apache-2.0  
 **Governing baseline:** `PRD.md` v2.1 and `docs/ARCHITECTURE.md`  
 **Related specifications:** `docs/SECURITY.md`, `docs/RESOURCE_LIMITS.md`, `docs/TEXT_RENDERING_SPEC.md`, `docs/PREVIEW_SPEC.md`, `docs/TESTING.md`
@@ -12,9 +12,9 @@
 
 ## 1. Purpose
 
-A Rastrio `.td` file is the portable serialized representation of a `ThermalDocument` together with any embedded document assets and optional retained source material.
+A RastrIO `.td` file is the portable serialized representation of a `ThermalDocument` together with any embedded document assets and optional retained source material.
 
-The format exists so a Rastrio document can be saved, copied, versioned, reopened, shared, tested, and processed without being tied to:
+The format exists so a RastrIO document can be saved, copied, versioned, reopened, shared, tested, and processed without being tied to:
 
 - a particular printer;
 - ESC/POS;
@@ -137,7 +137,7 @@ The normative file extension is:
 .td
 ```
 
-If a media type is useful for local integration, Rastrio SHOULD use the provisional vendor-tree form:
+If a media type is useful for local integration, RastrIO SHOULD use the provisional vendor-tree form:
 
 ```text
 application/vnd.rastrio.td+zip
@@ -194,13 +194,13 @@ A v1 writer MUST create a valid ZIP-compatible archive readable by the project's
 
 Writers SHOULD use ordinary stored or deflated entries and SHOULD NOT require uncommon ZIP features merely to save a normal document.
 
-Because v1 resource ceilings are far below classic ZIP32 limits, a v1 writer SHOULD NOT require ZIP64 for ordinary output. A reader MAY accept ZIP64 containers when supported by its ZIP implementation, but all normal Rastrio resource limits still apply.
+Because v1 resource ceilings are far below classic ZIP32 limits, a v1 writer SHOULD NOT require ZIP64 for ordinary output. A reader MAY accept ZIP64 containers when supported by its ZIP implementation, but all normal RastrIO resource limits still apply.
 
 Archive encryption is not part of `.td` v1.
 
 A writer MUST NOT emit encrypted entries.
 
-A reader MUST reject encrypted entries it cannot safely and explicitly support. Rastrio v1 does not define a password/encryption workflow.
+A reader MUST reject encrypted entries it cannot safely and explicitly support. RastrIO v1 does not define a password/encryption workflow.
 
 ---
 
@@ -597,7 +597,7 @@ A reader MUST reject invalid input even if the selected parser would otherwise:
 
 Duplicate-key and unknown-property detection MUST occur before a lossy object representation can erase the evidence required for validation.
 
-If the chosen JSON library cannot enforce a rule directly, Rastrio MUST use bounded lexical/token pre-validation, a parser wrapper, structural inspection, or another deterministic enforcement layer.
+If the chosen JSON library cannot enforce a rule directly, RastrIO MUST use bounded lexical/token pre-validation, a parser wrapper, structural inspection, or another deterministic enforcement layer.
 
 ---
 
@@ -1272,7 +1272,7 @@ Shape:
   "sizing": {
     "mode": "fitWidth"
   },
-  "altText": "Rastrio logo"
+  "altText": "RastrIO logo"
 }
 ```
 
@@ -1293,7 +1293,7 @@ An image block with an external asset reference is valid portable semantic conte
 
 ## 51. Table
 
-Rastrio v1 tables represent a rectangular semantic table suitable for GFM-style content.
+RastrIO v1 tables represent a rectangular semantic table suitable for GFM-style content.
 
 Shape:
 
@@ -1411,7 +1411,7 @@ These correspond to author-level preference only.
 
 The printer engine later chooses native versus raster QR and resolves final supported parameters into `PreparedPrint`.
 
-`payload` is data only. Rastrio MUST NOT automatically open, fetch, execute, or interpret it as a URL merely because it looks like one.
+`payload` is data only. RastrIO MUST NOT automatically open, fetch, execute, or interpret it as a URL merely because it looks like one.
 
 ---
 
@@ -1695,7 +1695,7 @@ Round-tripping MUST NOT introduce:
 The following are independent concepts:
 
 ```text
-Rastrio application version
+RastrIO application version
 .td containerVersion
 documentSchemaVersion
 ```
@@ -1751,7 +1751,7 @@ Representative released-version fixtures SHOULD remain in the repository as comp
 
 ---
 
-# Part XI — Relationship to Other Rastrio Models
+# Part XI — Relationship to Other RastrIO Models
 
 ## 70. `.td` vs `LogicalDocument`
 

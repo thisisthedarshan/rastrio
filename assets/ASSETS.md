@@ -1,6 +1,6 @@
-# Rastrio Brand Assets
+# RastrIO Brand Assets
 
-This directory contains the production brand assets for Rastrio. The system preserves the approved **Registration Strip** identity: a document/paper strip with left-edge registration detail, a negative-space `R`/feed channel, and precise rectilinear geometry.
+This directory contains the production brand assets for RastrIO. The system preserves the approved **Registration Strip** identity: a document/paper strip with left-edge registration detail, a negative-space `R`/feed channel, and precise rectilinear geometry.
 
 ## Source of Truth
 
@@ -27,16 +27,16 @@ The canonical master uses one path with flat fill. Do not add gradients, shadows
 
 The horizontal lockup is:
 
-`[ Registration Strip ]  Rastrio`
+`[ Registration Strip ]  RastrIO`
 
-- Canonical capitalization: `Rastrio`.
+- Canonical capitalization: `RastrIO`.
 - Symbol visual size in the lockup: `14 × 20` construction units.
 - Symbol-to-wordmark visual gap: `3.2` construction units.
 - Wordmark is vertically optically centered against the 20-unit symbol height.
 - Wordmark letters are stored as vector outlines, so the SVG has **no runtime font dependency**.
 - The path source is the open-source IBM Plex Sans family; the production outline is frozen in the SVG and must not be replaced by a live `<text>` element.
 - Minimum clear space around the complete lockup: at least the width of the symbol's main negative-space channel; in ordinary layouts, use at least the standalone `25%` symbol-width rule.
-- Compact use: use the symbol alone when the full lockup would make `Rastrio` smaller than normal readable UI text, or in avatars, launcher icons, favicons, and square project marks.
+- Compact use: use the symbol alone when the full lockup would make `RastrIO` smaller than normal readable UI text, or in avatars, launcher icons, favicons, and square project marks.
 
 ## Micro-size optical variant
 
@@ -98,7 +98,7 @@ The corrected promotional artwork intentionally:
 - avoids a platform-logo row that could imply currently shipped platform support;
 - does not present Apple/macOS as a current production target;
 - uses the light document → preview → printer direction as the preferred README composition;
-- does not place a Rastrio watermark on ordinary fictional user printouts.
+- does not place a RastrIO watermark on ordinary fictional user printouts.
 
 ## Reproducibility
 

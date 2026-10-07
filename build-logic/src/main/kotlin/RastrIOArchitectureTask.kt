@@ -26,7 +26,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
-abstract class RastrioArchitectureTask : DefaultTask() {
+abstract class RastrIOArchitectureTask : DefaultTask() {
     @get:Input
     abstract val projectEdges: MapProperty<String, String>
 

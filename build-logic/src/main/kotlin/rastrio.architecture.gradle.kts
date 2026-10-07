@@ -15,7 +15,7 @@
 
 import org.gradle.api.artifacts.ProjectDependency
 
-val architectureCheck = tasks.register<RastrioArchitectureTask>("verifyArchitecture") {
+val architectureCheck = tasks.register<RastrIOArchitectureTask>("verifyArchitecture") {
     group = "verification"
     description = "Checks Phase 0 module direction and portable Core imports."
     repositoryRoot.set(layout.projectDirectory)

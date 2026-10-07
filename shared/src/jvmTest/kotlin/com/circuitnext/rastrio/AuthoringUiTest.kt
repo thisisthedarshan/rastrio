@@ -39,7 +39,8 @@ import com.circuitnext.rastrio.core.preview.toLogicalPreview
 @OptIn(ExperimentalTestApi::class)
 class AuthoringUiTest {
     @Test fun homeOpensEditor() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
+        onNodeWithText("RastrIO").assertExists()
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").assertExists()
         onNodeWithText("Compile").assertIsEnabled()
@@ -47,7 +48,7 @@ class AuthoringUiTest {
     }
 
     @Test fun currentSourceCompilesAndSurvivesPreviewAndBack() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").performTextInput("# Receipt\nHello")
         onNodeWithText("Compile").performClick()
@@ -65,7 +66,7 @@ class AuthoringUiTest {
     }
 
     @Test fun warningSeverityAndRangeStayWithSource() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").performTextInput("<b>literal</b>")
         onNodeWithText("Compile").performClick()
@@ -78,7 +79,7 @@ class AuthoringUiTest {
     }
 
     @Test fun homeRoundTripRetainsSourceResultAndDiagnostics() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").performTextInput("<b>retained</b>")
         onNodeWithText("Compile").performClick()
@@ -92,7 +93,7 @@ class AuthoringUiTest {
     }
 
     @Test fun unsupportedTextShowsLayoutErrorAndDisablesPreview() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").performTextInput("世界")
         onNodeWithText("Compile").performClick()
@@ -103,7 +104,7 @@ class AuthoringUiTest {
 
     @Test fun wideCanvasRemainsAssembledAndHorizontallyInspectable() = runComposeUiTest {
         val session = createAuthoringSession(240.0, Orientation.LANDSCAPE)
-        setContent { Box(Modifier.requiredSize(360.dp, 720.dp)) { RastrioApp(session) } }
+        setContent { Box(Modifier.requiredSize(360.dp, 720.dp)) { RastrIOApp(session) } }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").performTextInput("| Left | Right |\n| --- | --- |\n| A | B |")
         onNodeWithText("Compile").performClick()
@@ -116,7 +117,7 @@ class AuthoringUiTest {
     }
 
     @Test fun emptyDocumentOffersAUsablePreview() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Compile").performClick()
         onNodeWithText("Open logical preview").performClick()
@@ -144,7 +145,7 @@ class AuthoringUiTest {
     @Test fun compilationFailureIsPersistentAndDistinctFromLayoutFailure() = runComposeUiTest {
         val session = createAuthoringSession()
         session.edit("\uD800")
-        setContent { RastrioApp(session) }
+        setContent { RastrIOApp(session) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Compile").performClick()
         onNodeWithText("Markdown compilation failed").assertExists()
@@ -162,7 +163,7 @@ class AuthoringUiTest {
     }
 
     @Test fun keyboardActivationOpensAuthoring() = runComposeUiTest {
-        setContent { RastrioApp() }
+        setContent { RastrIOApp() }
         onNodeWithText("Open Markdown").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
         onNodeWithText("Open Markdown").assertIsFocused()
         onNodeWithText("Open Markdown").performKeyInput { keyDown(Key.Enter); keyUp(Key.Enter) }

@@ -1,9 +1,9 @@
-# Rastrio `.tcfg` Printer Profile Specification
+# RastrIO `.tcfg` Printer Profile Specification
 
 **Status:** Normative specification  
 **Specification version:** 1.1  
 **Target format:** `.tcfg` schema version 1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **License context:** Apache-2.0  
 **Normative representation:** UTF-8 JSON  
 
@@ -11,9 +11,9 @@
 
 ## 1. Purpose
 
-A Rastrio `.tcfg` file is the portable serialized representation of a `PrinterProfile`.
+A RastrIO `.tcfg` file is the portable serialized representation of a `PrinterProfile`.
 
-A `PrinterProfile` describes a printer model, firmware family, or reusable capability set that Rastrio can use to prepare printer-specific physical output. It contains printer capabilities, geometry, supported text and raster behavior, validated protocol configuration, physical printer constraints, and known validated quirks.
+A `PrinterProfile` describes a printer model, firmware family, or reusable capability set that RastrIO can use to prepare printer-specific physical output. It contains printer capabilities, geometry, supported text and raster behavior, validated protocol configuration, physical printer constraints, and known validated quirks.
 
 The `.tcfg` schema is vendor-neutral and model-neutral. No printer model is architecturally privileged.
 
@@ -61,7 +61,7 @@ The resulting `PreparedPrint`, not the `.tcfg` file, records the final physical 
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as normative requirements.
 
-Where this specification says that an identifier is **registered**, the identifier MUST be implemented and recognized by the running Rastrio version. A profile cannot create new executable behavior merely by inventing an identifier.
+Where this specification says that an identifier is **registered**, the identifier MUST be implemented and recognized by the running RastrIO version. A profile cannot create new executable behavior merely by inventing an identifier.
 
 ---
 
@@ -105,7 +105,7 @@ In particular, `.tcfg` MUST NOT contain:
 
 ## 4. Fundamental Type Separation
 
-Rastrio MUST preserve the following distinction.
+RastrIO MUST preserve the following distinction.
 
 ### 4.1 `PrinterProfile`
 
@@ -207,7 +207,7 @@ At minimum, schema v1 readers MUST reject:
 
 Duplicate keys MUST be detected before a deserializer or map representation can silently collapse or overwrite them.
 
-If the selected parser cannot enforce a required rule directly, Rastrio MUST add bounded lexical pre-validation, token inspection, parser wrapping, or structural validation.
+If the selected parser cannot enforce a required rule directly, RastrIO MUST add bounded lexical pre-validation, token inspection, parser wrapping, or structural validation.
 
 YAML is not a normative v1 representation.
 
@@ -235,7 +235,7 @@ A reader that supports only schema version 1 MUST reject an unsupported future v
 
 ### 5.5 Media Type Recommendation
 
-If a media type is needed for local integration, Rastrio SHOULD use the provisional vendor-tree form:
+If a media type is needed for local integration, RastrIO SHOULD use the provisional vendor-tree form:
 
 ```text
 application/vnd.rastrio.tcfg+json
@@ -257,7 +257,7 @@ A v1 profile has this shape:
   "profileRevision": 1,
   "display": {
     "name": "Synthetic Narrow ESC/POS",
-    "manufacturer": "Rastrio Test Fixture",
+    "manufacturer": "RastrIO Test Fixture",
     "model": "Narrow-203"
   },
   "geometry": {
@@ -466,7 +466,7 @@ A profile's behavioral identity comes from validated capability data and registe
 - MUST represent the physical printer's effective dot density used for preparation;
 - MUST NOT be inferred from a transport type.
 
-Rastrio MUST NOT assume that horizontal and vertical DPI are equal.
+RastrIO MUST NOT assume that horizontal and vertical DPI are equal.
 
 ### 10.2 Printable width
 
@@ -488,7 +488,7 @@ v1 intentionally stores the authoritative width in dots plus DPI instead of stor
 
 A self-test page, datasheet, or physical measurement expressed only in millimetres MAY provide useful hardware evidence, but it is not by itself sufficient to populate `printableWidthDots` unless effective horizontal dot density and reliable printable dot width are also established.
 
-Rastrio MUST NOT infer a common DPI merely because a printer belongs to a familiar paper-width class.
+RastrIO MUST NOT infer a common DPI merely because a printer belongs to a familiar paper-width class.
 
 ### 10.3 Printable height
 
@@ -632,7 +632,7 @@ Required properties:
 Rules:
 
 - `id` MUST be unique within the profile;
-- `repertoire` MUST identify a character repertoire known to the running Rastrio implementation;
+- `repertoire` MUST identify a character repertoire known to the running RastrIO implementation;
 - `.tcfg` v1 MUST NOT embed arbitrary user-defined byte-to-Unicode mapping tables;
 - unknown repertoires MUST cause profile validation failure;
 - selector strategies and parameters MUST be registered and validated;
@@ -644,7 +644,7 @@ The effective character coverage used by preparation is the intersection of:
 ```text
 declared profile repertoire
 ∩
-known Rastrio repertoire mapping
+known RastrIO repertoire mapping
 ∩
 validated quirk restrictions
 ```
@@ -925,7 +925,7 @@ A manual cut guide is not cutter capability. It is printed content selected duri
 
 An automatic cut is a physical printer operation represented in `PreparedPrint`.
 
-Physical inspection or repeatable hardware behavior can establish that a device has no automatic cutter. In that case the production profile SHOULD declare `supported = false`; Rastrio MUST NOT infer cutter support merely from generic ESC/POS documentation.
+Physical inspection or repeatable hardware behavior can establish that a device has no automatic cutter. In that case the production profile SHOULD declare `supported = false`; RastrIO MUST NOT infer cutter support merely from generic ESC/POS documentation.
 
 ---
 
@@ -950,7 +950,7 @@ If present, it MUST be a positive integer.
 
 It means:
 
-> the maximum amount of encoded data Rastrio should preferably send toward this printer before allowing the printer-side pacing policy to yield or pause.
+> the maximum amount of encoded data RastrIO should preferably send toward this printer before allowing the printer-side pacing policy to yield or pause.
 
 It is not the required size of each Bluetooth, USB, serial, WebUSB, or other transport write.
 
@@ -964,7 +964,7 @@ It MUST NOT be treated as a Bluetooth- or USB-specific timing requirement.
 
 ### 16.3 Unknown buffer characteristics
 
-If `printerBuffer` is absent, Rastrio MUST treat printer-side guidance as unknown and use safe application/transport defaults.
+If `printerBuffer` is absent, RastrIO MUST treat printer-side guidance as unknown and use safe application/transport defaults.
 
 It MUST NOT invent a model-specific value from the printer name.
 
@@ -1133,7 +1133,7 @@ escpos.generic
 
 A dialect ID:
 
-- selects implementation behavior already present in trusted Rastrio code;
+- selects implementation behavior already present in trusted RastrIO code;
 - defines which strategy IDs and parameters are compatible;
 - does not contain executable code;
 - MUST be rejected if unknown.
@@ -1163,7 +1163,7 @@ Profiles MUST NOT define:
 - class names to instantiate;
 - URLs from which command code is loaded.
 
-A strategy identifier is a lookup key into trusted Rastrio implementation code.
+A strategy identifier is a lookup key into trusted RastrIO implementation code.
 
 Any parameter attached to a strategy MUST have a schema owned by that strategy and MUST pass strategy-specific validation.
 
@@ -1185,7 +1185,7 @@ When a future family is added:
 1. the `.tcfg` schema version MUST be evolved explicitly;
 2. the new `family` identifier MUST be registered;
 3. its family-specific fields MUST have a strict schema;
-4. its strategy identifiers MUST resolve only to trusted Rastrio implementation code;
+4. its strategy identifiers MUST resolve only to trusted RastrIO implementation code;
 5. a dedicated protocol encoder or equivalent trusted serializer MUST consume `PreparedPrint`;
 6. document semantics, layout, `PrinterInstance`, `PrintOptions`, and transport identity MUST remain outside the protocol block;
 7. a profile MUST NOT contain executable code or unrestricted raw byte programs;
@@ -1547,7 +1547,7 @@ native text
 raster
 ```
 
-A profile supporting neither cannot produce ordinary Rastrio document output and MUST be rejected.
+A profile supporting neither cannot produce ordinary RastrIO document output and MUST be rejected.
 
 ### 27.8 Strategy/dialect compatibility
 
@@ -1588,7 +1588,7 @@ Examples of invalid v1 profiles include:
 
 ## 29. Canonical Serialization
 
-A Rastrio writer SHOULD emit deterministic JSON suitable for reviewable fixtures.
+A RastrIO writer SHOULD emit deterministic JSON suitable for reviewable fixtures.
 
 Recommended canonicalization:
 
@@ -1623,7 +1623,7 @@ The following profile is intentionally synthetic. Its values are suitable for de
   "profileRevision": 1,
   "display": {
     "name": "Synthetic Narrow 203 dpi",
-    "manufacturer": "Rastrio Test Fixture",
+    "manufacturer": "RastrIO Test Fixture",
     "model": "Synthetic-Narrow"
   },
   "geometry": {
@@ -1734,7 +1734,7 @@ The following profile is also synthetic.
   "profileRevision": 1,
   "display": {
     "name": "Synthetic 80 mm 203 dpi",
-    "manufacturer": "Rastrio Test Fixture",
+    "manufacturer": "RastrIO Test Fixture",
     "model": "Synthetic-80"
   },
   "geometry": {
@@ -1938,7 +1938,7 @@ For this profile, text preparation cannot choose native text. Raster text is req
 
 ## 33. Hardware-Backed Production Profile Requirements
 
-Synthetic profiles exist to test Rastrio's capability model. A production profile makes claims about real hardware and therefore requires evidence.
+Synthetic profiles exist to test RastrIO's capability model. A production profile makes claims about real hardware and therefore requires evidence.
 
 No production profile is privileged by this specification. The same rules apply to every vendor, model, and firmware family.
 
@@ -2226,7 +2226,7 @@ These are invalid both because they are outside the schema and because they viol
 
 ### 36.3 Strategy resolution
 
-Strategy identifiers MUST resolve only through a trusted in-process registry compiled or otherwise shipped with Rastrio.
+Strategy identifiers MUST resolve only through a trusted in-process registry compiled or otherwise shipped with RastrIO.
 
 Imported profiles MUST NOT:
 
@@ -2276,7 +2276,7 @@ Large raw input or unrelated user-private printer identity MUST NOT be logged by
 The following versions are distinct:
 
 ```text
-Rastrio application version
+RastrIO application version
 .tcfg schemaVersion
 profileRevision
 registered strategy implementation version/internal code revision
@@ -2304,7 +2304,7 @@ Future versions MUST NOT rely on v1 readers silently ignoring new fields.
 
 ### 37.4 Migration
 
-If a later Rastrio version supports both v1 and a newer internal schema:
+If a later RastrIO version supports both v1 and a newer internal schema:
 
 1. parse the source according to its declared schema version;
 2. fully validate that source version;

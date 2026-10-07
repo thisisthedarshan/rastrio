@@ -42,7 +42,7 @@ internal class ObservableAuthoring(private val session: MarkdownAuthoringSession
 }
 
 @Composable
-fun RastrioApp(session: MarkdownAuthoringSession? = null) {
+fun RastrIOApp(session: MarkdownAuthoringSession? = null) {
     val authoring = remember(session) { ObservableAuthoring(session ?: createAuthoringSession()) }
     var route by remember { mutableStateOf(AuthoringRoute.HOME) }
     AuthoringTheme {
@@ -64,7 +64,7 @@ fun RastrioApp(session: MarkdownAuthoringSession? = null) {
 @Composable
 fun HomeScreen(onMarkdown: () -> Unit) {
     Column(Modifier.padding(24.dp).widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Rastrio", style = MaterialTheme.typography.headlineLarge)
+        Text("RastrIO", style = MaterialTheme.typography.headlineLarge)
         Text("Markdown document workspace", style = MaterialTheme.typography.titleLarge)
         Text("Write a document, compile it, and inspect its logical layout.")
         AuthoringButton("Open Markdown", onClick = onMarkdown)

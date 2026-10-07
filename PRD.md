@@ -1,8 +1,8 @@
-# Rastrio — Product Requirements Document
+# RastrIO — Product Requirements Document
 
 **Status:** Implementation Baseline  
 **Document version:** 2.1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **License:** Apache-2.0  
 **Primary release target:** Android  
 **Secondary targets:** Desktop/JVM (Windows and Linux), Web/Wasm  
@@ -20,7 +20,7 @@
 
 ## 1. Purpose of This Document
 
-This PRD is the authoritative product and engineering baseline for Rastrio.
+This PRD is the authoritative product and engineering baseline for RastrIO.
 
 It defines:
 
@@ -44,7 +44,7 @@ Where a dedicated technical specification exists, that specification may contain
 
 ## 2. Executive Summary
 
-Rastrio is an open-source, offline-first, cross-platform thermal-document authoring, preview, and printing application.
+RastrIO is an open-source, offline-first, cross-platform thermal-document authoring, preview, and printing application.
 
 Its primary purpose is to let users take normal content—especially Markdown, notes, lists, QR payloads, and images—and produce reliable output on inexpensive thermal printers without requiring the user to understand ESC/POS commands, printer code pages, raster packing, Bluetooth sockets, USB endpoints, or device-specific firmware behavior.
 
@@ -78,7 +78,7 @@ Preview     trusted protocol encoder
 
 ## 3. Product Vision
 
-Rastrio should make inexpensive thermal printers behave more like useful general-purpose document printers.
+RastrIO should make inexpensive thermal printers behave more like useful general-purpose document printers.
 
 A user should be able to print content such as:
 
@@ -110,7 +110,7 @@ firmware-specific behavior
 
 The product should expose advanced printer controls when they are genuinely useful, while keeping common workflows approachable.
 
-Rastrio should feel like a polished document utility with a printer-engineering layer underneath it—not like an ESC/POS diagnostic program with a document editor attached.
+RastrIO should feel like a polished document utility with a printer-engineering layer underneath it—not like an ESC/POS diagnostic program with a document editor attached.
 
 ---
 
@@ -162,7 +162,7 @@ Official builds must not require proprietary services or dependencies that preve
 
 ### 5.1 In scope
 
-Rastrio v1 architecture must support:
+RastrIO v1 architecture must support:
 
 - GitHub Flavored Markdown authoring and import;
 - portable `.td` documents;
@@ -201,7 +201,7 @@ The following are valid roadmap items but must not block the first stable Androi
 
 ### 5.3 Explicit non-goals
 
-Rastrio is not intended to be:
+RastrIO is not intended to be:
 
 - a general-purpose word processor;
 - a desktop publishing system;
@@ -379,7 +379,7 @@ A future printer protocol family requires a future `.tcfg` schema/specification 
 
 ## 9. High-Level Architecture
 
-Rastrio has four implementation domains:
+RastrIO has four implementation domains:
 
 ```text
 SHARED CORE
@@ -578,7 +578,7 @@ These rules are mandatory:
 
 ## 12. Shared Core Requirements
 
-Core modules contain Rastrio's portable document and printer intelligence.
+Core modules contain RastrIO's portable document and printer intelligence.
 
 They must remain independent of Compose and Android.
 
@@ -612,7 +612,7 @@ A Core API may accept an injected portable interface when a deterministic servic
 
 ### Purpose
 
-Defines Rastrio's canonical portable document representation.
+Defines RastrIO's canonical portable document representation.
 
 Owns:
 
@@ -672,7 +672,7 @@ GFM Parser
       ↓
 Markdown AST
       ↓
-Rastrio Markdown Compiler
+RastrIO Markdown Compiler
       ↓
 ThermalDocument + Diagnostics
 ```
@@ -802,10 +802,10 @@ Exact names may change.
 
 ### Text-rendering contract
 
-Rastrio must explicitly distinguish:
+RastrIO must explicitly distinguish:
 
 1. **Native printer text metrics** — geometry supplied or derived from `PrinterProfile`.
-2. **Raster text metrics** — geometry produced by the Rastrio text renderer and its selected font resources.
+2. **Raster text metrics** — geometry produced by the RastrIO text renderer and its selected font resources.
 3. **Preview representation** — user-visible rendering of already-resolved text operations.
 
 For complex scripts, combining characters, emoji, and similar cases, text rendering may require shaping rather than one-character-per-cell assumptions.
@@ -1180,13 +1180,13 @@ PreparedPrint
 PrintPreview
 ```
 
-Shows what Rastrio expects the selected printer to produce geometrically and operationally.
+Shows what RastrIO expects the selected printer to produce geometrically and operationally.
 
 ### Accuracy contract
 
 For raster operations, preview should represent the exact raster data that will be encoded.
 
-For native printer text, Rastrio guarantees authoritative:
+For native printer text, RastrIO guarantees authoritative:
 
 - wrapping;
 - line placement;
@@ -1346,7 +1346,7 @@ Presentation must not duplicate:
 Initial shared screens:
 
 ```text
-RastrioApp
+RastrIOApp
 HomeScreen
 MarkdownScreen
 TemplateScreen
@@ -1560,7 +1560,7 @@ browser permission handling
 
 Web hardware features must use feature detection and explicit user-facing capability messages.
 
-Rastrio must not assume that WebUSB or WebSerial exists in every browser.
+RastrIO must not assume that WebUSB or WebSerial exists in every browser.
 
 ---
 
@@ -1656,7 +1656,7 @@ GFM Parser
     ↓
 Markdown AST
     ↓
-Rastrio Markdown Compiler
+RastrIO Markdown Compiler
     ↓
 ThermalDocument
 ```
@@ -1838,7 +1838,7 @@ A purely transport-level change such as Bluetooth write chunk size does not requ
 
 ## 36. `.td` Purpose
 
-`.td` is Rastrio's portable semantic document format.
+`.td` is RastrIO's portable semantic document format.
 
 It describes:
 
@@ -1941,9 +1941,9 @@ non-finite or otherwise invalid numeric representations
 excessive nesting / size / token counts
 ```
 
-If the selected serialization library does not enforce a required rule directly, Rastrio MUST add a bounded pre-validation, parser wrapper, or post-parse structural validation layer. Library leniency MUST NOT silently weaken the portable format contract.
+If the selected serialization library does not enforce a required rule directly, RastrIO MUST add a bounded pre-validation, parser wrapper, or post-parse structural validation layer. Library leniency MUST NOT silently weaken the portable format contract.
 
-Do not create a custom Rastrio text DSL.
+Do not create a custom RastrIO text DSL.
 
 A compact binary encoding may be considered later only if measured storage or performance needs justify it.
 
@@ -2213,7 +2213,7 @@ Rationale:
 
 YAML may be added later as an import/export convenience format if there is a demonstrated need. It is not part of the normative v1 profile representation.
 
-As with `.td`, the `.tcfg` specification is authoritative over the behavior of the selected JSON library. Parser leniency MUST NOT cause Rastrio to accept duplicate keys, unknown fields, unsupported identifiers, non-standard JSON forms, or other input rejected by `docs/TCFG_SPEC.md`. Required strictness MUST be enforced with bounded validation even when a dependency is more permissive.
+As with `.td`, the `.tcfg` specification is authoritative over the behavior of the selected JSON library. Parser leniency MUST NOT cause RastrIO to accept duplicate keys, unknown fields, unsupported identifiers, non-standard JSON forms, or other input rejected by `docs/TCFG_SPEC.md`. Required strictness MUST be enforced with bounded validation even when a dependency is more permissive.
 
 Potential v1 fields include:
 
@@ -2515,7 +2515,7 @@ PreparedPrint
 → AutomaticCut
 ```
 
-For printers without a cutter, Rastrio may add:
+For printers without a cutter, RastrIO may add:
 
 ```text
 PreparedPrint
@@ -2582,9 +2582,9 @@ FAILED
 CANCELLED
 ```
 
-`COMPLETED` means Rastrio successfully transmitted the intended bytes according to the transport contract.
+`COMPLETED` means RastrIO successfully transmitted the intended bytes according to the transport contract.
 
-Rastrio must not claim that paper physically printed successfully unless the printer protocol provides reliable confirmation and the profile/transport supports it.
+RastrIO must not claim that paper physically printed successfully unless the printer protocol provides reliable confirmation and the profile/transport supports it.
 
 ### Partial-transmission semantics
 
@@ -2603,7 +2603,7 @@ Exact fields may change.
 
 ### Retry safety invariant
 
-Rastrio must not automatically retry a print job when physical output may already have partially occurred.
+RastrIO must not automatically retry a print job when physical output may already have partially occurred.
 
 The UI may offer a user-controlled retry after clearly communicating that duplicate or partial output is possible.
 
@@ -2670,7 +2670,7 @@ Core document creation, preview, and printing must work offline.
 
 No account is required.
 
-Rastrio must not log printable content by default.
+RastrIO must not log printable content by default.
 
 Avoid logging:
 
@@ -2756,7 +2756,7 @@ Thermal documents may be extremely long. Performance design must therefore avoid
 
 ### Required bounded-resource behavior
 
-Rastrio must avoid requiring:
+RastrIO must avoid requiring:
 
 ```text
 one giant receipt bitmap
@@ -2797,7 +2797,7 @@ The Home screen should emphasize what users want to print rather than printer en
 Conceptually:
 
 ```text
-Rastrio
+RastrIO
 
 Markdown
 Write or open Markdown
@@ -3146,10 +3146,10 @@ notes/quirks
 Repository validation should provide a clear top-level command, eventually:
 
 ```bash
-./gradlew verifyRastrio
+./gradlew verifyRastrIO
 ```
 
-`verifyRastrio` should aggregate the checks considered mandatory for the current development phase.
+`verifyRastrIO` should aggregate the checks considered mandatory for the current development phase.
 
 `./gradlew check` should remain useful, but the project must not assume that the default Gradle lifecycle automatically executes every target-specific browser, device, integration, or hardware test.
 
@@ -3179,7 +3179,7 @@ Hardware tests are manual or device-lab release gates unless a reliable automate
 
 ## 78. Build System and Toolchain Policy
 
-Rastrio uses:
+RastrIO uses:
 
 ```text
 Gradle Wrapper
@@ -3319,7 +3319,7 @@ Rapidly changing version numbers belong in Gradle configuration/version catalogs
 Implement minimal shared:
 
 ```text
-RastrioApp()
+RastrIOApp()
 HomeScreen
 ```
 
@@ -3349,7 +3349,7 @@ basic architecture-boundary checks exist
 ### Exit criteria
 
 - repository-root mandatory verification passes;
-- Android displays the shared Rastrio shell;
+- Android displays the shared RastrIO shell;
 - Desktop displays the same shared shell;
 - module dependency direction is documented.
 
@@ -3359,7 +3359,7 @@ basic architecture-boundary checks exist
 
 ### Objective
 
-Define Rastrio's most important portable contract.
+Define RastrIO's most important portable contract.
 
 ### Implement
 
@@ -3464,7 +3464,7 @@ A `.td` can be safely created, serialized, reopened, validated, and compared usi
 
 ### Objective
 
-Implement the original Rastrio use case at semantic level.
+Implement the original RastrIO use case at semantic level.
 
 ### Implement
 
@@ -4006,7 +4006,7 @@ which backend/platform combinations are expected to be pixel-identical
 
 These choices are implementation/specification decisions rather than permanent PRD-level library mandates, but they MUST NOT be inherited accidentally from platform defaults.
 
-Full Unicode bidirectional paragraph layout is NOT required merely to ship the first stable Android release. If a verified raster shaping/layout path supports a particular RTL/bidirectional case, Rastrio MAY support it. Otherwise unsupported significant RTL/bidirectional content MUST produce a structured diagnostic rather than be reversed, corrupted, or silently dropped.
+Full Unicode bidirectional paragraph layout is NOT required merely to ship the first stable Android release. If a verified raster shaping/layout path supports a particular RTL/bidirectional case, RastrIO MAY support it. Otherwise unsupported significant RTL/bidirectional content MUST produce a structured diagnostic rather than be reversed, corrupted, or silently dropped.
 
 Emoji is supported only where the controlled raster font/backend policy can produce a deterministic printable monochrome result. Unsupported emoji grapheme clusters MUST produce a structured diagnostic; silent substitution is forbidden.
 
@@ -4436,7 +4436,7 @@ Web constraints must not cause Core document or printer models to fork.
 
 ## 100. First Major Milestone
 
-The first major Rastrio milestone is:
+The first major RastrIO milestone is:
 
 > An Android user can open or write a GitHub Flavored Markdown document, select a configured Bluetooth thermal printer, view an authoritative physical preview generated from the same immutable `PreparedPrint` used for encoding, press Print, and receive text output whose wrapping, alignment, dimensions, and primary geometry match the preview contract.
 
@@ -4869,7 +4869,7 @@ core-escpos  → core-printer
 
 ### Invariant Q — Parser libraries do not define portable-format validity
 
-`.td` and `.tcfg` accept exactly the syntax and schema their normative specifications permit. A permissive dependency parser must be constrained by Rastrio validation rather than silently widening the accepted format.
+`.td` and `.tcfg` accept exactly the syntax and schema their normative specifications permit. A permissive dependency parser must be constrained by RastrIO validation rather than silently widening the accepted format.
 
 ### Invariant R — Large prepared output remains immutable without requiring monolithic memory
 
@@ -4883,7 +4883,7 @@ H50i behavior is not a generic ESC/POS assumption. Output-affecting capabilities
 
 ## 107. Final Architectural Model
 
-Rastrio can be summarized as:
+RastrIO can be summarized as:
 
 ```text
                            USER INPUT
@@ -4983,7 +4983,7 @@ The central layout contract is:
 
 The central printer contract is:
 
-> `PrinterProfile` describes what the hardware can reliably do. `PrintOptions` describes what the user requests for the current job. `PreparedPrint` describes exactly what Rastrio decided the target printer should do.
+> `PrinterProfile` describes what the hardware can reliably do. `PrintOptions` describes what the user requests for the current job. `PreparedPrint` describes exactly what RastrIO decided the target printer should do.
 
 The central preview contract is:
 

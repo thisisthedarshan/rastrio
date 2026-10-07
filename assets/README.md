@@ -1,6 +1,6 @@
-# Rastrio Assets
+# RastrIO Assets
 
-This directory contains the production brand, application, README, and social assets for Rastrio.
+This directory contains the production brand, application, README, and social assets for RastrIO.
 
 See [`ASSETS.md`](./ASSETS.md) for the authoritative asset manifest, logo construction rules, safe-area guidance, and usage requirements.
 

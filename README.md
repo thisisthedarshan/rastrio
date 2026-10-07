@@ -3,7 +3,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo/rastrio-wordmark-horizontal-inverse.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/brand/logo/rastrio-wordmark-horizontal.svg">
-  <img alt="Rastrio" src="assets/brand/logo/rastrio-wordmark-horizontal.svg" width="360">
+  <img alt="RastrIO" src="assets/brand/logo/rastrio-wordmark-horizontal.svg" width="360">
 </picture>
 
 ### Thermal documents. Precise preview. Print.
@@ -21,21 +21,21 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.webp">
   <source media="(prefers-color-scheme: light)" srcset="assets/readme/hero-light.webp">
-  <img alt="Rastrio transforms documents into an accurate printer-specific preview and thermal printer output" src="assets/readme/hero-light.webp" width="100%">
+  <img alt="RastrIO transforms documents into an accurate printer-specific preview and thermal printer output" src="assets/readme/hero-light.webp" width="100%">
 </picture>
 
 > [!IMPORTANT]
-> **Rastrio is in active pre-alpha development.** This README describes the project architecture and intended stable behavior; not every capability listed below is implemented yet. Android is the first production target.
+> **RastrIO is in active pre-alpha development.** This README describes the project architecture and intended stable behavior; not every capability listed below is implemented yet. Android is the first production target.
 
-## What is Rastrio?
+## What is RastrIO?
 
-Rastrio is an Apache-2.0 Kotlin Multiplatform application and thermal-printing stack for turning ordinary content into reliable output on inexpensive ESC/POS-compatible thermal printers.
+RastrIO is an Apache-2.0 Kotlin Multiplatform application and thermal-printing stack for turning ordinary content into reliable output on inexpensive ESC/POS-compatible thermal printers.
 
 The goal is to make a thermal printer behave more like a useful general-purpose document printer. Users should be able to work with Markdown, notes, lists, QR payloads, and images without having to understand code pages, raster packing, printer widths in dots, ESC/POS command bytes, Bluetooth sockets, USB endpoints, or firmware quirks.
 
-Rastrio is **not a POS application** and not a raw ESC/POS terminal. It is a document system with a printer-engineering layer underneath it.
+RastrIO is **not a POS application** and not a raw ESC/POS terminal. It is a document system with a printer-engineering layer underneath it.
 
-## Why Rastrio?
+## Why RastrIO?
 
 | Principle | What it means |
 | --- | --- |
@@ -46,7 +46,7 @@ Rastrio is **not a POS application** and not a raw ESC/POS terminal. It is a doc
 | **Shared where it matters** | Core logic and primary UI are shared with Kotlin Multiplatform and Compose Multiplatform; real OS/hardware integrations stay platform-specific. |
 | **Deterministic by design** | Layout, rasterization, serialization, and protocol transformations are designed for exact automated and golden testing. |
 
-## What Rastrio is designed to handle
+## What RastrIO is designed to handle
 
 ### Documents and authoring
 
@@ -82,7 +82,7 @@ Rastrio is **not a POS application** and not a raw ESC/POS terminal. It is a doc
 
 ## The core invariant
 
-Rastrio separates **what a document means** from **how a particular printer will physically produce it**.
+RastrIO separates **what a document means** from **how a particular printer will physically produce it**.
 
 ```mermaid
 flowchart TD
@@ -111,7 +111,7 @@ flowchart TD
 
 ### `.td` — thermal document
 
-`.td` is Rastrio's portable semantic document format. Version 1 uses a ZIP-compatible container with UTF-8 JSON and embedded assets.
+`.td` is RastrIO's portable semantic document format. Version 1 uses a ZIP-compatible container with UTF-8 JSON and embedded assets.
 
 A `.td` file describes content such as paragraphs, headings, lists, tables, images, QR codes, formatting intent, and document layout intent. It does **not** contain printer commands or transport configuration.
 
@@ -127,7 +127,7 @@ See [`docs/TCFG_SPEC.md`](docs/TCFG_SPEC.md).
 
 ## Architecture
 
-Rastrio keeps portable printer intelligence separate from application hosts and transports.
+RastrIO keeps portable printer intelligence separate from application hosts and transports.
 
 ```text
 rastrio/
@@ -183,7 +183,7 @@ The first major milestone is intentionally narrower than the first stable releas
 
 ## Building from source
 
-Rastrio uses the **Gradle Wrapper with Kotlin DSL**. You do not need a system Gradle installation.
+RastrIO uses the **Gradle Wrapper with Kotlin DSL**. You do not need a system Gradle installation.
 
 Typical repository-level commands are:
 
@@ -235,7 +235,7 @@ The PRD is the project-level source of truth. Dedicated specifications provide t
 
 Testing is part of implementation, not cleanup.
 
-Rastrio uses or plans to use:
+RastrIO uses or plans to use:
 
 - pure unit tests for deterministic Core behavior;
 - golden tests for document, layout, raster, preparation, preview, and ESC/POS transformations;
@@ -253,7 +253,7 @@ A practical bug fix should include a regression test. A physical-output feature 
 
 Files, Markdown, images, QR payloads, printer profiles, archive paths, and device metadata are treated as untrusted input where applicable.
 
-Rastrio is designed around a few strict rules:
+RastrIO is designed around a few strict rules:
 
 - no hidden network I/O from Core document parsing;
 - no arbitrary raw ESC/POS programs injected through imported printer profiles;
@@ -267,7 +267,7 @@ See [`docs/SECURITY.md`](docs/SECURITY.md) and [`docs/RESOURCE_LIMITS.md`](docs/
 
 ## Contributing
 
-Rastrio is intended to be a contributor-friendly FOSS project, but architectural boundaries are deliberate.
+RastrIO is intended to be a contributor-friendly FOSS project, but architectural boundaries are deliberate.
 
 Before making a substantial change:
 
@@ -290,7 +290,7 @@ A few rules are especially important:
 
 ### Optional Git hooks
 
-Rastrio provides repository-managed Git hooks under `.githooks/`.
+RastrIO provides repository-managed Git hooks under `.githooks/`.
 
 They are optional and are not enabled automatically after cloning. To enable
 them for your local checkout:
@@ -305,13 +305,13 @@ them for your local checkout:
 
 The initial reference printer is the **Helett H50i BillQuick Go**. It is a development/reference device, not a hard-coded architectural target.
 
-Rastrio's printer engine is designed around capability profiles so support for additional compatible printers can be added and tested without scattering model checks through Core code.
+RastrIO's printer engine is designed around capability profiles so support for additional compatible printers can be added and tested without scattering model checks through Core code.
 
 Verified protocol behavior and hardware observations belong in [`docs/ESC_POS_NOTES.md`](docs/ESC_POS_NOTES.md) and [`docs/HARDWARE_TESTS.md`](docs/HARDWARE_TESTS.md).
 
 ## Brand assets
 
-The canonical Rastrio symbol is the **Registration Strip** mark. The authoritative vector geometry lives at:
+The canonical RastrIO symbol is the **Registration Strip** mark. The authoritative vector geometry lives at:
 
 [`assets/brand/logo/rastrio-symbol.svg`](assets/brand/logo/rastrio-symbol.svg)
 
@@ -319,7 +319,7 @@ Do not reconstruct the logo from screenshots or promotional artwork. See [`asset
 
 ## License
 
-Rastrio is licensed under the [Apache License 2.0](LICENSE).
+RastrIO is licensed under the [Apache License 2.0](LICENSE).
 
 Unless a file explicitly states otherwise, contributions to the project are provided under the same license.
 
@@ -327,6 +327,6 @@ Unless a file explicitly states otherwise, contributions to the project are prov
 
 <div align="center">
 
-**Rastrio** · thermal documents, precise preview, physical output
+**RastrIO** · thermal documents, precise preview, physical output
 
 </div>

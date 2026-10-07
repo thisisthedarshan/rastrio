@@ -1,9 +1,9 @@
-# Rastrio Text Rendering Specification
+# RastrIO Text Rendering Specification
 
 **Status:** Normative implementation specification  
 **Specification revision:** 1.1  
 **Target path:** `docs/TEXT_RENDERING_SPEC.md`  
-**Applies to:** Rastrio v1 architecture  
+**Applies to:** RastrIO v1 architecture
 **Governing document:** `PRD.md` v2.1 and `docs/ARCHITECTURE.md`  
 **License context:** Apache-2.0 project
 
@@ -11,7 +11,7 @@
 
 ## 1. Purpose
 
-This specification defines the portable text contract used by Rastrio for text measurement, shaping, logical layout integration, printer-native text, raster text fallback, physical preparation, and preview consistency.
+This specification defines the portable text contract used by RastrIO for text measurement, shaping, logical layout integration, printer-native text, raster text fallback, physical preparation, and preview consistency.
 
 Its primary goal is to ensure that text geometry is resolved exactly once through the shared Core pipeline and that the same resolved physical plan drives both preview and printing.
 
@@ -113,7 +113,7 @@ This specification does not define:
 - ESC/POS command bytes;
 - a platform UI text-layout system;
 - platform UI text APIs as authoritative shaping/layout engines;
-- per-glyph mixing of printer-native and raster text in Rastrio v1;
+- per-glyph mixing of printer-native and raster text in RastrIO v1;
 - a universal guarantee that printer ROM glyph shapes can be reproduced pixel-for-pixel in preview;
 - platform-specific font APIs as public Core types;
 - a guarantee that unrelated platform font installations produce identical raster output.
@@ -265,7 +265,7 @@ A grapheme cluster may contain:
 - a zero-width-joiner sequence;
 - another multi-code-point sequence.
 
-Rastrio MUST NOT intentionally split a grapheme cluster when performing emergency line wrapping or font fallback unless a future specification explicitly defines a safe exception.
+RastrIO MUST NOT intentionally split a grapheme cluster when performing emergency line wrapping or font fallback unless a future specification explicitly defines a safe exception.
 
 ### 6.3 Glyph
 
@@ -327,13 +327,13 @@ Native printer fonts MUST NOT be inferred from a UI font with a similar name.
 
 ### 6.9 Raster font
 
-A **raster font** is a font resource used by Rastrio's shaping/rasterization path rather than by printer firmware.
+A **raster font** is a font resource used by RastrIO's shaping/rasterization path rather than by printer firmware.
 
 Raster fonts may be project-controlled bundled resources or explicitly resolved platform fonts.
 
 ### 6.10 Raster text
 
-**Raster text** is text whose final glyph appearance is rendered by Rastrio into printer-ready monochrome raster content before ESC/POS serialization.
+**Raster text** is text whose final glyph appearance is rendered by RastrIO into printer-ready monochrome raster content before ESC/POS serialization.
 
 The ESC/POS encoder MUST NOT shape or draw the text.
 
@@ -355,7 +355,7 @@ For v1 text fallback, native/raster strategy is resolved at this line boundary.
 
 ## 7. Coordinate and Measurement Principles
 
-Rastrio text geometry has two related domains:
+RastrIO text geometry has two related domains:
 
 1. logical geometry used by `core-layout`;
 2. physical printer geometry represented in `PreparedPrint`.
@@ -719,7 +719,7 @@ A UI may draw representative glyphs into those boxes. It MUST NOT change box siz
 
 ## 12. Unicode Segmentation and Grapheme Awareness
 
-Rastrio MUST be Unicode-aware at text boundaries.
+RastrIO MUST be Unicode-aware at text boundaries.
 
 ### 12.1 Required behavior
 
@@ -819,7 +819,7 @@ The v1 baseline uses the Unicode Line Breaking Algorithm from **Unicode 18.0 / U
 
 The implementation MAY use generated tables or a library, but the effective Unicode data version and tailoring MUST be explicit and regression-tested. It MUST NOT silently change because an operating system updates.
 
-Rastrio v1 does not add dictionary-based hyphenation.
+RastrIO v1 does not add dictionary-based hyphenation.
 
 Where a script requires locale/dictionary tailoring that the selected v1 implementation does not provide, Core MUST remain deterministic and fall back to the normal emergency grapheme-boundary rule rather than silently using a platform-specific word breaker.
 
@@ -901,7 +901,7 @@ If the selected break implementation lacks support for a particular Unicode spac
 
 ## 16. Tabs
 
-Rastrio v1 uses canonical **four-column tab stops**.
+RastrIO v1 uses canonical **four-column tab stops**.
 
 A tab character advances to the next tab stop; it is not defined as a blind replacement with four spaces.
 
@@ -1165,7 +1165,7 @@ The implementation MUST NOT substitute metrics from a visually similar screen fo
 
 If a printer-native mode has variable or insufficiently characterized geometry, it MUST NOT be used for authoritative native layout unless the profile can describe it sufficiently.
 
-Rastrio SHOULD fall back to raster text or produce a diagnostic rather than claim accurate native geometry from guesses.
+RastrIO SHOULD fall back to raster text or produce a diagnostic rather than claim accurate native geometry from guesses.
 
 ### 21.4 Scale
 
@@ -1309,7 +1309,7 @@ If the sequence is not reliably native, the containing physical line follows the
 
 ## 25. Indic and Other Complex Scripts
 
-Rastrio's stable Android release requires Unicode raster fallback, and the test plan explicitly includes Indic and complex-script text.
+RastrIO's stable Android release requires Unicode raster fallback, and the test plan explicitly includes Indic and complex-script text.
 
 ### 25.1 Required raster behavior
 
@@ -1343,7 +1343,7 @@ The v1 baseline therefore follows these rules:
 
 1. Core text contracts MUST remain capable of carrying explicit direction/script information for future support.
 2. Portable models MUST NOT expose platform-specific bidi objects.
-3. Rastrio MUST NOT fake RTL by reversing code points, grapheme clusters, or glyph runs.
+3. RastrIO MUST NOT fake RTL by reversing code points, grapheme clusters, or glyph runs.
 4. Printer-native RTL MUST NOT be assumed from byte/code-page coverage alone.
 5. A verified raster backend MAY support a specifically tested RTL case, but support MUST be explicit and covered by deterministic fixtures.
 6. A paragraph/run containing significant strong RTL/bidirectional content that is outside the verified support set MUST produce a structured diagnostic before final preparation.
@@ -1374,7 +1374,7 @@ A zero-width-joiner sequence MUST NOT be intentionally split to fit a line.
 
 A full emoji font is not part of the v1 bundled font baseline.
 
-Rastrio v1 MAY render simple monochrome symbol-like characters when they are covered by the pinned bundled font set and can be shaped/rasterized deterministically.
+RastrIO v1 MAY render simple monochrome symbol-like characters when they are covered by the pinned bundled font set and can be shaped/rasterized deterministically.
 
 This does not imply general emoji support.
 
@@ -1382,7 +1382,7 @@ Examples of acceptable basic symbol coverage may include ordinary monochrome arr
 
 Emoji-presentation requests, color-only emoji glyphs, unsupported ZWJ sequences, unsupported flags, and unsupported modifier sequences MUST produce a structured missing-glyph/unsupported-emoji diagnostic.
 
-Rastrio MUST NOT silently substitute a platform emoji, color bitmap, unrelated symbol, or `?`.
+RastrIO MUST NOT silently substitute a platform emoji, color bitmap, unrelated symbol, or `?`.
 
 ### 27.3 Native printer text
 
@@ -1461,12 +1461,12 @@ monospace family:
     - Bold Italic where the selected pinned release provides it
 
 script-specific fallback:
-    pinned Noto Sans script families required by Rastrio's claimed support
+    pinned Noto Sans script families required by RastrIO's claimed support
 ```
 
 At minimum, the stable Android baseline MUST include a controlled fallback sufficient for the repository's required Indic/Devanagari shaping tests.
 
-Rastrio MUST NOT bundle a Nerd Font merely for icon/symbol availability.
+RastrIO MUST NOT bundle a Nerd Font merely for icon/symbol availability.
 
 Exact font file versions and content hashes belong in a repository font manifest or equivalent build-controlled metadata. Golden fixtures MUST record the resolved font resource identity/hash.
 
@@ -1499,7 +1499,7 @@ They MUST participate in layout before `PreparedPrint` is finalized.
 
 ### 29.5 User-selected font files
 
-Rastrio MAY allow the user to explicitly select/import a font resource.
+RastrIO MAY allow the user to explicitly select/import a font resource.
 
 When the application can access the font bytes:
 
@@ -1525,7 +1525,7 @@ Because exact platform font files and versions may differ:
 - resolved metrics and final raster are frozen into the current `PreparedPrint`;
 - if a stable font identity/fingerprint cannot be established, the preparation metadata SHOULD record that the source was platform-resolved.
 
-An unavailable explicitly selected platform font MUST produce a diagnostic. Rastrio MUST NOT silently replace it with another system font.
+An unavailable explicitly selected platform font MUST produce a diagnostic. RastrIO MUST NOT silently replace it with another system font.
 
 ### 29.7 No synthetic style by accident
 
@@ -1598,7 +1598,7 @@ It serializes final raster bands using the already-selected raster protocol stra
 
 ### 30.7 Bounded memory
 
-Long raster-text output MUST be compatible with Rastrio's bounded-memory design.
+Long raster-text output MUST be compatible with RastrIO's bounded-memory design.
 
 The implementation SHOULD support line-level or band-level raster data rather than requiring one receipt-sized bitmap.
 
@@ -2056,7 +2056,7 @@ The following behavior is forbidden:
 - retrying layout in the encoder;
 - treating an unsupported script as fixed-width one-code-point-per-cell text.
 
-When faithful output cannot be prepared, Rastrio must surface a diagnostic rather than claim success.
+When faithful output cannot be prepared, RastrIO must surface a diagnostic rather than claim success.
 
 ---
 
@@ -2185,7 +2185,7 @@ This path is expected to support the first basic Android Bluetooth milestone.
 A CP437-style or equivalent profile-declared code page is a valid native capability only when the profile identifies:
 
 - the code-page strategy;
-- the repertoire/mapping used by Rastrio;
+- the repertoire/mapping used by RastrIO;
 - compatible native font(s);
 - any known unreliable characters or quirks.
 
@@ -2824,7 +2824,7 @@ An explicit external font choice is output-affecting and may reduce cross-device
 
 ## 60. Final Contract
 
-Rastrio's text system is governed by one principle:
+RastrIO's text system is governed by one principle:
 
 > Text may be semantic in `.td`, target-constrained in logical layout, and printer-specific in `PreparedPrint`, but no downstream stage may independently reinterpret the resolved physical text plan.
 
@@ -2861,7 +2861,7 @@ For raster text, preview accuracy means the exact prepared raster is shown geome
 
 For native printer text, preview accuracy means wrapping, placement, operation selection, dimensions, alignment, style intent, and native-font geometry are authoritative; glyph ink shape may remain representative when the printer's exact ROM font data is unavailable.
 
-This distinction is mandatory. It preserves Rastrio's central promise that physical preview and printed geometry derive from one shared, immutable physical plan rather than from separate layout engines.
+This distinction is mandatory. It preserves RastrIO's central promise that physical preview and printed geometry derive from one shared, immutable physical plan rather than from separate layout engines.
 
 
 ## Phase 3A Implementation Foundation

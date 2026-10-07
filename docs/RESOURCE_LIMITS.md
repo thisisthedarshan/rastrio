@@ -1,8 +1,8 @@
-# Rastrio Resource Limits Specification
+# RastrIO Resource Limits Specification
 
 **Status:** Implementation specification  
 **Specification revision:** 1.1  
-**Applies to:** Rastrio Core, shared application, platform applications, preview, printing, import/export, and untrusted-input processing  
+**Applies to:** RastrIO Core, shared application, platform applications, preview, printing, import/export, and untrusted-input processing
 **Governing baseline:** `PRD.md` v2.1 and `docs/ARCHITECTURE.md`  
 **Related specifications:** `docs/TD_SPEC.md`, `docs/TCFG_SPEC.md`, `docs/TEXT_RENDERING_SPEC.md`, `docs/PREVIEW_SPEC.md`, `docs/SECURITY.md`, `docs/TESTING.md`  
 **Primary release target:** Android  
@@ -12,7 +12,7 @@
 
 ## 1. Purpose
 
-Rastrio processes inputs whose logical or decoded size may be dramatically larger than their apparent source size.
+RastrIO processes inputs whose logical or decoded size may be dramatically larger than their apparent source size.
 
 Examples include:
 
@@ -26,9 +26,9 @@ Examples include:
 - malformed or malicious JSON structures;
 - printer jobs whose encoded output is substantially larger than the originating document.
 
-Rastrio MUST therefore treat resource consumption as an explicit part of input validation, document processing, preview generation, printer preparation, encoding, and transmission.
+RastrIO MUST therefore treat resource consumption as an explicit part of input validation, document processing, preview generation, printer preparation, encoding, and transmission.
 
-The objective of this specification is to ensure that an input cannot cause Rastrio to require unbounded:
+The objective of this specification is to ensure that an input cannot cause RastrIO to require unbounded:
 
 - memory;
 - archive expansion;
@@ -61,7 +61,7 @@ This specification defines:
 
 The terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative.
 
-A numeric value explicitly labelled **Provisional Baseline** or **Provisional Default** is not a permanent Rastrio format constraint.
+A numeric value explicitly labelled **Provisional Baseline** or **Provisional Default** is not a permanent RastrIO format constraint.
 
 Such values:
 
@@ -124,7 +124,7 @@ Similarly, bounding image file size alone is insufficient because a small compre
 
 Metadata supplied by an input MUST NOT be trusted as the sole enforcement mechanism.
 
-For example, a ZIP entry's declared uncompressed size MAY be used for early rejection, but Rastrio MUST also count the bytes actually produced during decompression.
+For example, a ZIP entry's declared uncompressed size MAY be used for early rejection, but RastrIO MUST also count the bytes actually produced during decompression.
 
 An input that claims:
 
@@ -144,7 +144,7 @@ during decompression MUST be stopped according to the actual-byte budget.
 
 ## 4.3 Fail before expensive work where possible
 
-Rastrio SHOULD reject invalid or clearly over-limit input before allocating large buffers or performing expensive transforms.
+RastrIO SHOULD reject invalid or clearly over-limit input before allocating large buffers or performing expensive transforms.
 
 Preferred sequence:
 
@@ -300,7 +300,7 @@ platform transport
 
 # 6. Limit Classes
 
-Rastrio SHOULD distinguish at least four classes of resource control.
+RastrIO SHOULD distinguish at least four classes of resource control.
 
 ## 6.1 Hard safety ceiling
 
@@ -369,7 +369,7 @@ These MUST remain architecturally distinct.
 
 # 7. Effective-Limit Precedence
 
-Where more than one limit applies, Rastrio MUST use the safe effective bound.
+Where more than one limit applies, RastrIO MUST use the safe effective bound.
 
 Conceptually:
 
@@ -637,13 +637,13 @@ normalized UTF-8 path length: 1,024 bytes
 segments: 64
 ```
 
-Rastrio SHOULD process `.td` entries directly from the archive abstraction rather than extracting arbitrary paths into a filesystem.
+RastrIO SHOULD process `.td` entries directly from the archive abstraction rather than extracting arbitrary paths into a filesystem.
 
 ---
 
 ## 9.10 Compression ratio
 
-Rastrio MUST NOT rely solely on a maximum compression ratio as ZIP-bomb protection.
+RastrIO MUST NOT rely solely on a maximum compression ratio as ZIP-bomb protection.
 
 Compression ratios vary legitimately between content types.
 
@@ -667,7 +667,7 @@ An implementation MAY additionally detect extreme expansion ratios for diagnosti
 
 `.td` processing MUST NOT recursively unpack embedded assets merely because they happen to contain another archive format.
 
-Only the `.td` container itself is interpreted as the Rastrio archive.
+Only the `.td` container itself is interpreted as the RastrIO archive.
 
 An embedded ZIP, APK, JAR, or similar binary is data unless another explicitly invoked feature supports that format.
 
@@ -712,7 +712,7 @@ Deeply nested objects or arrays can cause:
 64 nesting levels
 ```
 
-If the chosen JSON decoder does not provide a reliable depth limit, Rastrio MUST introduce bounded token scanning, a parser wrapper, or another enforcement mechanism.
+If the chosen JSON decoder does not provide a reliable depth limit, RastrIO MUST introduce bounded token scanning, a parser wrapper, or another enforcement mechanism.
 
 ---
 
@@ -782,7 +782,7 @@ The parser path MUST preserve enough information to detect those conditions befo
 
 All JSON originating in `.td`, `.tcfg`, migration data, or other untrusted portable content MUST be bounded before and during model construction.
 
-At minimum Rastrio MUST control:
+At minimum RastrIO MUST control:
 
 ```text
 input bytes
@@ -811,9 +811,9 @@ domain validation
 cross-reference validation
 ```
 
-A parser configuration that discards unknown fields or collapses duplicate keys before Rastrio can validate them is insufficient by itself.
+A parser configuration that discards unknown fields or collapses duplicate keys before RastrIO can validate them is insufficient by itself.
 
-Where the chosen parser does not expose the required controls, Rastrio MUST add bounded lexical scanning, parser wrapping, token inspection, or equivalent validation as required by `TD_SPEC.md` and `TCFG_SPEC.md`.
+Where the chosen parser does not expose the required controls, RastrIO MUST add bounded lexical scanning, parser wrapping, token inspection, or equivalent validation as required by `TD_SPEC.md` and `TCFG_SPEC.md`.
 
 The application MUST NOT allocate a collection based solely on an untrusted declared count without first validating the count and arithmetic.
 
@@ -823,7 +823,7 @@ The application MUST NOT allocate a collection based solely on an untrusted decl
 
 Markdown is untrusted text input.
 
-The GFM parser and Rastrio compiler MUST remain bounded even where the document is syntactically valid.
+The GFM parser and RastrIO compiler MUST remain bounded even where the document is syntactically valid.
 
 ---
 
@@ -879,7 +879,7 @@ The parser/compiler MUST limit the number of generated AST or equivalent structu
 250,000 Markdown AST nodes
 ```
 
-If the third-party Markdown parser does not expose node-count enforcement during parsing, Rastrio SHOULD perform a bounded traversal immediately after parse and before expensive compilation/layout work.
+If the third-party Markdown parser does not expose node-count enforcement during parsing, RastrIO SHOULD perform a bounded traversal immediately after parse and before expensive compilation/layout work.
 
 Where possible, parsing itself SHOULD also be protected against pathological construction.
 
@@ -911,7 +911,7 @@ The effective parser limit MAY be lower if the chosen GFM implementation has a s
 
 Very long unbroken sequences can trigger poor behavior in line-breaking algorithms if implementations repeatedly rescan the same text.
 
-Rastrio MUST ensure that line-breaking work for long tokens is bounded and approximately linear or otherwise explicitly complexity-limited.
+RastrIO MUST ensure that line-breaking work for long tokens is bounded and approximately linear or otherwise explicitly complexity-limited.
 
 A long unbroken token MUST NOT automatically be truncated.
 
@@ -984,7 +984,7 @@ Network-resolved assets MUST be bounded while downloading and MUST NOT first dow
 
 ## 13.2 Dimension preflight
 
-Where the image format and platform decoder permit it, Rastrio SHOULD inspect image dimensions before allocating the full decoded bitmap.
+Where the image format and platform decoder permit it, RastrIO SHOULD inspect image dimensions before allocating the full decoded bitmap.
 
 The following calculation MUST use checked arithmetic:
 
@@ -1022,7 +1022,7 @@ Otherwise they MUST be rejected before full decode.
 
 ## 13.4 Decoded memory estimation
 
-Before full-resolution allocation where possible, Rastrio MUST estimate decoded memory.
+Before full-resolution allocation where possible, RastrIO MUST estimate decoded memory.
 
 Conceptually:
 
@@ -1071,13 +1071,13 @@ A platform with significantly higher bitmap overhead MAY select a smaller effect
 
 Images intended for thermal printing will normally require far fewer pixels than modern camera images.
 
-Rastrio SHOULD therefore downsample as early as practical toward the resolution actually required for:
+RastrIO SHOULD therefore downsample as early as practical toward the resolution actually required for:
 
 - crop/edit operations;
 - preview;
 - selected printer output.
 
-Where the decoder supports sampled decode, Rastrio SHOULD prefer:
+Where the decoder supports sampled decode, RastrIO SHOULD prefer:
 
 ```text
 decode near required working resolution
@@ -1118,7 +1118,7 @@ A decoder crash or out-of-memory condition is not an acceptable substitute for t
 
 # 13A. Font Resource Limits
 
-Rastrio's default authoritative raster typography uses project-controlled bundled fonts.
+RastrIO's default authoritative raster typography uses project-controlled bundled fonts.
 
 Bundled font files are trusted build inputs only after their exact bytes, hashes, versions, and licenses have been reviewed and pinned by the repository.
 
@@ -1190,7 +1190,7 @@ because those are independent costs.
 
 ## 13A.4 User-selected platform fonts
 
-An explicitly selected platform-installed font does not require Rastrio to copy the entire system font inventory into memory.
+An explicitly selected platform-installed font does not require RastrIO to copy the entire system font inventory into memory.
 
 Enumeration, metadata reads, and font opening MUST remain bounded by platform-adapter policy.
 
@@ -1457,7 +1457,7 @@ Integrity metadata is an implementation/runtime concern unless another specifica
 
 Long-document preview MUST be virtualized.
 
-Rastrio MUST NOT require one bitmap or canvas covering the complete physical height of a long receipt.
+RastrIO MUST NOT require one bitmap or canvas covering the complete physical height of a long receipt.
 
 ---
 
@@ -1565,7 +1565,7 @@ A preview cache MUST remain governed by its byte budget independent of zoom leve
 
 # 17. Document and Layout Resource Limits
 
-Thermal documents can be intentionally long, so Rastrio MUST not assume that document height is comparable to a sheet of paper.
+Thermal documents can be intentionally long, so RastrIO MUST not assume that document height is comparable to a sheet of paper.
 
 Document complexity still requires finite limits.
 
@@ -1660,7 +1660,7 @@ It MAY be revised when wide-document workflows are measured.
 
 ## 17.6 Logical height
 
-Rastrio SHOULD NOT impose a small page-like logical-height limit because long receipts are a first-class use case.
+RastrIO SHOULD NOT impose a small page-like logical-height limit because long receipts are a first-class use case.
 
 Instead, logical height MUST be constrained indirectly through bounded:
 
@@ -1698,7 +1698,7 @@ The current Phase 3B default and its retained-cost accounting/rationale are defi
 
 ## 17.8 Pathological geometry
 
-Rastrio MUST reject:
+RastrIO MUST reject:
 
 - NaN dimensions where floating-point representations are used;
 - infinite values;
@@ -1945,7 +1945,7 @@ A technically valid print job can still consume excessive:
 - battery;
 - transport bandwidth.
 
-Rastrio SHOULD therefore distinguish:
+RastrIO SHOULD therefore distinguish:
 
 ```text
 unsafe to process
@@ -2048,7 +2048,7 @@ Disk bytes, file/object count, index metadata, and cleanup work MUST remain boun
 
 Limit failures MUST be deterministic and explicit.
 
-Rastrio MUST NOT silently lose significant printable content.
+RastrIO MUST NOT silently lose significant printable content.
 
 The default response depends on the resource involved.
 
@@ -2097,7 +2097,7 @@ The following MUST NOT be silently downscaled or discarded as a generic resource
 - document blocks;
 - physical landscape strips.
 
-If content cannot be processed within a hard limit, Rastrio MUST report that condition rather than silently omitting content.
+If content cannot be processed within a hard limit, RastrIO MUST report that condition rather than silently omitting content.
 
 ---
 
@@ -2111,7 +2111,7 @@ Potentially acceptable examples include:
 - limiting log-message formatting;
 - limiting preview diagnostic detail lists while separately reporting total count.
 
-Rastrio MUST NOT silently truncate:
+RastrIO MUST NOT silently truncate:
 
 ```text
 Markdown source
@@ -2416,10 +2416,10 @@ documentSchemaVersion
 For example:
 
 ```text
-Rastrio 1.0:
+RastrIO 1.0:
     max expanded archive = X
 
-Rastrio 1.2:
+RastrIO 1.2:
     max expanded archive = Y
 ```
 
@@ -2994,7 +2994,7 @@ Ownership MUST remain consistent with the architectural dependency rules.
 The following resource-related invariants are mandatory.
 
 1. `.td` and `.tcfg` processing is bounded from the first implementation.
-2. Rastrio MUST NOT trust declared ZIP sizes without counting actual expanded bytes.
+2. RastrIO MUST NOT trust declared ZIP sizes without counting actual expanded bytes.
 3. Strict JSON validation MUST occur without losing duplicate-key or unknown-property information.
 4. Long documents MUST NOT require one giant bitmap.
 5. Long print jobs MUST NOT require one giant `ByteArray`.
@@ -3088,7 +3088,7 @@ They are tuning questions, not permission for unbounded interim implementations.
 9. What platform-private prepared-artifact spool budget is appropriate on the minimum-supported Android device, including orphan-cleanup behavior under storage pressure.
 10. Whether Web/Wasm requires materially lower Markdown, image, font, preview, or document-complexity defaults.
 11. Whether wide-document measurements justify raising or lowering the provisional **1,000 mm** logical-width and **256 physical-segment** ceilings.
-12. Whether the selected GFM and strict JSON implementations provide sufficient native depth/work controls or require additional Rastrio-side bounded wrappers.
+12. Whether the selected GFM and strict JSON implementations provide sufficient native depth/work controls or require additional RastrIO-side bounded wrappers.
 13. Whether Android/Desktop can use identical pinned HarfBuzz/FreeType settings with acceptably stable memory/performance, and what differences Web requires.
 
 The provisional policy in this document applies until measured replacements are deliberately adopted.
@@ -3120,7 +3120,7 @@ A resource-sensitive feature is not complete until:
 
 # 60. Final Resource Model
 
-Rastrio's resource model can be summarized as:
+RastrIO's resource model can be summarized as:
 
 ```text
              UNTRUSTED INPUT
@@ -3174,13 +3174,13 @@ These constraints combine into a safe transmission policy while remaining distin
 
 The governing rule is:
 
-> **No untrusted or arbitrarily large input may force Rastrio to allocate, parse, shape, rasterize, spool, render, prepare, encode, preview, or buffer an unbounded amount of data.**
+> **No untrusted or arbitrarily large input may force RastrIO to allocate, parse, shape, rasterize, spool, render, prepare, encode, preview, or buffer an unbounded amount of data.**
 
 At the same time:
 
-> **Resource enforcement must preserve document semantics. When significant printable content cannot be processed safely, Rastrio reports the problem rather than silently discarding that content.**
+> **Resource enforcement must preserve document semantics. When significant printable content cannot be processed safely, RastrIO reports the problem rather than silently discarding that content.**
 
-The provisional numeric baselines in this document provide safe initial implementation targets. They are deliberately replaceable by measured values without changing Rastrio's document model, printer model, preview contract, or transport architecture.
+The provisional numeric baselines in this document provide safe initial implementation targets. They are deliberately replaceable by measured values without changing RastrIO's document model, printer model, preview contract, or transport architecture.
 
 
 ## Phase 3A Operational Text/Layout Budgets

@@ -15,14 +15,14 @@ else
     RESET=''
 fi
 
-echo -e "${BOLD}${BLUE}▶ Running Rastrio verification...${RESET}"
+echo -e "${BOLD}${BLUE}▶ Running RastrIO verification...${RESET}"
 
 if ./gradlew check \
     :androidApp:assembleDebug \
     :desktopApp:compileKotlin
 then
-    echo -e "${BOLD}${GREEN}✓ Rastrio verification passed.${RESET}"
+    echo -e "${BOLD}${GREEN}✓ RastrIO verification passed.${RESET}"
 else
-    echo -e "${BOLD}${RED}✗ Rastrio verification failed.${RESET}" >&2
+    echo -e "${BOLD}${RED}✗ RastrIO verification failed.${RESET}" >&2
     exit 1
 fi

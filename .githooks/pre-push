@@ -13,7 +13,7 @@ else
     RESET=''
 fi
 
-echo -e "${BOLD}${CYAN}▶ Pre-push: verifying Rastrio...${RESET}"
+echo -e "${BOLD}${CYAN}▶ Pre-push: verifying RastrIO...${RESET}"
 
 ./scripts/verify.sh
 

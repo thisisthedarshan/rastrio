@@ -1,7 +1,7 @@
-# Rastrio Visual System
+# RastrIO Visual System
 
 **Status:** Production visual-system baseline  
-**Project:** Rastrio  
+**Project:** RastrIO
 **Applies to:** Android, Desktop/JVM, Web, GitHub, F-Droid, documentation, project website, screenshots, release material  
 **Source authority:** `PRD.md` and `docs/BRAND_GUIDE.md`
 
@@ -9,7 +9,7 @@
 
 ## 1. Purpose and authority
 
-This document defines Rastrio's production color system, light and dark themes, thermal-paper preview colors, accessibility constraints, iconography language, application/project icon construction, and Compose Multiplatform token guidance.
+This document defines RastrIO's production color system, light and dark themes, thermal-paper preview colors, accessibility constraints, iconography language, application/project icon construction, and Compose Multiplatform token guidance.
 
 The approved brand direction remains authoritative. This specification does not redesign the identity. It converts the existing **Registration Strip / Registration Blue / Thermal Amber / Paper and Carbon** direction into implementation-ready values and rules.
 
@@ -27,7 +27,7 @@ Normative terms such as MUST, MUST NOT, SHOULD, and MAY are used deliberately.
 
 ## 2. Visual-system principles
 
-Rastrio's production UI should read as a document tool first and a printer-engineering tool second.
+RastrIO's production UI should read as a document tool first and a printer-engineering tool second.
 
 The visual system therefore follows these rules:
 
@@ -139,7 +139,7 @@ This is the preferred direct-implementation table.
 | `statusInfoContainer` | `#D7EDF0` | `#214B56` | information banner/chip background |
 | `statusOnInfoContainer` | `#14343A` | `#DDF5FA` | information container content |
 
-There is intentionally no independent `brandAccent` color. `brandSecondary` is Rastrio's approved accent role. Adding a third decorative chromatic family would weaken the paper/carbon/registration/heat system without solving a product need.
+There is intentionally no independent `brandAccent` color. `brandSecondary` is RastrIO's approved accent role. Adding a third decorative chromatic family would weaken the paper/carbon/registration/heat system without solving a product need.
 
 ---
 
@@ -256,7 +256,7 @@ Thermal-paper preview colors are theme-independent unless explicitly noted. The 
 
 ### 7.2 Printed marks versus annotations
 
-Rastrio MUST preserve the difference between data that physically prints and preview-only annotations:
+RastrIO MUST preserve the difference between data that physically prints and preview-only annotations:
 
 - actual raster/text content uses `previewPrintedBlack` or the exact raster samples;
 - a **manual cut guide**, when represented as printable content in `PreparedPrint`, uses the same printed-black treatment as other output;
@@ -276,7 +276,7 @@ In dark mode, the dark application surface behind the paper provides strong silh
 
 ### 8.1 Project targets
 
-Rastrio targets, at minimum:
+RastrIO targets, at minimum:
 
 - **4.5:1** for normal text;
 - **3:1** for large text and meaningful non-text UI graphics;
@@ -340,7 +340,7 @@ For tabular diagnostics, also expose severity text or an accessible name so sort
 
 ## 9. Compose Multiplatform implementation guidance
 
-The semantic token layer should be owned by shared UI code and should not depend on Android-only APIs. It MAY later map into Material/Compose `ColorScheme`, but Rastrio components should continue to consume Rastrio semantic roles where Material names are insufficient.
+The semantic token layer should be owned by shared UI code and should not depend on Android-only APIs. It MAY later map into Material/Compose `ColorScheme`, but RastrIO components should continue to consume RastrIO semantic roles where Material names are insufficient.
 
 ### 9.1 Example representation
 
@@ -349,7 +349,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 @Immutable
-data class RastrioColors(
+data class RastrIOColors(
     val brandPrimary: Color,
     val brandOnPrimary: Color,
     val brandPrimaryContainer: Color,
@@ -388,7 +388,7 @@ data class RastrioColors(
     val previewSelectionOutline: Color,
 )
 
-val RastrioLightColors = RastrioColors(
+val RastrIOLightColors = RastrIOColors(
     brandPrimary = Color(0xFF315C73),
     brandOnPrimary = Color(0xFFFFFFFF),
     brandPrimaryContainer = Color(0xFFD7E8F0),
@@ -427,7 +427,7 @@ val RastrioLightColors = RastrioColors(
     previewSelectionOutline = Color(0xFF315C73),
 )
 
-val RastrioDarkColors = RastrioColors(
+val RastrIODarkColors = RastrIOColors(
     brandPrimary = Color(0xFF78AFC8),
     brandOnPrimary = Color(0xFF10252F),
     brandPrimaryContainer = Color(0xFF234A5D),
@@ -474,7 +474,7 @@ The full production type SHOULD also carry the semantic container/on-container s
 
 Where Material components are used, map them approximately as follows:
 
-| Material role | Rastrio semantic role |
+| Material role | RastrIO semantic role |
 |---|---|
 | `primary` | `brandPrimary` |
 | `onPrimary` | `brandOnPrimary` |
@@ -494,7 +494,7 @@ Where Material components are used, map them approximately as follows:
 | `outlineVariant` | `borderSubtle` |
 | `error` | `statusError` |
 
-Do not discard Rastrio-specific tokens such as preview paper, printed black, cut annotations, diagnostics, editor surfaces, or selection merely because Material does not expose an exact equivalent.
+Do not discard RastrIO-specific tokens such as preview paper, printed black, cut annotations, diagnostics, editor surfaces, or selection merely because Material does not expose an exact equivalent.
 
 ---
 
@@ -502,13 +502,13 @@ Do not discard Rastrio-specific tokens such as preview paper, printed black, cut
 
 ### 10.1 Baseline family
 
-Rastrio SHOULD use **Google Material Symbols Sharp** as the default product icon family.
+RastrIO SHOULD use **Google Material Symbols Sharp** as the default product icon family.
 
 Reasons:
 
 - the Sharp family is closer to the approved rectilinear/softened geometry than a heavily rounded icon set;
 - the family provides familiar platform metaphors for common actions;
-- the official Material Design Icons repository distributes Material Symbols under the **Apache License 2.0**, which is compatible with Rastrio's Apache-2.0/FOSS/F-Droid goals;
+- the official Material Design Icons repository distributes Material Symbols under the **Apache License 2.0**, which is compatible with RastrIO's Apache-2.0/FOSS/F-Droid goals;
 - the family provides 20 px and 24 px designs suitable for normal application controls.
 
 Implementation policy:
@@ -518,7 +518,7 @@ Implementation policy:
 - use one optical family consistently; do not mix Sharp, Rounded, and Outlined casually;
 - vendor only the SVG/vector assets actually used by the application rather than requiring a remote icon font;
 - retain the upstream Apache-2.0 license notice with vendored assets;
-- use `currentColor`/tint semantics so icons consume Rastrio semantic colors;
+- use `currentColor`/tint semantics so icons consume RastrIO semantic colors;
 - no icon asset may require network access at runtime.
 
 Upstream license/reference: <https://github.com/google/material-design-icons>
@@ -540,7 +540,7 @@ Do not replace recognizable Bluetooth, USB, settings, warning, or cut metaphors 
 
 Names below are semantic source names; the exact generated Kotlin resource name may follow project conventions.
 
-| Rastrio concept | Preferred Material Symbol | Rule |
+| RastrIO concept | Preferred Material Symbol | Rule |
 |---|---|---|
 | Markdown | `markdown` | standard symbol; no custom mark |
 | document | `description` | use for generic document/file semantics |
@@ -551,7 +551,7 @@ Names below are semantic source names; the exact generated Kotlin resource name 
 | image printing | `image` | combine contextually with Print action; do not create a logo-like composite |
 | QR | `qr_code_2` | use standard QR symbol |
 | todo/checklist | `checklist` | state must also be represented in text/data |
-| shopping list | `list_alt` or `checklist` | prefer list semantics; avoid making shopping-cart imagery a general Rastrio motif |
+| shopping list | `list_alt` or `checklist` | prefer list semantics; avoid making shopping-cart imagery a general RastrIO motif |
 | note | `note_alt` | quick-note workflow |
 | memo | `article` | document/memo workflow |
 | settings | `settings` | standard settings metaphor |
@@ -570,7 +570,7 @@ If an upstream icon name is unavailable in the exact vendored Material Symbols r
 
 ## 11. Custom domain icons
 
-Custom icons are justified only when a standard icon would obscure a Rastrio-specific concept. They MUST use the same optical size, weight, corner treatment, and `currentColor` behavior as the baseline family.
+Custom icons are justified only when a standard icon would obscure a RastrIO-specific concept. They MUST use the same optical size, weight, corner treatment, and `currentColor` behavior as the baseline family.
 
 ### 11.1 `physical_preview`
 
@@ -627,7 +627,7 @@ Construction:
 
 ---
 
-## 12. Rastrio project/application icon
+## 12. RastrIO project/application icon
 
 The canonical project icon follows Brand Guide **Direction A — Registration Strip**. It is a registered paper-strip symbol, not a literal printer and not a generic `R` monogram.
 
@@ -843,9 +843,9 @@ A recommended repository organization is:
 
 ```text
 shared/src/commonMain/.../ui/theme/
-├── RastrioColors.kt
-├── RastrioTheme.kt
-└── RastrioIconography.kt
+├── RastrIOColors.kt
+├── RastrIOTheme.kt
+└── RastrIOIconography.kt
 
 brand/
 ├── logo/
@@ -866,7 +866,7 @@ Exact paths may follow repository conventions, but there SHOULD be one canonical
 Product code SHOULD NOT introduce raw hex values outside the theme/token package except for:
 
 - test fixtures;
-- imported/user content that legitimately contains color data outside Rastrio UI semantics;
+- imported/user content that legitimately contains color data outside RastrIO UI semantics;
 - exact preview/raster representations whose values are part of a rendering test;
 - platform resources generated from the canonical token source.
 
@@ -896,7 +896,7 @@ Before treating the visual system as implemented, verify all of the following:
 - manual cut guides are visually treated as printable content;
 - automatic cut boundaries are visually distinct preview annotations;
 - Material Symbols assets are vendored with their Apache-2.0 licensing information;
-- custom icons are limited to Rastrio-specific domain concepts;
+- custom icons are limited to RastrIO-specific domain concepts;
 - Registration Strip full/simplified/micro masters exist and pass 16/20/24/32/48/96/256 px review;
 - launcher icon critical geometry remains within Android's safe zone;
 - monochrome and circular-crop tests pass;
@@ -924,7 +924,7 @@ Default icon family     Material Symbols Sharp
 Custom icon use         physical preview / printer profile / raster-native domain concepts
 Project symbol          Registration Strip
 Launcher treatment      paper mark on Registration Blue field
-Theme model             semantic Rastrio tokens, optionally mapped to Material ColorScheme
+Theme model             semantic RastrIO tokens, optionally mapped to Material ColorScheme
 ```
 
-This system is intentionally restrained. Rastrio should be recognizable through the Registration Strip, paper/carbon contrast, Registration Blue interaction language, controlled Thermal Amber hardware emphasis, and precise geometric iconography—not through a large palette or decorative effects.
+This system is intentionally restrained. RastrIO should be recognizable through the Registration Strip, paper/carbon contrast, Registration Blue interaction language, controlled Thermal Amber hardware emphasis, and precise geometric iconography—not through a large palette or decorative effects.

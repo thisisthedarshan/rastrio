@@ -14,7 +14,7 @@ bytecode. The JVM POM declares only Kotlin stdlib at runtime. The version lives 
 `gradle/libs.versions.toml`.
 
 The parser source was inspected for iterative AST construction and cancellation
-checkpoints. Rastrio counts cancellation checkpoints, lexer source reads
+checkpoints. RastrIO counts cancellation checkpoints, lexer source reads
 (including slices), and cached/filtered token reads in every sequential parser
 against one deterministic work budget. Private list views meter reads without
 copying tokens or changing upstream GFM syntax or parser order. A pre-parser

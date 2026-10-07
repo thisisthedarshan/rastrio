@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            RastrioApp()
+            RastrIOApp()
         }
     }
 }
@@ -36,5 +36,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    RastrioApp()
+    RastrIOApp()
 }

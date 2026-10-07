@@ -1,8 +1,8 @@
-# Rastrio Hardware Regression Tests
+# RastrIO Hardware Regression Tests
 
 **Status:** Implementation specification  
 **Specification revision:** 1.1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **Purpose:** Permanent manual hardware regression-test specification  
 **Current available reference device:** Helett H50i BillQuick Go  
 **Primary initial transport:** Android Bluetooth Classic (RFCOMM/SPP)  
@@ -13,13 +13,13 @@
 
 ## 1. Purpose
 
-This document defines Rastrio's permanent, numbered manual hardware regression tests.
+This document defines RastrIO's permanent, numbered manual hardware regression tests.
 
 Hardware tests exist to verify behavior that cannot be established sufficiently by pure unit tests, golden tests, transport fakes, serialization tests, or preview tests alone. They supplement automated testing; they do not replace it.
 
-The **Helett H50i BillQuick Go** (H50i) is one physical ESC/POS-compatible device currently available for Rastrio development and validation.
+The **Helett H50i BillQuick Go** (H50i) is one physical ESC/POS-compatible device currently available for RastrIO development and validation.
 
-It is not the generic printer model for Rastrio.
+It is not the generic printer model for RastrIO.
 
 Permanent test procedures SHOULD be reusable across maintained `PrinterProfile` implementations wherever the tested capability is portable. A result on one printer proves behavior only for the recorded device/profile/firmware/transport context.
 
@@ -30,7 +30,7 @@ This specification has four goals:
 3. prevent unverified printer behavior from becoming generic Core assumptions; and
 4. turn hardware discoveries into durable automated tests, profile corrections, and `ESC_POS_NOTES.md` observations.
 
-A successful automated byte-level test proves what Rastrio emitted. A successful hardware test proves what a particular tested printer physically did under a recorded configuration. Neither result may be silently generalized to every ESC/POS-compatible printer.
+A successful automated byte-level test proves what RastrIO emitted. A successful hardware test proves what a particular tested printer physically did under a recorded configuration. Neither result may be silently generalized to every ESC/POS-compatible printer.
 
 ---
 
@@ -58,7 +58,7 @@ A requirement marked **provisional** is guidance that MAY be revised when measur
 12. A newly discovered ESC/POS behavior or printer quirk SHOULD produce or update a corresponding observation in `docs/ESC_POS_NOTES.md`.
 13. If the root cause is inaccurate capability data, the profile or validated override SHOULD be corrected rather than adding model-specific Core behavior.
 14. A test that is not applicable because the selected profile does not advertise the required capability MUST be recorded as **N/A**, not forced through an unsafe or undocumented command path.
-15. Hardware tests MUST use normal Rastrio preparation and encoding paths wherever practical. Printer Lab MAY generate test documents, but it MUST NOT become a separate hidden printer engine.
+15. Hardware tests MUST use normal RastrIO preparation and encoding paths wherever practical. Printer Lab MAY generate test documents, but it MUST NOT become a separate hidden printer engine.
 
 ---
 
@@ -133,7 +133,7 @@ A hardware test SHOULD therefore answer questions such as:
 - Does the physical geometry correspond to the authoritative preview within the measured hardware tolerance?
 - Does a long or banded stream remain physically continuous?
 - Does a declared printer capability actually work on the tested hardware?
-- Does a transport failure produce the conservative user-visible behavior required by Rastrio?
+- Does a transport failure produce the conservative user-visible behavior required by RastrIO?
 
 ---
 
@@ -246,7 +246,7 @@ If any development/maintained profile changes, prior results remain evidence onl
 
 ### 10.1 General rule
 
-Rastrio MUST NOT define one universal physical tolerance for all thermal printers. Mechanical feed error, paper stock, thermal head behavior, printer firmware, dot pitch, cutting mechanism, and measurement technique vary by device.
+RastrIO MUST NOT define one universal physical tolerance for all thermal printers. Mechanical feed error, paper stock, thermal head behavior, printer firmware, dot pitch, cutting mechanism, and measurement technique vary by device.
 
 A dimension-sensitive test MUST therefore record a tolerance source using the following precedence:
 
@@ -897,7 +897,7 @@ Production defaults; record chunk/pacing policy.
 4. Observe application state and diagnostics.
 5. Confirm whether the printer continues output already buffered data, stops immediately, or behaves otherwise; record this as an observation, not an assumption.
 6. Restore connectivity.
-7. Confirm that Rastrio does **not** automatically resume or retry the ambiguous job.
+7. Confirm that RastrIO does **not** automatically resume or retry the ambiguous job.
 8. If validating recovery, explicitly start a new short test print only after the UI communicates the partial/duplicate-output risk.
 
 **Expected preview**  
@@ -916,7 +916,7 @@ The sheet MAY contain an arbitrary prefix or buffered continuation of the intend
 **Pass criteria**
 
 - interruption is detected and surfaced;
-- Rastrio does not claim verified physical success;
+- RastrIO does not claim verified physical success;
 - no automatic retry/resume creates duplicate output;
 - recovery requires an explicit user-controlled action for a subsequent print;
 - observed buffered-printer behavior is recorded.
@@ -1700,7 +1700,7 @@ Scanability can depend on media, density, scaling, and camera. A structural mism
 ### HW-019 — QR size variations
 
 **Purpose**  
-Verify that multiple valid QR sizes resolved by Rastrio produce the intended physical size ordering/geometry and remain usable on the tested printer.
+Verify that multiple valid QR sizes resolved by RastrIO produce the intended physical size ordering/geometry and remain usable on the tested printer.
 
 **Required phase/feature**  
 Phase 13.
@@ -2178,7 +2178,7 @@ Production defaults.
 
 1. Interrupt or cancel the first job after output begins.
 2. Re-establish the connection.
-3. Do not press Print immediately; observe whether Rastrio sends anything autonomously.
+3. Do not press Print immediately; observe whether RastrIO sends anything autonomously.
 4. Explicitly submit the short recovery fixture.
 5. Inspect output for any unexpected continuation/replay before the recovery fixture.
 
@@ -2207,7 +2207,7 @@ Session reset; reconnect; stale-job isolation.
 TBD if device reset/init behavior matters.
 
 **Notes**  
-Do not confuse printer-internal continuation of already-buffered bytes with Rastrio replay; transport logs should distinguish them where possible.
+Do not confuse printer-internal continuation of already-buffered bytes with RastrIO replay; transport logs should distinguish them where possible.
 
 ---
 
@@ -2420,7 +2420,7 @@ Manual cut guide enabled; automatic cut disabled/not available.
 1. Prepare and inspect guide geometry in preview.
 2. Print.
 3. Verify the guide is visible as printed content at the expected position.
-4. Confirm the printer does not perform an automatic cut because of Rastrio's plan.
+4. Confirm the printer does not perform an automatic cut because of RastrIO's plan.
 
 **Expected preview**  
 Manual guide appears as printable content.
@@ -2429,7 +2429,7 @@ Manual guide appears as printable content.
 A printable guide operation/raster/text is serialized; no automatic cutter command is introduced.
 
 **Expected physical output**  
-Guide is present and usable for manual cutting; paper remains uncut by Rastrio's intended operation.
+Guide is present and usable for manual cutting; paper remains uncut by RastrIO's intended operation.
 
 **Pass criteria**  
 Guide placement matches preview and no auto-cut command/behavior is triggered by the prepared plan.
@@ -2737,10 +2737,10 @@ N/A unless the printer requires a configurable mode to generate the self-test; r
 8. Do not copy pairing secrets, unique device identifiers, or unnecessary personal/local device data into public repository artifacts.
 
 **Expected preview**  
-N/A. This test inspects printer-generated diagnostic/configuration output rather than a Rastrio `PreparedPrint`.
+N/A. This test inspects printer-generated diagnostic/configuration output rather than a RastrIO `PreparedPrint`.
 
 **Expected encoded/behavioral characteristics**  
-No Rastrio protocol bytes are required unless the printer's documented self-test mechanism itself requires host commands.
+No RastrIO protocol bytes are required unless the printer's documented self-test mechanism itself requires host commands.
 
 A self-test report MAY establish facts such as:
 
@@ -2802,7 +2802,7 @@ None required for the printer-generated page itself. Any profile claim promoted 
 Required for any conclusion added to the ESC/POS notebook.
 
 **Notes**  
-This test distinguishes **printer-reported capability/configuration evidence** from **Rastrio-controlled command-path verification**.
+This test distinguishes **printer-reported capability/configuration evidence** from **RastrIO-controlled command-path verification**.
 
 For the currently available H50i, the 2026-10-02 observations already reported during development include:
 
@@ -2919,12 +2919,12 @@ For each maintained physical printer/profile, the project SHOULD keep a simple a
 
 | Test | H50i current status | Other profile | Notes |
 |---|---|---|---|
-| HW-001 | Required when Rastrio-controlled Bluetooth path is ready | Normally required for native-text-capable profile | RawBT observation does not replace Rastrio-controlled run |
+| HW-001 | Required when RastrIO-controlled Bluetooth path is ready | Normally required for native-text-capable profile | RawBT observation does not replace RastrIO-controlled run |
 | HW-004 | Capability-dependent / not yet verified | Capability-dependent | Native bold/underline |
 | HW-017 | Capability-dependent / host command not yet verified | Capability-dependent | Self-test QR does not establish native QR command |
 | HW-031 | **N/A** for observed H50i unit | Capability-dependent | H50i automatic cutter observed absent |
 | HW-032 | **N/A** for observed H50i unit | Capability-dependent | H50i automatic cutter observed absent |
-| HW-033 | Future; USB interface presence reported, Rastrio USB behavior unverified | Capability-dependent | USB implementation required |
+| HW-033 | Future; USB interface presence reported, RastrIO USB behavior unverified | Capability-dependent | USB implementation required |
 | HW-035 | Applicable; current self-test observations should be formalized | Applicable where self-test exists | Evidence inventory only |
 
 The repository SHOULD fill this matrix from verified/observed profile capabilities and actual implementation status.
@@ -2960,7 +2960,7 @@ A one-off failed print without reproducible evidence MUST NOT immediately become
 
 ## 26. Hardware Feedback and Status Claims
 
-Rastrio MUST distinguish:
+RastrIO MUST distinguish:
 
 ```text
 bytes accepted/transmitted according to transport contract
@@ -3114,7 +3114,7 @@ observed unit has no automatic cutter
 
 These facts are recorded in `ESC_POS_NOTES.md` at `Hardware Observed` strength.
 
-They do not remove the need for Rastrio-controlled command tests.
+They do not remove the need for RastrIO-controlled command tests.
 
 ### 32.2 H50i measurements/command paths still required
 
@@ -3124,7 +3124,7 @@ The remaining high-value questions include:
 2. exact native font selector/advance/line metrics and style interactions;
 3. actual `ESC t` mapping for CP437 and any additional reliable code pages;
 4. supported raster command strategy, bit orientation, full-width behavior, and safe band guidance;
-5. host-accessible native QR/barcode strategies, if Rastrio chooses to use them;
+5. host-accessible native QR/barcode strategies, if RastrIO chooses to use them;
 6. printer-side buffering/pacing behavior versus Android Bluetooth transport chunking;
 7. status-query behavior, only if a product feature needs it;
 8. firmware/hardware revision differences if multiple units/revisions become available;
@@ -3161,7 +3161,7 @@ These are measurement/maintenance tasks, not unresolved architecture.
 
 ## 33. Final Invariant
 
-The hardware regression suite validates the boundary between Rastrio's deterministic print plan and real devices.
+The hardware regression suite validates the boundary between RastrIO's deterministic print plan and real devices.
 
 The intended flow remains:
 

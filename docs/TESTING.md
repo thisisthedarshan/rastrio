@@ -1,8 +1,8 @@
-# Rastrio Testing Strategy
+# RastrIO Testing Strategy
 
 **Status:** Normative engineering specification  
 **Specification revision:** 1.1  
-**Project:** Rastrio  
+**Project:** RastrIO
 **Applies to:** Entire repository  
 **Primary release target:** Android  
 **Secondary development/product targets:** Desktop/JVM and Web/Wasm  
@@ -13,7 +13,7 @@
 
 ## 1. Purpose
 
-This document defines the engineering test strategy for Rastrio.
+This document defines the engineering test strategy for RastrIO.
 
 Its governing principle is:
 
@@ -23,7 +23,7 @@ A feature is not complete merely because it compiles, renders correctly for one 
 
 Tests are part of the implementation contract.
 
-Rastrio contains several transformations where small mistakes can produce materially incorrect physical output, corrupt portable files, create misleading previews, or cause duplicate printing. The test strategy therefore emphasizes:
+RastrIO contains several transformations where small mistakes can produce materially incorrect physical output, corrupt portable files, create misleading previews, or cause duplicate printing. The test strategy therefore emphasizes:
 
 - deterministic Core tests;
 - exact golden tests where output is contractual;
@@ -139,7 +139,7 @@ Testing requirements MUST NOT cause Core to depend directly on Android, Compose,
 
 ## 5. Repository Test Taxonomy
 
-Rastrio uses multiple complementary test classes. No single class is sufficient for the entire stack.
+RastrIO uses multiple complementary test classes. No single class is sufficient for the entire stack.
 
 ### 5.1 Pure unit tests
 
@@ -180,7 +180,7 @@ Core algorithms SHOULD preferentially be testable through this category.
 
 ### 5.2 Core integration tests
 
-Core integration tests verify multiple Rastrio Core modules working through an architectural boundary.
+Core integration tests verify multiple RastrIO Core modules working through an architectural boundary.
 
 Examples include:
 
@@ -1463,7 +1463,7 @@ terminal-state stability
 invalid transition rejection
 ```
 
-`COMPLETED` means that Rastrio successfully transmitted the intended bytes according to the active transport contract.
+`COMPLETED` means that RastrIO successfully transmitted the intended bytes according to the active transport contract.
 
 Tests MUST NOT treat `COMPLETED` as proof that paper physically emerged unless a supported printer/status protocol explicitly provides that evidence.
 
@@ -2636,10 +2636,10 @@ CI MUST NOT imply that physical printer behavior was tested unless a hardware ru
 The repository should eventually provide one clear aggregate verification entry point, conceptually:
 
 ```bash
-./gradlew verifyRastrio
+./gradlew verifyRastrIO
 ```
 
-`verifyRastrio` is a **target convention**, not a claim that the task currently exists.
+`verifyRastrIO` is a **target convention**, not a claim that the task currently exists.
 
 When implemented, it SHOULD aggregate the mandatory automated gates for the repository's current development phase.
 
@@ -3290,7 +3290,7 @@ security regression test whenever practical
 
 ## 64. Definition of Done
 
-Testing obligations are part of Rastrio's Definition of Done.
+Testing obligations are part of RastrIO's Definition of Done.
 
 A feature is complete only when all applicable conditions below are satisfied.
 
@@ -3532,7 +3532,7 @@ If the architecture introduces a new output-affecting stage, protocol family, pe
 
 ## 68. Final Engineering Rule
 
-Rastrio's test suite is not a separate verification layer added after implementation.
+RastrIO's test suite is not a separate verification layer added after implementation.
 
 For every feature:
 

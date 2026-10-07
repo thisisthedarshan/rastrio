@@ -1,21 +1,21 @@
-# Rastrio Brand Guide
+# RastrIO Brand Guide
 
 **Status:** Brand baseline  
-**Project:** Rastrio  
+**Project:** RastrIO
 **License context:** Apache-2.0 / FOSS project  
 **Primary product target:** Android  
 **Secondary product/development targets:** Desktop/JVM and Web  
-**Canonical written name:** `Rastrio`
+**Canonical written name:** `RastrIO`
 
 ---
 
 ## 1. Purpose
 
-This document defines the visual and verbal identity of Rastrio for product UI, GitHub, F-Droid, documentation, project web surfaces, screenshots, release material, and other official project communication.
+This document defines the visual and verbal identity of RastrIO for product UI, GitHub, F-Droid, documentation, project web surfaces, screenshots, release material, and other official project communication.
 
 It is a design brief, not a marketing manifesto. The brand exists to make the project recognizable, coherent, and credible while remaining subordinate to the product itself.
 
-The identity MUST reflect Rastrio as a polished thermal-document utility with a technically rigorous printing engine underneath it. It MUST NOT imply capabilities, services, or product categories outside the product specification.
+The identity MUST reflect RastrIO as a polished thermal-document utility with a technically rigorous printing engine underneath it. It MUST NOT imply capabilities, services, or product categories outside the product specification.
 
 The brand system SHOULD remain practical for an open-source project: reproducible with open tooling, usable without proprietary typefaces or design services, and robust in monochrome, low-resolution, and documentation-heavy contexts.
 
@@ -23,9 +23,9 @@ The brand system SHOULD remain practical for an open-source project: reproducibl
 
 ## 2. Brand Positioning
 
-### 2.1 What Rastrio is
+### 2.1 What RastrIO is
 
-Rastrio is an open-source, offline-first document authoring, preview, and printing application for thermal printers.
+RastrIO is an open-source, offline-first document authoring, preview, and printing application for thermal printers.
 
 Its identity should communicate four things at a glance:
 
@@ -36,7 +36,7 @@ Its identity should communicate four things at a glance:
 
 ### 2.2 Positioning statement
 
-Rastrio should be presented as a **precise document-to-thermal-output tool**: a utility that turns ordinary digital content into deliberate physical print output with a trustworthy preview step.
+RastrIO should be presented as a **precise document-to-thermal-output tool**: a utility that turns ordinary digital content into deliberate physical print output with a trustworthy preview step.
 
 This positioning is intentionally different from:
 
@@ -60,7 +60,7 @@ This is a design principle, not a marketing slogan. It should influence icon geo
 
 ## 3. Brand Personality
 
-Rastrio should feel:
+RastrIO should feel:
 
 - **Precise** — aligned, measured, intentional, and geometrically disciplined.
 - **Technical** — credible around developers and hardware without resembling diagnostic firmware software.
@@ -75,7 +75,7 @@ Rastrio should feel:
 
 ### 3.1 Personality spectrum
 
-Rastrio should sit approximately here:
+RastrIO should sit approximately here:
 
 ```text
 playful        ───────●── serious
@@ -106,11 +106,11 @@ The core visual vocabulary combines:
 - deliberate negative space;
 - a visible transition from structured digital geometry to physical output.
 
-This concept is more specific to Rastrio than a generic printer symbol. It connects document layout, rasterization, preview, segmentation, feed, and real printed paper without turning the identity into an illustration of a desktop printer.
+This concept is more specific to RastrIO than a generic printer symbol. It connects document layout, rasterization, preview, segmentation, feed, and real printed paper without turning the identity into an illustration of a desktop printer.
 
 ### 4.2 Conceptual contrast
 
-Rastrio should visually balance two worlds:
+RastrIO should visually balance two worlds:
 
 ```text
 DIGITAL                         PHYSICAL
@@ -247,7 +247,7 @@ The logo should be reduced to a compact geometric symbol, not a diagram.
 
 #### Strengths
 
-- strongly reflects Rastrio’s architecture and product promise;
+- strongly reflects RastrIO’s architecture and product promise;
 - feels technical without showing protocol details;
 - lends itself to documentation diagrams and motion.
 
@@ -382,18 +382,18 @@ Avoid perfect mechanical symmetry if it makes the mark anonymous.
 
 ### 7.1 Canonical visual treatment
 
-Use **`Rastrio`** as the canonical wordmark capitalization.
+Use **`RastrIO`** as the canonical wordmark capitalization.
 
 Rationale:
 
-- it matches normal prose and repository naming;
+- it gives the product a consistent human-facing proper name;
 - it is easier to read than all caps in documentation-heavy contexts;
 - it feels like a software tool rather than a hardware manufacturer;
 - it avoids the casual tone of all-lowercase branding.
 
-`RASTRIO` MAY be used as a small technical label in diagrams or metadata, but it is not the primary wordmark.
+Use `RastrIO` for human-facing labels in diagrams and metadata. Established machine identifiers retain their existing spelling.
 
-`rastrio` SHOULD NOT be used as the main visual wordmark except where lowercase is structurally required, such as package names, command names, or URLs.
+`rastrio` remains intentional in machine namespaces, package names, command names, repository slugs, paths, Gradle/plugin IDs, URLs, and persistent format identifiers. Project-named Kotlin symbols and documented filenames use the `RastrIO` spelling, such as `RastrIOApp`.
 
 ### 7.2 Typeface character
 
@@ -408,7 +408,7 @@ The wordmark uses the approved modern grotesk/humanist character established by 
 
 The production horizontal wordmark is now **frozen as vector outlines** in the canonical logo assets. Its outline source is the open-source IBM Plex Sans family, with the production geometry and spacing defined by `assets/ASSETS.md`. Official lockups MUST use those vector assets rather than recreating the wordmark with a live `<text>` element or substituting another installed font.
 
-IBM Plex is distributed under the SIL Open Font License 1.1. If IBM Plex font files are separately redistributed with Rastrio applications, documentation, or design sources, the applicable font license and notices MUST be retained. The outlined production wordmark itself has no runtime font dependency.
+IBM Plex is distributed under the SIL Open Font License 1.1. If IBM Plex font files are separately redistributed with RastrIO applications, documentation, or design sources, the applicable font license and notices MUST be retained. The outlined production wordmark itself has no runtime font dependency.
 
 ### 7.3 Spacing
 
@@ -428,7 +428,7 @@ The symbol and wordmark should share an optical cap-height relationship rather t
 Preferred horizontal lockup:
 
 ```text
-[ symbol ]  Rastrio
+[ symbol ]  RastrIO
 ```
 
 The symbol should appear approximately equal to or slightly taller than the wordmark cap height plus ascender area.
@@ -549,7 +549,7 @@ The application itself should rely on the platform/text stack needed for correct
 
 ## 9. Color Direction
 
-Rastrio’s color system should come from the physical/technical contrast of **paper, carbon, registration, and heat**, not from generic SaaS palette conventions.
+RastrIO’s color system should come from the physical/technical contrast of **paper, carbon, registration, and heat**, not from generic SaaS palette conventions.
 
 This section defines the brand intent. Exact production palette values, light/dark semantic tokens, preview colors, accessibility pairings, and Compose token guidance are defined by `docs/VISUAL_SYSTEM.md` and MUST be used for implementation rather than re-derived from the descriptive ranges below.
 
@@ -786,7 +786,7 @@ A useful illustration should explain a product idea, workflow, or output charact
 
 ### 12.1 Screenshot treatment
 
-Screenshots should present Rastrio as working software.
+Screenshots should present RastrIO as working software.
 
 Preferred treatment:
 
@@ -818,7 +818,7 @@ The README hero should prefer one of these structures:
 #### Option A — product-first
 
 ```text
-[ Rastrio symbol + wordmark ]
+[ RastrIO symbol + wordmark ]
 [ concise factual project description ]
 [ application screenshot showing editor + preview ]
 ```
@@ -826,7 +826,7 @@ The README hero should prefer one of these structures:
 #### Option B — concept-first
 
 ```text
-[ Rastrio symbol + wordmark ]
+[ RastrIO symbol + wordmark ]
 [ document geometry → paper strip brand graphic ]
 [ small real UI screenshots below ]
 ```
@@ -964,7 +964,7 @@ This should take fractions of a second and should never simulate a long printer 
 
 ## 15. Voice and Tone
 
-Rastrio writing should be precise, plain, and technically credible.
+RastrIO writing should be precise, plain, and technically credible.
 
 ### 15.1 Core voice
 
@@ -983,7 +983,7 @@ Avoid startup hype, anthropomorphic copy, and exaggerated claims.
 
 README copy should answer quickly:
 
-- what Rastrio does;
+- what RastrIO does;
 - what platforms are currently supported;
 - what hardware/protocol family it targets;
 - what is stable versus planned;
@@ -1134,7 +1134,7 @@ The application’s editor and previews are functional surfaces; brand styling m
 Recommended hierarchy:
 
 ```text
-[Registration Strip symbol] Rastrio
+[Registration Strip symbol] RastrIO
 
 Open-source thermal-document authoring, preview, and printing.
 
@@ -1150,7 +1150,7 @@ Use the symbol as the repository/social preview identity. Keep badges visually s
 - use the standalone Registration Strip mark;
 - use a solid neutral or Registration Blue field;
 - maintain substantial adaptive-icon safe area;
-- do not place the word `Rastrio` inside the launcher icon;
+- do not place the word `RastrIO` inside the launcher icon;
 - do not depict a complete printer.
 
 ### 17.3 F-Droid listing
@@ -1234,9 +1234,9 @@ Avoid promotional layouts that obscure the product UI.
 
 ---
 
-## 18. Things Rastrio Should Never Look Like
+## 18. Things RastrIO Should Never Look Like
 
-Rastrio should never visually drift into any of the following categories.
+RastrIO should never visually drift into any of the following categories.
 
 ### 18.1 POS / restaurant software
 
@@ -1411,7 +1411,7 @@ The brand baseline is:
 ```text
 Core idea       registered paper strip / digital-to-physical precision
 Logo direction  Registration Strip
-Wordmark        Rastrio
+Wordmark        RastrIO
 Brand type      IBM Plex Sans
 Wordmark source frozen vector outlines derived from IBM Plex Sans
 UI type         Compose/system typography by default

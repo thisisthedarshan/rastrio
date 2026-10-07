@@ -1,8 +1,8 @@
-# Rastrio Preview Specification
+# RastrIO Preview Specification
 
 **Status:** Normative  
 **Specification revision:** 1.1  
-**Applies to:** Rastrio Core, Shared Presentation, Shared Compose UI  
+**Applies to:** RastrIO Core, Shared Presentation, Shared Compose UI
 **Primary modules:** `core-preview`, `core-printer`, `core-layout`, `core-text`, `core-raster`  
 **Governing baseline:** `PRD.md` v2.1 and `docs/ARCHITECTURE.md`  
 **Related specifications:** `docs/TEXT_RENDERING_SPEC.md`, `docs/TCFG_SPEC.md`, `docs/TESTING.md`, `docs/RESOURCE_LIMITS.md`, `docs/SECURITY.md`
@@ -11,11 +11,11 @@
 
 ## 1. Purpose
 
-This document defines Rastrio's logical-preview and physical-preview contracts.
+This document defines RastrIO's logical-preview and physical-preview contracts.
 
 Its primary purpose is to ensure that preview is a faithful view of Core output rather than an independent document renderer or printer simulator.
 
-Rastrio has two distinct preview modes:
+RastrIO has two distinct preview modes:
 
 ```text
 LogicalDocument
@@ -43,7 +43,7 @@ A **Logical Preview** answers:
 
 A **Physical Preview** answers:
 
-> What physical output plan has Rastrio prepared for the selected printer?
+> What physical output plan has RastrIO prepared for the selected printer?
 
 Physical preview is architecture-critical because it is the user-visible representation of the same printer-specific plan that will later be serialized by the active trusted protocol encoder.
 
@@ -137,7 +137,7 @@ Preview is not:
 - a mechanism for modifying a `PreparedPrint`;
 - a guarantee that every printer's undocumented mechanical behavior can be simulated exactly.
 
-In particular, Rastrio MUST NOT claim literal pixel-perfect simulation of printer ROM glyph shapes unless sufficient printer-font data exists to provide such a guarantee.
+In particular, RastrIO MUST NOT claim literal pixel-perfect simulation of printer ROM glyph shapes unless sufficient printer-font data exists to provide such a guarantee.
 
 ---
 
@@ -569,7 +569,7 @@ and produces a portable representation conceptually named:
 PrintPreview
 ```
 
-Physical preview represents what Rastrio expects the selected printer to produce geometrically and operationally.
+Physical preview represents what RastrIO expects the selected printer to produce geometrically and operationally.
 
 It includes physical-output content as well as clearly differentiated non-printing annotations for operations such as automatic cuts.
 
@@ -811,7 +811,7 @@ Physical preview MUST NOT run the original text through Compose text layout to d
 
 ### 22.1 Exact printer font available
 
-If Rastrio has an exact validated printer-font model containing sufficient glyph and metric data, preview MAY render native text using that exact model.
+If RastrIO has an exact validated printer-font model containing sufficient glyph and metric data, preview MAY render native text using that exact model.
 
 In this case the implementation MAY describe the glyph appearance as exact to that model.
 
@@ -919,7 +919,7 @@ For a `NativeQr` operation, preview MUST preserve the prepared:
 - error-correction setting;
 - prepared native strategy parameters relevant to output.
 
-If Rastrio can reproduce the exact module matrix that the target printer will generate under the selected native strategy, it MAY display that matrix as exact.
+If RastrIO can reproduce the exact module matrix that the target printer will generate under the selected native strategy, it MAY display that matrix as exact.
 
 Otherwise, the displayed QR pattern is representative of the encoded QR content while the prepared placement and geometry remain authoritative.
 
@@ -1211,7 +1211,7 @@ Such labels MUST be clearly external to the printable paper representation.
 
 "Accurate preview" does not mean that every characteristic of physical hardware can always be reproduced digitally.
 
-Rastrio distinguishes several types of accuracy.
+RastrIO distinguishes several types of accuracy.
 
 Preview implementations and UI copy MUST respect those distinctions.
 
@@ -1267,7 +1267,7 @@ UI scaling interpolation is a display concern and does not change this contract.
 
 ## 41. Native Text Accuracy
 
-For native printer text, Rastrio guarantees the prepared physical contract rather than unconditionally guaranteeing exact printer-ROM glyph pixels.
+For native printer text, RastrIO guarantees the prepared physical contract rather than unconditionally guaranteeing exact printer-ROM glyph pixels.
 
 Authoritative aspects include:
 
@@ -1322,7 +1322,7 @@ prepared strategy                 = authoritative
 printer-generated module pixels   = exact only if reproducible
 ```
 
-Rastrio MUST NOT overstate module-level visual fidelity when the printer firmware itself generates the symbol and its exact implementation is unavailable.
+RastrIO MUST NOT overstate module-level visual fidelity when the printer firmware itself generates the symbol and its exact implementation is unavailable.
 
 ---
 
@@ -3045,7 +3045,7 @@ It MUST NOT depend on a platform filesystem object, infer file paths, or regener
 
 # 119. Final Contract
 
-Rastrio has two different preview responsibilities:
+RastrIO has two different preview responsibilities:
 
 ```text
 LogicalDocument
@@ -3098,7 +3098,7 @@ Shared Compose UI renders this Core output.
 
 It does not reconstruct printer layout.
 
-These requirements are mandatory because Rastrio's physical preview is not merely illustrative UI: it is the user-visible representation of the same immutable physical plan that Rastrio sends to the printer.
+These requirements are mandatory because RastrIO's physical preview is not merely illustrative UI: it is the user-visible representation of the same immutable physical plan that RastrIO sends to the printer.
 
 ## Phase 3C1 Logical Structured-Text Consumer Contract
 
