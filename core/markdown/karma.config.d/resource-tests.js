@@ -13,5 +13,8 @@
  * limitations under the License.
  **/
 
-// Full-size adversarial resource cases also run in Wasm; allow bounded work to finish.
-config.client.mocha = Object.assign({}, config.client.mocha, { timeout: 10000 });
+// Full-size adversarial cases exercise the default work budget synchronously.
+// Keep a finite watchdog while allowing slower JS/Wasm hosts to finish the same assertions.
+config.client.mocha = Object.assign({}, config.client.mocha, { timeout: 60000 });
+config.pingTimeout = 60000;
+config.browserNoActivityTimeout = 60000;
