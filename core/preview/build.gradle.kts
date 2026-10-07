@@ -20,7 +20,7 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:layout"))
+            api(project(":core:layout"))
             implementation(project(":core:printer"))
         }
     }
