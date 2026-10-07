@@ -48,7 +48,8 @@ private fun tabAdvance(position: Double, column: Double): Double {
 internal class TextBlockFlow(private val measurer: TextMeasurer, private val constraints: LayoutConstraints,
     private val charge: (Int, Int) -> Unit, private val diagnostics: MutableList<LayoutDiagnostic>) {
     private val policy get() = constraints.resources
-    fun layout(block: DocumentBlock, index: Int, originX: Double, width: Double, initialY: Double): Pair<LogicalTextBlock, Double> {
+    fun layout(block: DocumentBlock, index: Int, originX: Double, width: Double, initialY: Double,
+        cellContent: Boolean = false): Pair<LogicalTextBlock, Double> {
         var y = initialY
         if (block is CodeBlock) y = LogicalGeometry.add(y, LogicalGeometry.scale(constraints.typography.body.metrics.lineHeightMm, TextLayoutPolicyV1.codeBeforeLineFactor))
         val columns = mutableMapOf<Pair<ResolvedTypography, Boolean>, Double>()
@@ -222,6 +223,7 @@ internal class TextBlockFlow(private val measurer: TextMeasurer, private val con
         }
         val output = LogicalTextBlock(index, LogicalBounds(originX, blockY, width, LogicalGeometry.subtract(y, blockY)), SnapshotList(lines),
             if (block is CodeBlock) LogicalTextKind.CODE else LogicalTextKind.TEXT)
+        if (cellContent) return output to y
         val factor = when (block) { is Heading -> TextLayoutPolicyV1.headingAfterLineFactor; is CodeBlock -> TextLayoutPolicyV1.codeAfterLineFactor; else -> TextLayoutPolicyV1.paragraphAfterLineFactor }
         val nextY = LogicalGeometry.add(y, LogicalGeometry.scale(constraints.typography.body.metrics.lineHeightMm, factor))
         if (LogicalGeometry.fits(nextY, y)) abort("LAY122", "Layout cannot make coordinate progress", index)

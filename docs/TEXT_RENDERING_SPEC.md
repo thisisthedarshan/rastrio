@@ -3113,3 +3113,89 @@ negative or overflowing ordered numbering; LAY107 rejects exhausted content
 width. Existing LAY100 still rejects excluded block types, LAY120 covers all
 runtime resource bounds, and LAY122 covers coordinate/zero-progress failures.
 Diagnostics contain no printable content. Failures return no partial document.
+
+
+## Phase 3C2 Tables and Semantic Placeholders
+
+Phase 3C2 completes the feature-bearing logical Phase 3 subset. It extends the
+Phase 3A/B/C1 contracts without changing text measurement, shaping or portable schemas.
+The following output-affecting choices were approved on 2026-10-06, with empty-cell,
+requested-size and fixed-image-box clarifications approved on 2026-10-07. They are
+centralized in `TextLayoutPolicyV1`.
+
+### Table geometry and text
+
+A table spans its enclosing available logical content width. Divide that width's
+integer LogicalGeometry ticks equally by the column count, giving one remaining tick
+per column from left to right. This requires no intrinsic text sizing or sampling.
+Column widths and origins are finalized before cell text flow. There are no column
+gaps, borders, decorative rules, automatic header bold or header typography changes.
+Header identity remains explicit in the logical rows. Author-supplied inline styles apply.
+
+All cell sides have 0.25 body em padding, where body em is body ascent plus descent.
+Padding is normalized on the logical grid; zero canonical padding fails with LAY122.
+Padding exhausting the column width fails with LAY107. A positive remaining content
+width still uses existing cluster-safe emergency wrapping/overflow with LAY101.
+The existing shared text flow determines cell typography, line breaks, tabs, alignment,
+styles, run coordinates and baselines. There is no cell-specific measurement/wrapping
+algorithm and no paragraph after-spacing inside a cell. Empty content reserves one
+canonical empty body-line height plus top/bottom padding. The shared Phase 3B empty-line
+contract currently retains one empty resolved run; tables neither add another synthetic
+run nor introduce a different empty-text representation. A row whose cells produce no
+text geometry still reserves one canonical body-line height plus top/bottom padding.
+Zero/unrepresentable canonical line height fails with LAY122. Actual retained text objects
+and explicitly reserved structural/preflight costs count against the shared budget.
+Cell alignment overrides the column alignment; absent an override the column
+alignment applies. Content is top-aligned. Each row height is its tallest finalized
+cell text height plus padding on both vertical sides. All row cells share that y/height.
+Content bounds describe the padded row area; each text block retains its actual height.
+
+`LogicalTableBlock` retains table bounds, column bounds/alignment, row bounds/header
+identity, cell bounds/column index/alignment, content bounds and finalized text blocks.
+Collections are immutable snapshots. Column bounds cover the complete table height.
+Wide tables resolve once on the assembled explicit canvas. Landscape neither swaps
+axes nor substitutes width. There is no semantic column splitting or physical segmentation.
+
+### Image and QR geometry
+
+`LogicalImagePlaceholder` preserves asset identity, alignment, sizing and optional alt text.
+Intrinsic size is explicitly unresolved. Its square bounds are authoritative placeholder
+geometry, never an assertion about the image's true aspect. AutoSizing and FitWidthSizing
+both use enclosing available width, retaining distinct semantic sizing intent.
+RequestedWidthSizing uses its exact normalized positive logical width. No intrinsic-size
+service, asset access, URI interpretation, metadata parsing or image decoding occurs.
+The square is FINALIZED logical outer geometry, including its height and contribution
+to document flow. Later explicit asset resolution/preparation MUST fit the actual image
+inside that already-final box while preserving its aspect ratio; it MUST NOT change the
+box, neighboring positions, document height or logical layout after decoding. AutoSizing
+and FitWidthSizing reserve a full-width square outer box; RequestedWidthSizing reserves
+a square of the requested width. Unused interior space does not shorten the logical box.
+This policy makes no claim that the image pixels themselves are square. No intrinsic
+image dimensions are needed to establish these authoritative logical outer bounds.
+
+`LogicalQrPlaceholder` preserves opaque payload, alignment, error-correction preference
+and nullable requested size. Requested sizes become exact square bounds. The versioned
+default is min(30 mm, enclosing available content width). No modules, quiet zones,
+QR library, encoding, URL interpretation or physical/native strategy is introduced.
+
+Requested lengths must be finite, positive millimetres. Invalid lengths fail with
+LAY105; raw lengths above runtime maxWidthMm fail with LAY120 before quantization;
+positive lengths quantizing to zero fail with LAY122. Normalized sizes above enclosing
+available width fail atomically with LAY107; no clamping, scaling down or overflow
+geometry occurs. A valid portable .td can therefore fail under narrower explicit
+LayoutConstraints and succeed under wider constraints. For Phase 3C2, LAY107 is
+deliberately generalized from exhausted marker/indent content width to insufficient
+available logical width for required geometry, including cell padding and requested
+image/QR dimensions. Paragraph cluster overflow remains governed separately by LAY101.
+Left/center/right placement
+uses zero/half/all spare content width from its explicit enclosing origin, using the
+existing LogicalGeometry normalization. Tiny available widths retain positive progress.
+
+### Vertical flow
+
+Tables, images and QR each add 0.5 body line advance before and after the block,
+including after the final block. Gaps are centrally versioned, normalized and retained
+explicitly; gaps quantizing to zero fail with LAY122. Block bounds exclude spacing.
+All emitted geometry and semantic spacing contribute to LogicalDocument.heightMm.
+The same rules apply within list/quote content regions. There is no Phase 4 UI,
+PreparedPrint, printer geometry, rasterization, QR encoding or protocol work.

@@ -37,6 +37,11 @@ object TextLayoutPolicyV1 {
     const val quoteIndentEm: Double = 1.0
     const val separatorThicknessEm: Double = 0.05
     const val separatorSpacingLineFactor: Double = 0.5
+    const val tableCellPaddingEm: Double = 0.25
+    const val tableSpacingLineFactor: Double = 0.5
+    const val imageSpacingLineFactor: Double = 0.5
+    const val qrSpacingLineFactor: Double = 0.5
+    const val qrDefaultSizeMm: Double = 30.0
 }
 
 /** Shared text flow and bounded iterative structured-block flow; no hidden I/O or printer policy. */

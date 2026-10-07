@@ -28,8 +28,14 @@ internal fun preflightDocument(document: ThermalDocument, policy: LayoutResource
     var inlineCount = 0L
     var textCount = 0L
     fun countText(text: String, index: Int) {
-        textCount += text.length.toLong()
-        if (textCount > policy.maxTextCodeUnits) abort("LAY120", "Text count exceeds layout policy", index)
+        textCount = boundedCount(textCount, text.length.toLong(), policy.maxTextCodeUnits.toLong(), index)
+    }
+    fun countInline(content: List<InlineContent>, index: Int) {
+        walkInline(content, policy, index, onNode = {
+            if (++inlineCount > policy.maxInlineNodes) abort("LAY120", "Inline count exceeds layout policy", index)
+        }) { node, _ ->
+            when (node) { is Text -> countText(node.text, index); is InlineCode -> countText(node.text, index); else -> Unit }
+        }
     }
     val stack = mutableListOf(VisitFrame(document.blocks.iterator(), 1, null))
     while (stack.isNotEmpty()) {
@@ -43,11 +49,34 @@ internal fun preflightDocument(document: ThermalDocument, policy: LayoutResource
             is Paragraph, is Heading -> {
                 if (block is Heading && block.level !in 1..6) abort("LAY104", "Invalid heading level", index)
                 val content = if (block is Paragraph) block.content else (block as Heading).content
-                walkInline(content, policy, index, onNode = {
-                    if (++inlineCount > policy.maxInlineNodes) abort("LAY120", "Inline count exceeds layout policy", index)
-                }) { node, _ ->
-                    when (node) { is Text -> countText(node.text, index); is InlineCode -> countText(node.text, index); else -> Unit }
+                countInline(content, index)
+                null
+            }
+            is Table -> {
+                val shape = tableShape(block, policy, index)
+                // Structural geometry plus the minimum block/line/run cost of every cell.
+                itemCount = boundedCount(itemCount, shape.geometryCost + shape.cells * 3,
+                    policy.maxItems.toLong(), index)
+                for (cell in block.header) countInline(cell.content, index)
+                for (row in block.rows) {
+                    for (cell in row) countInline(cell.content, index)
                 }
+                null
+            }
+            is Image -> {
+                itemCount = boundedCount(itemCount, 1, policy.maxItems.toLong(), index)
+                when (val asset = block.asset) {
+                    is EmbeddedAssetReference -> countText(asset.assetId, index)
+                    is ExternalAssetReference -> countText(asset.uri, index)
+                }
+                block.altText?.let { countText(it, index) }
+                (block.sizing as? RequestedWidthSizing)?.let { placeholderLength(it.width, policy, index) }
+                null
+            }
+            is QrCode -> {
+                itemCount = boundedCount(itemCount, 1, policy.maxItems.toLong(), index)
+                countText(block.payload, index)
+                block.requestedSize?.let { placeholderLength(it, policy, index) }
                 null
             }
             is CodeBlock -> { countText(block.text, index); null }
@@ -58,8 +87,7 @@ internal fun preflightDocument(document: ThermalDocument, policy: LayoutResource
             }
             is UnorderedList, is OrderedList, is Checklist -> {
                 val count = when (block) { is UnorderedList -> block.items.size; is OrderedList -> block.items.size; else -> (block as Checklist).items.size }
-                itemCount += count.toLong()
-                if (itemCount > policy.maxItems) abort("LAY120", "List item count exceeds layout policy", index)
+                itemCount = boundedCount(itemCount, count.toLong(), policy.maxItems.toLong(), index)
                 if (block is OrderedList) {
                     if (block.start < 0 || count > 0 && block.start > Long.MAX_VALUE - (count - 1).toLong())
                         abort("LAY106", "Ordered numbering is invalid or exceeds range", index)
@@ -81,7 +109,6 @@ internal fun preflightDocument(document: ThermalDocument, policy: LayoutResource
                     }
                 }.iterator()
             }
-            else -> abort("LAY100", "Block layout is unavailable", index)
         }
         if (children != null && children.hasNext()) {
             if (frame.depth >= policy.maxBlockDepth) abort("LAY120", "Block nesting exceeds layout policy", index)
@@ -149,6 +176,8 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
         val root = BlockFrame(document.blocks.iterator(), null, 0.0, width, 0, 0.0, FrameKind.ROOT)
         val stack = mutableListOf<FlowFrame>(root)
         val textFlow = TextBlockFlow(measurer, constraints, ::charge, diagnostics)
+        val tableFlow = TableBlockFlow(constraints, textFlow, ::charge)
+        val placeholderFlow = PlaceholderBlockFlow(constraints, ::charge)
         try {
             while (stack.isNotEmpty()) {
                 when (val frame = stack.last()) {
@@ -176,6 +205,16 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
                         when (val block = frame.iterator.next()) {
                             is Paragraph, is Heading, is CodeBlock -> {
                                 val (output, nextY) = textFlow.layout(block, index, frame.x, frame.width, y)
+                                frame.output.add(output)
+                                y = nextY
+                            }
+                            is Table -> {
+                                val (output, nextY) = tableFlow.layout(block, index, frame.x, frame.width, y)
+                                frame.output.add(output)
+                                y = nextY
+                            }
+                            is Image, is QrCode -> {
+                                val (output, nextY) = placeholderFlow.layout(block, index, frame.x, frame.width, y)
                                 frame.output.add(output)
                                 y = nextY
                             }
@@ -221,7 +260,6 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
                                 stack.add(ListFrame(block, index, frame, LogicalGeometry.add(frame.x, indent),
                                     LogicalGeometry.add(frame.x, offset), available, column, frame.listDepth + 1, y, measured))
                             }
-                            else -> abort("LAY100", "Block layout is unavailable", index)
                         }
                     }
                     is ListFrame -> {

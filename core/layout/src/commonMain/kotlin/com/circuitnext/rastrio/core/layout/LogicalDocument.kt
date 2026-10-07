@@ -19,6 +19,9 @@ import com.circuitnext.rastrio.core.document.Alignment
 import com.circuitnext.rastrio.core.document.Length
 import com.circuitnext.rastrio.core.document.LengthUnit
 import com.circuitnext.rastrio.core.document.Orientation
+import com.circuitnext.rastrio.core.document.AssetReference
+import com.circuitnext.rastrio.core.document.ImageSizing
+import com.circuitnext.rastrio.core.document.QrErrorCorrection
 import com.circuitnext.rastrio.core.text.*
 
 /** Trusted runtime policy. Bounds clusters/atoms, spans, blocks, lines, runs and diagnostics. */
@@ -31,10 +34,14 @@ data class LayoutResourcePolicy(
     val maxWidthMm: Double = 1_000.0,
     val maxInlineDepth: Int = 64,
     val maxBlockDepth: Int = 64,
+    val maxTableRows: Int = 20_000,
+    val maxTableColumns: Int = 256,
+    val maxTableCells: Int = 250_000,
 ) {
     init {
         require(maxBlocks > 0 && maxInlineNodes > 0 && maxTextCodeUnits > 0 && maxItems > 0)
         require(maxInlineDepth in 1..64 && maxBlockDepth in 1..64)
+        require(maxTableRows in 1..20_000 && maxTableColumns in 1..256 && maxTableCells in 1..250_000)
         require(maxWidthMm.isFinite() && maxWidthMm > 0.0 && maxWidthMm <= 1_000.0)
     }
 }
@@ -99,6 +106,52 @@ data class LogicalPlaceholder(
 ) : LogicalBlock {
     init { require(sourceBlockIndex >= 0) }
 }
+
+/** Finalized square outer box. Later aspect-preserving image fitting must not change document flow. */
+data class LogicalImagePlaceholder(
+    override val sourceBlockIndex: Int,
+    override val bounds: LogicalBounds,
+    val alignment: Alignment,
+    val asset: AssetReference,
+    val sizing: ImageSizing,
+    val altText: String?,
+    val beforeSpacingMm: Double,
+    val afterSpacingMm: Double,
+) : LogicalBlock {
+    val intrinsicSizeResolved: Boolean get() = false
+}
+
+/** Opaque QR intent plus finalized logical placement; contains no encoded modules. */
+data class LogicalQrPlaceholder(
+    override val sourceBlockIndex: Int,
+    override val bounds: LogicalBounds,
+    val alignment: Alignment,
+    val payload: String,
+    val errorCorrection: QrErrorCorrection,
+    val requestedSize: Length?,
+    val beforeSpacingMm: Double,
+    val afterSpacingMm: Double,
+) : LogicalBlock
+
+data class LogicalTableBlock(
+    override val sourceBlockIndex: Int,
+    override val bounds: LogicalBounds,
+    val columns: SnapshotList<LogicalTableColumn>,
+    val rows: SnapshotList<LogicalTableRow>,
+    val cellPaddingMm: Double,
+    val beforeSpacingMm: Double,
+    val afterSpacingMm: Double,
+) : LogicalBlock
+
+data class LogicalTableColumn(val bounds: LogicalBounds, val alignment: Alignment)
+data class LogicalTableRow(val bounds: LogicalBounds, val isHeader: Boolean, val cells: SnapshotList<LogicalTableCell>)
+data class LogicalTableCell(
+    val columnIndex: Int,
+    val alignment: Alignment,
+    val bounds: LogicalBounds,
+    val contentBounds: LogicalBounds,
+    val text: LogicalTextBlock,
+)
 
 /** Overflow is an engine policy/diagnostic; an intact oversized cluster remains representable. */
 data class LogicalTextLine(

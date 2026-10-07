@@ -45,6 +45,27 @@ object LayoutResourceHeapProbe {
         rejected("narrow code amplification", ThermalDocument(blocks = listOf(CodeBlock(text))))
         rejected("large marker columns", ThermalDocument(blocks = listOf(OrderedList(1,
             List(30000) { ListItem(listOf(Paragraph(Alignment.LEFT, listOf(Text("A"))))) }))), structured)
+        val emptyCell = TableCell(emptyList())
+        val columns = List(10) { TableColumn(Alignment.LEFT) }
+        val emptyRow = List(10) { emptyCell }
+        rejected("many empty table cells", ThermalDocument(blocks = listOf(Table(columns, emptyRow, List(10000) { emptyRow }))), structured)
+        rejected("narrow table cell wrapping", ThermalDocument(blocks = listOf(Table(listOf(TableColumn(Alignment.LEFT)),
+            listOf(TableCell(listOf(Text(text)))), emptyList()))), input.copy(canvasWidth = Length(2.000001)))
+        rejected("styled table cell amplification", ThermalDocument(blocks = listOf(Table(listOf(TableColumn(Alignment.LEFT)),
+            listOf(TableCell(List(100000) { i -> if (i % 2 == 0) Text("A") else Strong(listOf(Text("B"))) })), emptyList()))), structured)
+        val manyColumns = List(256) { TableColumn(Alignment.LEFT) }
+        val wideRow = List(256) { emptyCell }
+        rejected("wide table geometry amplification", ThermalDocument(blocks = listOf(Table(manyColumns, wideRow, List(500) { wideRow }))), structured)
+        val image = Image(ExternalAssetReference("opaque"), Alignment.LEFT, AutoSizing)
+        val qr = QrCode("opaque", Alignment.LEFT, QrErrorCorrection.AUTO)
+        for ((name, placeholder) in listOf("images" to image, "QR placeholders" to qr)) {
+            val document = ThermalDocument(blocks = List(100000) { placeholder })
+            val normalPlaceholders = engine.layout(document, structured)
+            check(normalPlaceholders is LayoutResult.Success && normalPlaceholders.document.blocks.size == 100000)
+            println("100000 $name: success at maxItems")
+            rejected("$name one over runtime item budget", document,
+                structured.copy(resources = structured.resources.copy(maxItems = 99999)))
+        }
         val normal = engine.layout(ThermalDocument(blocks = listOf(Paragraph(Alignment.LEFT, listOf(Text(text))))), input.copy(canvasWidth = Length(1000.0)))
         check(normal is LayoutResult.Success && (normal.document.blocks.single() as LogicalTextBlock).lines.size == 66)
         println("normal maximum ASCII paragraph: 66 lines")

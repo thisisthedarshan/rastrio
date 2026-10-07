@@ -3328,3 +3328,53 @@ Each must fail through LAY120 rather than heap or stack exhaustion. Common
 exact/one-over tests independently pin depth, checklist empty-paragraph flow, checked marker,
 code-boundary and narrow-list diagnostic budgets. These remain conservative
 operational controls, not a universal heap-occupancy guarantee.
+
+
+## Phase 3C2 Operational Table and Placeholder Budgets
+
+The Phase 3C1 shared cumulative maxItems ceiling and text/inline/depth/coordinate
+controls remain applicable. LayoutResourcePolicy adds trusted table ceilings: 20,000
+body rows, 256 columns and 250,000 total cells including header. Callers may lower
+these limits, never raise them beyond these structural ceilings. Header-only tables
+are valid. Zero columns or mismatched header/body row widths fail atomically with
+LAY105. Counts above structural/runtime policies fail with LAY120.
+
+Preflight checks dimensions and checked total-row/cell arithmetic before visiting
+cell content. It bounds rows * columns using division before multiplication, then
+walks cells without flattening or allocating a rectangular matrix. Aggregate input
+inline-node/text/depth limits apply to all cells. Image asset identities and alt text,
+and opaque QR payloads, count against the same aggregate UTF-16 text-code-unit budget.
+The absence of decode/encode work does not permit unbounded semantic strings.
+
+Each table reserves cumulative structural costs before retaining column scratch slots
+or output: one table, two items per column (sizing slot and final column/bounds), two
+per row (builder and final row/bounds), and two per cell (cell/content bounds and
+row-local finalized-text slot). Empty cells use the existing canonical body-line
+representation, without a table-only synthetic run. Actual retained objects and
+explicit structural/preflight reservations are accounted; no empty cell is free.
+Cells additionally consume all ordinary TextBlockFlow
+costs: text block, measured spans/clusters, breaks/tabs, lines/runs and diagnostics.
+Preflight includes the three-item minimum text block/line/run cost for every cell,
+along with structural table costs and placeholder/list-item lower bounds, to reject
+unaffordable declared geometry before any document measurement. Preflight validates
+a lower bound; actual charges still share one cumulative output/work budget.
+Each image or QR placeholder costs one item covering its immutable model/bounds;
+semantic strings/intent are retained by immutable references, not copied or decoded.
+Builders and snapshot copies are bounded by these reserved families.
+
+A one-column header-only empty table costs 10 items; adding one ASCII character costs
+12. Two empty one-column rows cost 17, as do two empty cells in a header-only table.
+One placeholder costs one item, independent of payload interpretation. Exact/one-over
+common tests pin these boundaries and shared table/placeholder accumulation. These
+are cost families, not byte guarantees. Backend allocation bounds remain independent.
+
+The existing dedicated 128 MiB resourceHeapProbe adds many empty table cells, narrow
+cell wrapping, alternating styled cell text, wide-table geometry amplification, and
+100,000 image/QR placeholders at the exact shared ceiling plus one-over rejection.
+Representative amplification must fail through LAY120 rather than OOM; normal bounded
+placeholders succeed. Coordinate/progress failures remain LAY122; padding exhaustion
+or requests above available content width use LAY107, deliberately generalized to
+insufficient available logical width for required geometry. Requests are rejected
+atomically after normalization, without clamping, scaling or overflow output. Finalized
+square image boxes stay fixed after later decoding, so intrinsic dimensions do not
+amplify or change document flow. Diagnostics remain content-private.

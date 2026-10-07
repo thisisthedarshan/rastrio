@@ -3117,3 +3117,30 @@ Preview MUST NOT pass tabs through a platform's default tab expansion. It may
 apply the normal logical-to-screen coordinate transform to supplied geometry.
 This is a logical consumer contract only; Phase 3C1 implements no preview UI,
 physical rendering or printer preparation.
+
+
+## Phase 3C2 Logical Table and Placeholder Consumer Contract
+
+Logical consumers use `LogicalTableBlock` columns, rows, cells, content bounds and
+finalized text lines/runs. Header/body identity is explicit; the logical v1 policy
+adds no implicit header style, cell border or gap. Column bounds span table height.
+Consumers must not resize columns, wrap cell text, infer row heights or realign content.
+TextLayoutPolicyV1's approved equal-column, 0.25-em padding and explicit block-spacing
+rules are specified in TEXT_RENDERING_SPEC's Phase 3C2 section.
+
+Logical image placeholders retain asset/sizing/alt-text intent and explicitly unresolved
+intrinsic dimensions. Their approved square geometry is a placeholder, not a decoded
+image aspect. Consumers may indicate unresolved status but must not resolve URIs or
+open assets implicitly. The square outer box is finalized logical geometry. Later
+preparation fits aspect-preserving resolved image content inside that box without
+changing outer height, neighboring geometry or document flow. Neither preparation nor
+preview may silently re-layout the document after decoding. Unused box space remains
+part of the document. Intrinsic pixel dimensions do not redefine logical outer geometry.
+Logical QR placeholders retain opaque payload, error correction and optional requested
+size; consumers use finalized square bounds without encoding modules or interpreting URLs.
+Both placeholder models retain authoritative alignment and before/after spacing.
+
+These models belong to the assembled explicit logical canvas in both orientations,
+including 180 mm wide landscape documents. Consumers must not pre-segment tables or
+re-wrap cell text in hypothetical physical strips. Phase 3C2 implements no preview UI
+or physical printer preparation.

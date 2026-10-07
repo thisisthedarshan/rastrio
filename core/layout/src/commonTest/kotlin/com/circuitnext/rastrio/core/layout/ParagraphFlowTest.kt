@@ -139,11 +139,10 @@ class ParagraphFlowTest {
         assertEquals(0, calls)
     }
 
-    @Test fun generatedItemsAreBoundedAndUnsupportedBlocksRemainAtomic() {
+    @Test fun generatedItemsAreBoundedAndUnsupportedTextRemainsAtomic() {
         val constraints = input.copy(canvasWidth = Length(2.0), resources = input.resources.copy(maxItems = 10))
         val result = engine.layout(ThermalDocument(blocks = listOf(p("ABCDE"))), constraints)
         assertEquals("LAY120", assertIs<LayoutResult.Failure>(result).diagnostics.single().code)
-        assertEquals("LAY100", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("A"), QrCode("data", Alignment.LEFT, QrErrorCorrection.AUTO))), input)).diagnostics.single().code)
         assertEquals("TXT100", assertIs<LayoutResult.Failure>(engine.layout(ThermalDocument(blocks = listOf(p("é"))), input)).diagnostics.single().code)
     }
 
