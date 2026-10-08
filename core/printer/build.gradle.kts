@@ -17,11 +17,21 @@ plugins {
     id("rastrio.core")
 }
 
+val jvmTestCompilation = kotlin.targets.getByName("jvm").compilations.getByName("test")
+tasks.register<JavaExec>("resourceHeapProbe") {
+    group = "verification"
+    description = "Checks the finalized graphic resident limit in a dedicated 128 MiB JVM."
+    dependsOn("jvmTestClasses")
+    classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
+    mainClass.set("com.circuitnext.rastrio.core.printer.PreparationResourceHeapProbe")
+    maxHeapSize = "128m"
+}
+
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:layout"))
-            implementation(project(":core:profile"))
+            api(project(":core:layout"))
+            api(project(":core:profile"))
             implementation(project(":core:raster"))
             implementation(project(":core:text"))
         }

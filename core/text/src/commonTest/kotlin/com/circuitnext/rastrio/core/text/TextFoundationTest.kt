@@ -37,7 +37,9 @@ class TextFoundationTest {
     }
 
     @Test fun unsupportedTextDoesNotReceiveInventedGeometry() {
-        for (text in listOf("é", "e\u0301", "देव", "😀", "\uD800", "a\tb", "a\nb", "\u001b")) {
+        val invalidSource = CharArray(1) { 0xD800.toChar() }.concatToString()
+        assertEquals(0xD800, invalidSource.single().code)
+        for (text in listOf("é", "e\u0301", "देव", "😀", invalidSource, "a\tb", "a\nb", "\u001b")) {
             val failure = assertIs<TextMeasureResult.Failure>(service.measure(TextMeasureRequest(text, body)))
             assertEquals("TXT100", failure.diagnostics.single().code)
             assertFalse(failure.diagnostics.single().message.contains(text))
