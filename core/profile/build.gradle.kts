@@ -16,3 +16,11 @@
 plugins {
     id("rastrio.core")
 }
+
+kotlin {
+    sourceSets {
+        jvmTest {
+            resources.srcDir(rootProject.file("test-fixtures/tcfg"))
+        }
+    }
+}

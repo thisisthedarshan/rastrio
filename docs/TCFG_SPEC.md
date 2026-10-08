@@ -1225,6 +1225,32 @@ An implementation MAY support additional registered IDs.
 
 A profile referencing an unsupported ID MUST fail validation rather than degrading to a guessed implementation.
 
+### 20.1 Baseline implementation metadata
+
+`BaselineTrustedProfileRegistry` registers all eight strategies above for
+`escpos.generic`. Its selector parameter domains are the canonical numeric font
+selectors `0..1` for `escpos.font.esc-m` and the single-octet domain `0..255` for
+`escpos.code-page.esc-t`. Alternate ASCII font-selector aliases are not part of
+this baseline domain. These are trusted compatibility constraints, not evidence
+that a particular printer supports every selector value or that a repertoire
+uses any particular selector index.
+
+The baseline known repertoire is `cp437`, the known QR model is `model2`, and the
+known barcode symbologies are `code128` and `ean13`. This metadata identifies
+vocabulary only; it does not implement character mapping, content selection,
+symbol preparation, or command encoding.
+
+The generic dialect supplies no implicit default font, repertoire, or line
+advance. Profiles using native text therefore provide explicit font/code-page
+selectors and explicit font line advances. It also supplies no inferred device
+style limits. No quirk is registered by this baseline: the example in Section 21
+is illustrative and is not validated hardware evidence.
+
+This is an implementation-owned allowlist, not a `.tcfg` schema change. Existing
+identifiers and serialized field shapes remain unchanged; unregistered values
+continue to fail closed. Additional metadata requires deliberate trusted
+registration and, for hardware claims, the evidence required by this specification.
+
 ---
 
 ## 21. Known Quirks

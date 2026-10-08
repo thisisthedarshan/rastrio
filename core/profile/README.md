@@ -1,4 +1,4 @@
-# Printer profiles and strict `.tcfg` codec (Phases 5A–5B)
+# Printer profiles and strict `.tcfg` codec (Phase 5)
 
 `PrinterProfile` is an immutable **candidate**, not an accepted capability set.
 `PrinterProfileValidator.validate` returns either `Success<ValidatedPrinterProfile>`
@@ -22,8 +22,24 @@ side-effect-free lookups into trusted metadata. Strategy metadata distinguishes
 purpose, compatible dialects, integer selector ranges and documented cell-height
 line-advance defaults. Dialect metadata identifies unambiguous font/repertoire
 defaults and optional tighter scale constraints. Unknown identifiers never cause
-reflection, dynamic loading, I/O or command generation. There is no production
-strategy catalog or device profile in this phase.
+reflection, dynamic loading, I/O or command generation.
+
+`BaselineTrustedProfileRegistry` supplies the v1 generic ESC/POS dialect and
+eight strategy definitions from `TCFG_SPEC.md` §20. It recognizes `cp437`,
+`model2`, `code128`, and `ean13`, with no registered quirks or inferred native
+defaults. Font selectors use `0..1`; code-page selectors use `0..255`. These
+are vocabulary/parameter constraints, not hardware compatibility evidence.
+The registry contains metadata only; trusted command implementations belong
+to a later phase.
+
+`SyntheticReferenceProfiles` supplies immutable narrow, 80 mm, and raster-only
+candidates from the specification examples. Callers must validate them using
+their own resource policy. Reviewable canonical fixtures live in
+[`test-fixtures/tcfg`](../../test-fixtures/tcfg/README.md); JVM tests compare
+their bytes with production codec output, while common tests cover the same
+capability values portably. These values make no commercial hardware claims.
+The [H50i worksheet](../../docs/H50I_DEVELOPMENT_PROFILE.md) records missing
+mandatory geometry/protocol evidence; no loadable H50i profile is supplied.
 
 Numerical and collection ceilings are **required policy inputs**, not new schema
 rules or universal hardware constants. These include DPI, dimensions, scales,
@@ -75,13 +91,12 @@ from cell height; no generic font geometry or selection is guessed.
 
 ## Tests and phase boundary
 
-Portable tests use only typed synthetic candidates and an in-memory test registry.
+Portable tests cover typed synthetic candidates with both test and production registries.
 They cover valid output paths, semantic failures, registry/default constraints,
 resource/arithmetic boundaries, deterministic diagnostics, immutable snapshots and
 fully revalidated overrides. Display/model names have no effect on validation.
 
-This module retains zero Core dependencies. Phase 5C production strategy catalogs,
-Phase 5D device data, Phase 6 physical preparation,
+This module retains zero Core dependencies. Phase 6 physical preparation,
 ESC/POS encoding, transport, physical preview, UI, `PrinterInstance` persistence
 and `PrintOptions` are deliberately absent.
 
@@ -150,5 +165,6 @@ It exports capability data alone.
 
 The common codec tests exercise the production byte path with an in-memory test
 registry. Test profiles are not maintained/reference printer profiles. No
-production catalog, preparation, protocol encoding, hardware or transport is
-introduced by Phase 5B.
+production catalog, preparation, protocol encoding, hardware or transport was
+introduced by Phase 5B. Phase 5C adds only the metadata and reference data above;
+Phase 5D verifies profile selection/overrides, leaving physical plans to Phase 6.
