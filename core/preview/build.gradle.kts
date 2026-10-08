@@ -21,7 +21,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":core:layout"))
-            implementation(project(":core:printer"))
+            api(project(":core:printer"))
         }
     }
 }

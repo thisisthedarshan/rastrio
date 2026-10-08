@@ -67,6 +67,8 @@ kotlin {
         commonMain.dependencies {
             api(project(":core:markdown"))
             api(project(":core:preview"))
+            api(project(":core:printer"))
+            api(project(":core:profile"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

@@ -3396,3 +3396,30 @@ insufficient available logical width for required geometry. Requests are rejecte
 atomically after normalization, without clamping, scaling or overflow output. Finalized
 square image boxes stay fixed after later decoding, so intrinsic dimensions do not
 amplify or change document flow. Diagnostics remain content-private.
+
+## Phase 6–7 Operational Preparation and Physical Preview Budgets
+
+`BasicPreparationEngine` uses trusted application policy, never imported profile budgets.
+Defaults bound 100,000 prepared operations, 1,000 diagnostics, 8 Mi UTF-16 source/
+prepared text units, and 100,000,000 vertical dots. Existing layout limits (including
+100,000 retained items and 64 Ki units per measurement) additionally bound native
+coverage bytes and measured clusters; the source ceiling is not a resident-memory
+allowance. Counters are checked before prepared operation/graphic allocation.
+
+Only simple solid separators and dashed manual guides are finalized as packed
+MSB-first monochrome bands in this phase. Each band is at most 2 MiB and obeys
+the effective profile's raster width/band-height limits; cumulative finalized
+graphic bytes are at most 128 MiB, with a separate 8 MiB ceiling for retained
+in-memory graphic payloads in this phase. The 8 MiB ceiling leaves room within
+the 16 MiB working budget for the current band and its defensive copy (at most
+2 MiB each), rather than treating the cumulative job ceiling as resident memory.
+Both counters are checked before band allocation and at finalization. A dedicated
+128 MiB printer heap probe covers the reviewed 40,000-separator case.
+Arrays are defensively copied and exposed
+through read-only access. This does not implement the later image/raster engine.
+
+`PrintPreview` retains the same immutable plan and requests tiles lazily. Defaults
+allow at most 2,000,000 dot cells per tile, preferred height 1,024 dots, 10,000
+primitives/annotations per tile and 1,000 diagnostics. No full-height bitmap or
+permanent rendered cache is allocated. These Core scene bounds do not authorize
+a UI renderer to exceed the existing 2-megapixel pixel-area policy at higher zoom.

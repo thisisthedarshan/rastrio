@@ -3144,3 +3144,38 @@ These models belong to the assembled explicit logical canvas in both orientation
 including 180 mm wide landscape documents. Consumers must not pre-segment tables or
 re-wrap cell text in hypothetical physical strips. Phase 3C2 implements no preview UI
 or physical printer preparation.
+
+## Phase 7 Basic Physical Preview API
+
+`PreparedPrint.toPrintPreview()` produces a `PrintPreviewResult`; its successful
+descriptor retains the exact immutable plan and exposes dot width, height and
+bounded lazy tiles. `tile(index)` reports structured `PRV101` invalid-index or
+`PRV120` resource failures. It never calls layout, measurement or repertoire
+selection, and never regenerates prepared graphic content. Upstream diagnostics
+retain their codes when projected.
+
+Native primitives reference prepared runs, preserving line breaks, cell positions,
+font/code-page selections, style, scale and advances. Representative Noto Sans
+painting is approximate glyph appearance; geometry remains authoritative.
+Monochrome separator/manual-guide primitives read the same finalized packed
+bits as the plan. Feed primitives retain exact expected physical advancement.
+Automatic cuts are separately typed non-printing annotations, keep full/partial
+mode distinct, and add no printable mark or paper height. Tiles clip visible
+bounds without modifying original geometry or prepared content.
+
+Profile v1 supplies printable geometry, so the descriptor reports printable width
+and does not invent calibrated media edges or margins. Viewport zoom, screen
+density and font scale affect presentation only; output-affecting changes require
+a new preparation from the semantic document. Logical preview remains separate.
+
+The shared physical-preview route selects clearly labelled synthetic profiles
+and cut options, then prepares from the retained semantic `ThermalDocument`
+(including after ASCII authoring-layout failure). Source edits invalidate the
+physical result; profile/options changes create a fresh plan. Unchanged inputs
+reuse their exact result. Horizontal and vertical viewport dot pitches account
+for their respective DPI; neither screen density nor font scale changes the
+physical plan. Rendering tightens tile area for zoom/density, retains the Core
+primitive limits, and uses bundled pinned Noto Sans Regular/Bold resources.
+Safe CP437 scalars absent from those faces use the pinned Noto Sans Mono
+Regular/Bold faces through a fixed, tested scalar table. This representative
+glyph selection never changes prepared metrics or native code-page decisions.

@@ -3199,3 +3199,30 @@ explicitly; gaps quantizing to zero fail with LAY122. Block bounds exclude spaci
 All emitted geometry and semantic spacing contribute to LogicalDocument.heightMm.
 The same rules apply within list/quote content regions. There is no Phase 4 UI,
 PreparedPrint, printer geometry, rasterization, QR encoding or protocol work.
+
+## Phase 6 Basic Native Preparation
+
+`RegisteredFixedCellMeasurer` extends the existing restricted baseline with a
+controlled safe CP437 mapping. Printable ASCII and mapped bytes 0x80–0xFF are
+eligible; low command/control bytes and DEL are excluded. Unsupported sequences
+fail without replacement, normalization or host charset fallback. Coverage alone
+does not establish printer support: preparation validates the effective profile,
+selected font, repertoire, style and scale before publishing a physical plan.
+
+Basic preparation derives fixed cells from validated native dot geometry using
+horizontal DPI for advance and vertical DPI for height/line advance. Native
+horizontal logical advances are floored to the existing micro-millimetre grid
+to avoid losing a complete exact-dot cell through upward quantization. Physical
+coordinates use nearest rounding with ties to even; finalized native cell sizes
+remain exact integer dots. The existing layout width/work bounds constrain the
+quantization difference, and preparation rejects physical overflow. Cell-bottom
+baselines express top-cell geometry and do not claim calibrated ROM glyph ascent.
+
+Each styled run carries exact safe character bytes and immutable selections.
+Runs on the same line have zero paper advance except the last run, whose
+advance resolves the line's movement. Whitespace between lines/blocks is explicit
+`Feed` content. Ordered markers, indented quotes and borderless tables reuse finalized logical
+text positions and wrapping; equal-y text from separate cells advances paper
+only after its last run. Unsupported styles, raster-only text, complex scripts
+and graphical markers or later physical primitives fail with structured
+diagnostics until their backends exist.
