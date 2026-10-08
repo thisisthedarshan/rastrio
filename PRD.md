@@ -3674,7 +3674,7 @@ Add a test ensuring generic Core contains no H50i width or command constants.
 
 ### Exit criteria
 
-One document can be prepared against multiple validated synthetic profile capability sets without source-code changes.
+Multiple maintained synthetic profile capability sets can be loaded, validated, and selected through the same profile infrastructure without source-code changes, establishing readiness for Phase 6 preparation. Producing `PreparedPrint` for one document against multiple validated profiles remains a Phase 6 proof.
 
 The H50i profile may remain development-only at this phase. It becomes a maintained production profile only after the capabilities used by the supported Android printing path are hardware-validated and recorded in `docs/ESC_POS_NOTES.md` / `docs/HARDWARE_TESTS.md`.
 
