@@ -209,6 +209,12 @@ Duplicate keys MUST be detected before a deserializer or map representation can 
 
 If the selected parser cannot enforce a required rule directly, RastrIO MUST add bounded lexical pre-validation, token inspection, parser wrapping, or structural validation.
 
+The Phase 5B `core-profile` byte codec rejects a leading UTF-8 BOM
+and emits no BOM. It rejects malformed UTF-8 and unpaired JSON surrogate escapes.
+Its integer fields require integer JSON tokens: decimal and exponent forms are
+not accepted as integer representations. This implements the safe integer
+representation boundary without floating-point coercion.
+
 YAML is not a normative v1 representation.
 
 ### 5.3 Format Identifier

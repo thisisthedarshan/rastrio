@@ -95,7 +95,11 @@ class ProfileValidationTest {
     }
 
     @Test fun displayIsBoundedSafeUnicodeWithoutContentEcho() {
-        for (value in listOf("bad\u0000", "bad\u007f", "bad\ud800"))
+        val high = StringBuilder("bad").append(0xD800.toChar()).toString()
+        val low = StringBuilder("bad").append(0xDC00.toChar()).toString()
+        assertEquals(0xD800, high.last().code)
+        assertEquals(0xDC00, low.last().code)
+        for (value in listOf("bad\u0000", "bad\u007f", high, low))
             rejects(profile().copy(display = ProfileDisplay(value)), "PRF102", "$.display.name")
         validated(profile().copy(display = ProfileDisplay("RastrIO\t印刷\n")))
         rejects(profile().copy(display = ProfileDisplay("é".repeat(32769))), "PRF120", "$.display.name")

@@ -1,4 +1,4 @@
-# Printer profile domain (Phase 5A)
+# Printer profiles and strict `.tcfg` codec (Phases 5A–5B)
 
 `PrinterProfile` is an immutable **candidate**, not an accepted capability set.
 `PrinterProfileValidator.validate` returns either `Success<ValidatedPrinterProfile>`
@@ -11,8 +11,8 @@ The complete `.tcfg` v1 domain includes identity/display metadata, independent
 horizontal/vertical DPI, printable width, native fonts/styles/code pages, integer
 registered selectors, raster bands, native QR/barcodes, cutter, printer-side
 buffer guidance, status queries, the explicit ESC/POS protocol variant and quirks.
-The closed v1 `ProtocolProfile` cannot represent an unknown family; the future
-reader must reject unknown families rather than map them to ESC/POS.
+The closed v1 `ProtocolProfile` cannot represent an unknown family; the byte
+reader rejects unknown families before constructing the ESC/POS variant.
 
 ## Trusted validation inputs
 
@@ -33,8 +33,8 @@ Policy construction mistakes throw `IllegalArgumentException`; expected invalid
 candidate data returns diagnostics. Counts are checked before collection walks,
 identifiers before registry resolution, and strings without allocating UTF-8
 copies. Raster byte counts and native scale products widen before arithmetic.
-The future byte reader must also enforce pre-allocation parsing limits from
-`RESOURCE_LIMITS.md`; typed semantic validation does not replace that reader.
+The byte codec additionally enforces parsing limits from `RESOURCE_LIMITS.md`
+before and during parsing; typed semantic validation does not replace parsing.
 
 ## Overrides
 
@@ -47,7 +47,7 @@ Identity, display metadata and schema version are not calibration overrides.
 The **entire** resulting candidate is validated against the current registry and
 policy, even when the base was accepted under a different policy. Success yields
 `EffectivePrinterProfile`; failure never falls back to the base. Input/base values
-remain unchanged. Capability order is retained; canonical serialization is later.
+remain unchanged. Capability order is retained; the writer sorts only native text scale arrays.
 
 ## Diagnostic contract
 
@@ -80,7 +80,75 @@ They cover valid output paths, semantic failures, registry/default constraints,
 resource/arithmetic boundaries, deterministic diagnostics, immutable snapshots and
 fully revalidated overrides. Display/model names have no effect on validation.
 
-This module retains zero Core dependencies. Phase 5B JSON/file handling, Phase 5C
-production strategy catalogs, Phase 5D device data, Phase 6 physical preparation,
+This module retains zero Core dependencies. Phase 5C production strategy catalogs,
+Phase 5D device data, Phase 6 physical preparation,
 ESC/POS encoding, transport, physical preview, UI, `PrinterInstance` persistence
 and `PrintOptions` are deliberately absent.
+
+## Phase 5B byte codec
+
+`TcfgCodec(registry, validationLimits, resourcePolicy)` exposes:
+
+- `decode(ByteArray): ProfileValidationResult<ValidatedPrinterProfile>`
+- `encode(ValidatedPrinterProfile): ProfileValidationResult<ByteArray>`
+
+It operates entirely on portable values with no filesystem, networking or
+platform API. Every successfully decoded candidate passes the existing Phase 5A
+validator with the supplied trusted registry and semantic limits. Structural
+failures return one fatal diagnostic; semantic failures retain the validator's
+codes, paths and ordering. Expected hostile input never exposes parser exceptions.
+
+The local strict JSON machinery deliberately follows `core-document`'s approach
+without a dependency on that module or a new shared serialization framework.
+Duplicate decoded keys fail before their values are parsed or inserted; escaped
+aliases such as `name` and `na\u006de` also collide. Exact property sets are
+checked at every object level. Integer fields accept only integer JSON tokens
+(no decimal/exponent representation), using checked `Int` conversion without
+floating point. Capability consistency and registered enums/strategies remain
+owned by the existing semantic validator. Unknown protocol families fail during
+schema decoding.
+
+Malformed UTF-8 and a leading BOM are rejected. BOMs outside strings fail JSON
+syntax; U+FEFF inside a string is ordinary Unicode data. Unpaired JSON surrogate
+escapes are rejected. UTF-8 string bytes are counted by scalar before appending.
+Object keys share the same string budget as values. No diagnostic includes
+attacker-controlled key names or values: syntax/resource paths use `$`, and
+schema paths contain fixed property names and numeric indexes.
+
+`TcfgResourcePolicy` defaults to 1 MiB input/output bytes, 64 container nesting
+levels, 64 KiB per decoded string, and 100,000 nodes/tokens (including keys).
+Additional operational ceilings are 64 properties per object and 64 characters
+per numeric token. Depth policy may be lowered but cannot exceed the portable
+64-level recursive implementation ceiling. Arrays use
+`PrinterProfileValidationLimits.maxCollectionEntries` during parsing, and the
+string budget is the smaller of parsing and semantic policy. Limits apply even
+to unknown fields before schema rejection. These are trusted operational policy,
+not wire fields or new schema-version semantics. Canonical scale sorting checks the existing semantic collection ceiling and
+minimum encoded size before allocating a sorted copy, including for profiles
+validated under a different trusted policy. Output construction is bounded
+in UTF-16 characters, then checked against the UTF-8 byte ceiling; its temporary
+buffers are bounded multiples of that ceiling.
+
+The writer emits compact standard JSON, no BOM, stable specification property
+order, absent optional values omitted, and ascending native text scales. Other
+arrays retain domain order. Decode/re-encode of canonical output is byte-stable;
+unsorted input scales normalize without changing capability meaning. The writer
+accepts only the validated wrapper, with no override/effective-profile overload.
+It exports capability data alone.
+
+| Code | Wire-stage meaning |
+|---|---|
+| PRF130 | Invalid UTF-8 or rejected leading BOM |
+| PRF131 | Invalid standard JSON or Unicode string syntax |
+| PRF132 | Duplicate decoded JSON property |
+| PRF133 | Unknown v1 property (path identifies containing object) |
+| PRF134 | Missing required property |
+| PRF135 | Wrong token type, including illegal null |
+| PRF136 | Non-integer representation or integer overflow |
+| PRF137 | Unsupported wire format, schema version or protocol family |
+| PRF138 | Trusted parsing or output resource limit exceeded |
+
+The common codec tests exercise the production byte path with an in-memory test
+registry. Test profiles are not maintained/reference printer profiles. No
+production catalog, preparation, protocol encoding, hardware or transport is
+introduced by Phase 5B.

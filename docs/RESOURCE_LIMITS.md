@@ -766,6 +766,24 @@ A profile containing thousands of duplicate or irrelevant capability declaration
 
 ---
 
+### Phase 5B codec enforcement
+
+`TcfgResourcePolicy` supplies the four provisional parsing baselines above.
+The production codec also bounds each object to 64 properties and each numeric
+token to 64 characters by default. Container nesting counts the root as level 1;
+the trusted depth policy may be lowered but cannot exceed 64 for the local
+recursive parser. Nodes/tokens count values and object keys. Arrays use the
+existing `PrinterProfileValidationLimits.maxCollectionEntries` ceiling during
+parsing, rather than adding another semantic list policy. Decoded string values
+and keys use the smaller of parsing and semantic UTF-8 string limits and are
+bounded before appending each Unicode scalar. Input bytes are checked before
+UTF-8 decoding. These policies are never imported from `.tcfg` data.
+
+The writer bounds incremental UTF-16 output construction to the byte policy's
+numeric ceiling and then checks the final UTF-8 bytes. Temporary output buffers
+are therefore bounded multiples of that ceiling. Parsing/output limit failures
+use `PRF138`; Phase 5A semantic resource failures retain `PRF120`.
+
 ## 10.5 Unknown properties and strict conformance
 
 `.tcfg` schema v1 rejects unknown properties.
