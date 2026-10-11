@@ -16,3 +16,13 @@
 plugins {
     id("rastrio.core")
 }
+
+val jvmTestCompilation = kotlin.targets.getByName("jvm").compilations.getByName("test")
+tasks.register<JavaExec>("resourceHeapProbe") {
+    group = "verification"
+    description = "Checks long full-width raster streaming in a dedicated 32 MiB JVM."
+    dependsOn("jvmTestClasses")
+    classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
+    mainClass.set("com.circuitnext.rastrio.core.raster.RasterResourceHeapProbe")
+    maxHeapSize = "32m"
+}

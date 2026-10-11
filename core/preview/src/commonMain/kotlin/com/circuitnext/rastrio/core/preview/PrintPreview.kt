@@ -33,7 +33,7 @@ data class PhysicalPreviewResourcePolicy(
 
 data class PrintPreviewDiagnostic(val code: String, val message: String, val sourceBlockIndex: Int? = null)
 enum class PhysicalPreviewAccuracy { EXACT_GEOMETRY_REPRESENTATIVE_GLYPHS, EXACT_PREPARED_DOTS, EXACT_PAPER_ADVANCE }
-enum class PreparedGraphicKind { SEPARATOR, MANUAL_CUT_GUIDE }
+enum class PreparedGraphicKind { SEPARATOR, MANUAL_CUT_GUIDE, IMAGE }
 
 /** Original prepared bounds stay authoritative; clippedBounds only limits viewport painting. */
 sealed interface PhysicalPreviewPrimitive {
@@ -130,6 +130,7 @@ class PrintPreview internal constructor(
                 is NativeText -> NativeTextPrimitive(operation, clipped)
                 is Separator -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.SEPARATOR, clipped)
                 is ManualCutGuide -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.MANUAL_CUT_GUIDE, clipped)
+                is RasterOperation -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.IMAGE, clipped)
                 is Feed -> FeedPrimitive(operation, clipped)
                 is AutomaticCut -> error("Cut annotations are handled separately")
             }

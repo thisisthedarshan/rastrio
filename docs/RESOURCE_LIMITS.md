@@ -3423,3 +3423,30 @@ allow at most 2,000,000 dot cells per tile, preferred height 1,024 dots, 10,000
 primitives/annotations per tile and 1,000 diagnostics. No full-height bitmap or
 permanent rendered cache is allocated. These Core scene bounds do not authorize
 a UI renderer to exceed the existing 2-megapixel pixel-area policy at higher zoom.
+
+## Phase 8–10 concrete implementation ceilings
+
+The encoder emits at most 64 KiB per chunk and retains current-part/buffer/delivery
+snapshots only; it rejects jobs above 256 MiB before sending. Shared sessions
+further cap encoded delivery at 128 MiB, use checked Long accounting, and have no
+producer queue: the next chunk waits for the current transport write. Test
+memory sinks cap capture at 256 KiB by default. Android's initial 1024-byte write
+setting is an application transport preference, not measured H50i guidance.
+Actual printer burst/pause guidance intersects session constraints at each job.
+
+Portable raster inputs snapshot at most 16 million ARGB pixels, 32768 per axis.
+Raster output is at most 100 million pixels, 128 MiB packed, 2 MiB per band and 16 MiB
+scratch. Minimum band heights are satisfied by balanced partitions; impossible
+partitions fail before emission. Retention belongs to the consumer. Preparation
+continues enforcing the existing 8 MiB resident graphic ceiling, 128 MiB cumulative
+ceiling and operation budgets before raster allocation; this phase adds no spool.
+
+Android image acquisition limits compressed JPEG/PNG to 32 MiB. Dimension preflight
+rejects axes above 32768 or encoded products above 100 MP; sampled decode estimates
+three simultaneous pixel stores plus 64 MiB acquisition/snapshot allowance and
+32 MiB scratch/previous-screen allowance within 128 MiB total. Actual bitmap
+allocation is rechecked. Imports are serialized, cancellation closes active
+streams, and native results are never published after cancellation. Native codec
+execution itself cannot be forcibly interrupted on all supported Android versions.
+Profile acquisition limits actual read bytes to 1 MiB; no whole input is acquired
+before its limit is checked. Permission/device errors never log content/locators.

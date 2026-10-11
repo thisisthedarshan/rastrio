@@ -3179,3 +3179,17 @@ primitive limits, and uses bundled pinned Noto Sans Regular/Bold resources.
 Safe CP437 scalars absent from those faces use the pinned Noto Sans Mono
 Regular/Bold faces through a fixed, tested scalar table. This representative
 glyph selection never changes prepared metrics or native code-page decisions.
+
+## Phase 10 finalized image projection
+
+`RasterOperation` carries a finalized immutable `PreparedMonochrome` band with
+stable ordering and integer-dot bounds. Physical preview exposes it as
+`PreparedGraphicKind.IMAGE` and paints those exact bits, without image decode,
+resize, adjustment, dithering or artifact regeneration. The ESC/POS serializer
+consumes the same operation/artifact. Constructor validation rejects invalid
+length/padding; unresolved assets fail before publishing a prepared plan.
+
+Image fitting respects the existing finalized square logical outer region in
+TEXT_RENDERING_SPEC. Aspect-preserving pixels fit inside it with independently
+resolved horizontal/vertical DPI; unused paper space is represented by prepared
+feeds. These are authoritative physical operations, not preview-only padding.

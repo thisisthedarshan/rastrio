@@ -178,6 +178,7 @@ class Phase6PreparationContractTest {
                     operation.font.id, operation.codePage.id, operation.style, operation.alignment, operation.advanceDots)
                 is Separator -> listOf(operation.bounds, operation.strategy, operation.graphic.copyBytes().toList())
                 is ManualCutGuide -> listOf(operation.bounds, operation.strategy, operation.graphic.copyBytes().toList())
+                is RasterOperation -> listOf(operation.bounds, operation.strategy, operation.bandOrdinal, operation.graphic.copyBytes().toList())
                 is Feed -> listOf(operation.bounds, operation.advanceDots)
                 is AutomaticCut -> listOf(operation.bounds, operation.mode, operation.strategy)
             }

@@ -17,6 +17,10 @@ package com.circuitnext.rastrio.presentation
 
 import com.circuitnext.rastrio.core.printer.*
 import com.circuitnext.rastrio.core.profile.SyntheticReferenceProfiles
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 class PhysicalPreviewSessionTest {
@@ -28,9 +32,9 @@ class PhysicalPreviewSessionTest {
 
     @Test fun unchangedInputsReuseTheExactPlanAndPreview() {
         var calls = 0
-        val session = PhysicalPreviewSession(preparePrint = { document, profile, options ->
+        val session = PhysicalPreviewSession(preparePrint = { document, profile, options, isCancelled ->
             calls++
-            BasicPreparationEngine().prepare(document, profile, options)
+            BasicPreparationEngine().prepare(document, profile, options, isCancelled = isCancelled)
         })
         val authoring = authoring("Receipt")
         session.prepare(authoring.state.result)
@@ -81,9 +85,9 @@ class PhysicalPreviewSessionTest {
 
     @Test fun invalidationClearsOutputAndRepreparesEvenAnEquivalentInput() {
         var calls = 0
-        val session = PhysicalPreviewSession(preparePrint = { document, profile, options ->
+        val session = PhysicalPreviewSession(preparePrint = { document, profile, options, isCancelled ->
             calls++
-            BasicPreparationEngine().prepare(document, profile, options)
+            BasicPreparationEngine().prepare(document, profile, options, isCancelled = isCancelled)
         })
         val input = authoring("Receipt").state.result
         session.prepare(input)
@@ -112,9 +116,9 @@ class PhysicalPreviewSessionTest {
 
     @Test fun unsupportedContentReplacesSuccessAndCachesItsStructuredFailure() {
         var calls = 0
-        val session = PhysicalPreviewSession(preparePrint = { document, profile, options ->
+        val session = PhysicalPreviewSession(preparePrint = { document, profile, options, isCancelled ->
             calls++
-            BasicPreparationEngine().prepare(document, profile, options)
+            BasicPreparationEngine().prepare(document, profile, options, isCancelled = isCancelled)
         })
         session.prepare(authoring("Receipt").state.result)
         val authoring = authoring("世界")
@@ -137,11 +141,33 @@ class PhysicalPreviewSessionTest {
 
     @Test fun reentrantInvalidationCannotPublishAnObsoletePlan() {
         lateinit var session: PhysicalPreviewSession
-        session = PhysicalPreviewSession(preparePrint = { document, profile, options ->
+        session = PhysicalPreviewSession(preparePrint = { document, profile, options, isCancelled ->
             session.invalidate()
-            BasicPreparationEngine().prepare(document, profile, options)
+            BasicPreparationEngine().prepare(document, profile, options, isCancelled = isCancelled)
         })
         session.prepare(authoring("Receipt").state.result)
+        assertSame(PhysicalPreviewResult.NotPrepared, session.state.result)
+    }
+
+    @Test fun textOnlyBackgroundPreparationObservesCancellationBeforeReturning() = runTest {
+        lateinit var worker: Job
+        var observedCancellation = false
+        var prepared: PreparationResult? = null
+        val session = PhysicalPreviewSession(preparePrint = { document, profile, options, isCancelled ->
+            assertFalse(isCancelled())
+            worker.cancel()
+            observedCancellation = isCancelled()
+            BasicPreparationEngine().prepare(document, profile, options, isCancelled = isCancelled).also {
+                prepared = it
+            }
+        })
+        val input = authoring("Receipt").state.result
+        worker = launch(start = CoroutineStart.LAZY) { session.prepareAsync(input) }
+        worker.start()
+        worker.join()
+        assertTrue(observedCancellation)
+        assertTrue(assertIs<PreparationResult.Failure>(prepared).diagnostics.any { it.code == "PRN130" })
+        assertTrue(worker.isCancelled)
         assertSame(PhysicalPreviewResult.NotPrepared, session.state.result)
     }
 }

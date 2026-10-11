@@ -29,21 +29,52 @@ import androidx.compose.ui.unit.dp
 import com.circuitnext.rastrio.core.markdown.MarkdownDiagnostic
 import com.circuitnext.rastrio.core.markdown.MarkdownSeverity
 import com.circuitnext.rastrio.core.printer.*
+import com.circuitnext.rastrio.core.document.AssetReference
+import com.circuitnext.rastrio.core.document.EmbeddedAssetReference
+import com.circuitnext.rastrio.core.document.ExternalAssetReference
+import com.circuitnext.rastrio.core.raster.RasterOptions
 import com.circuitnext.rastrio.core.profile.PrinterProfile
 import com.circuitnext.rastrio.core.profile.SyntheticReferenceProfiles
 import com.circuitnext.rastrio.presentation.*
+import com.circuitnext.rastrio.printing.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 
-private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW }
+private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW }
 
 @Stable
 internal class ObservablePhysicalPreview(private val session: PhysicalPreviewSession) {
     var state by mutableStateOf(session.state)
         private set
     fun invalidate() { session.invalidate(); state = session.state }
+    fun resolveImage(reference: AssetReference, image: ResolvedRasterImage): Boolean {
+        val resolved = session.resolveImage(reference, image); state = session.state; return resolved
+    }
     fun prepare(authoring: MarkdownAuthoringResult, profile: PrinterProfile = state.profile,
         options: PrintOptions = state.options) {
         session.prepare(authoring, profile, options); state = session.state
     }
+    suspend fun prepareAsync(authoring: MarkdownAuthoringResult, profile: PrinterProfile = state.profile,
+        options: PrintOptions = state.options) {
+        try { session.prepareAsync(authoring, profile, options) } finally { state = session.state }
+    }
+}
+
+@Stable
+internal class ObservableImagePrint(private val session: ImagePrintSession) {
+    var state by mutableStateOf(session.state)
+        private set
+    fun select(input: ImageInput?) { session.select(input); state = session.state }
+    fun edit(edits: ImagePrintEdits) { session.edit(edits); state = session.state }
+    fun configure(profile: PrinterProfile, options: PrintOptions = state.options) {
+        session.configure(profile, options); state = session.state
+    }
+    fun invalidate() { session.invalidate(); state = session.state }
+    fun prepare() { session.prepare(); state = session.state }
+    suspend fun prepareAsync() { try { session.prepareAsync() } finally { state = session.state } }
 }
 
 /** Observation only. The session remains the sole owner of edits, outcomes and invalidation. */
@@ -60,14 +91,117 @@ internal class ObservableAuthoring(private val session: MarkdownAuthoringSession
 }
 
 @Composable
-fun RastrIOApp(session: MarkdownAuthoringSession? = null) {
+fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: PrintingPlatform? = null,
+    printingSessions: PrinterSessionStore? = null, imagePlatform: ImagePlatform? = printingPlatform as? ImagePlatform) {
     val physical = remember(session) { ObservablePhysicalPreview(PhysicalPreviewSession()) }
     val authoring = remember(session) { ObservableAuthoring(session ?: createAuthoringSession(), physical) }
+    val image = remember { ObservableImagePrint(ImagePrintSession()) }
+    val pickedImage = imagePlatform?.image?.collectAsState()?.value
+    val imageStatus = imagePlatform?.imageStatus?.collectAsState()?.value.orEmpty()
+    var resolutionStatus by remember { mutableStateOf("") }
     var route by remember { mutableStateOf(AuthoringRoute.HOME) }
+    val printing = remember(printingPlatform, printingSessions) { printingSessions ?: printingPlatform?.let { PrinterSessionStore(it::createTransport) } }
+    var selectedLocator by remember(printingPlatform) { mutableStateOf<String?>(null) }
+    val printers = printingPlatform?.printers?.collectAsState()?.value ?: emptyList()
+    val importedProfile = printingPlatform?.profile?.collectAsState()?.value
+    val platformStatus = printingPlatform?.status?.collectAsState()?.value.orEmpty()
+    val foreground = printingPlatform?.foreground?.collectAsState()?.value ?: true
+    val selected = printers.find { it.transportLocator == selectedLocator }
+    val printSession = selected?.let { printing?.session(it) }
+    val printState = printSession?.state?.collectAsState()?.value ?: PrintSessionState()
+    val scope = rememberCoroutineScope()
+    var preparationJob by remember { mutableStateOf<Job?>(null) }
+    val cancelPreparation = { preparationJob?.cancel(); preparationJob = null }
+    val startPreparation: (suspend () -> Unit) -> Unit = { work ->
+        cancelPreparation()
+        val task = scope.launch(start = CoroutineStart.LAZY) {
+            val running = currentCoroutineContext().job
+            try { work() } finally { if (preparationJob === running) preparationJob = null }
+        }
+        preparationJob = task
+        task.start()
+    }
+    val preparePhysical: (PrinterProfile, PrintOptions) -> Unit = { profile, options ->
+        val request = authoring.state.result
+        startPreparation { physical.prepareAsync(request, profile, options) }
+    }
+    DisposableEffect(printing) { onDispose { printing?.cancelAll(); preparationJob?.cancel() } }
+    LaunchedEffect(route, foreground) { printing?.cancelAll(); cancelPreparation() }
+    LaunchedEffect(pickedImage) {
+        if (image.state.input != pickedImage) {
+            printing?.cancelAll(); cancelPreparation(); image.select(pickedImage); physical.invalidate()
+            resolutionStatus = "Picking another image releases previous Markdown image bindings"
+        }
+    }
+    LaunchedEffect(importedProfile) {
+        if (!isSyntheticProfile(image.state.profile) && image.state.profile != importedProfile) {
+            cancelPreparation(); image.invalidate()
+        }
+    }
+    val imageRoute = route == AuthoringRoute.IMAGE || route == AuthoringRoute.IMAGE_PREVIEW
+    val currentResult = if (preparationJob != null) PhysicalPreviewResult.NotPrepared
+        else if (imageRoute) image.state.result else physical.state.result
+    val currentProfile = if (imageRoute) image.state.profile else physical.state.profile
+    val resolveMarkdownImage: (AssetReference) -> Unit = { reference ->
+        val input = pickedImage
+        if (input != null) {
+            printing?.cancelAll(); cancelPreparation()
+            if (physical.resolveImage(reference, ResolvedRasterImage(input.image,
+                    RasterOptions(input.image.width, input.image.height, orientation = input.orientation)))) {
+                resolutionStatus = "Selected image explicitly associated with this Markdown image reference"
+                preparePhysical(physical.state.profile, physical.state.options)
+            } else resolutionStatus = "Markdown image binding limit reached"
+        }
+    }
+    val printingControls: @Composable () -> Unit = {
+        if (printingPlatform != null) PrintingControls(
+            printingPlatform, printers, importedProfile, platformStatus, foreground, selected, printSession, printState,
+            currentResult as? PhysicalPreviewResult.Ready,
+            currentProfile,
+            onSelect = { instance ->
+                printing?.cancelAll(); cancelPreparation()
+                selectedLocator = instance.transportLocator
+                printingPlatform.selectPrinter(instance)
+                if (importedProfile != null) {
+                    if (imageRoute) image.configure(importedProfile, PrintOptions())
+                    else preparePhysical(importedProfile,
+                        physical.state.options.copy(cutIntent = CutIntent.NONE))
+                }
+            },
+            onPrepare = { if (importedProfile != null) {
+                printing?.cancelAll()
+                if (imageRoute) { image.configure(importedProfile); startPreparation { image.prepareAsync() } }
+                else preparePhysical(importedProfile, physical.state.options)
+            } },
+            onPrint = {
+                val prepared = (currentResult as? PhysicalPreviewResult.Ready)?.print
+                val currentInput = image.state.input == pickedImage
+                if (foreground && currentInput && canPrintPrepared(selected, importedProfile, prepared, currentProfile) && printSession != null) {
+                    scope.launch { printSession.print(selected!!, prepared!!, importedProfile!!.writeGuidance()) }
+                }
+            },
+            showSelection = route != AuthoringRoute.PHYSICAL_PREVIEW && route != AuthoringRoute.IMAGE_PREVIEW,
+        )
+    }
     AuthoringTheme {
         Surface(Modifier.fillMaxSize().safeDrawingPadding().imePadding(), color = MaterialTheme.colorScheme.background) {
             when (route) {
-                AuthoringRoute.HOME -> HomeScreen { route = AuthoringRoute.MARKDOWN }
+                AuthoringRoute.HOME -> HomeScreen(onImage = { route = AuthoringRoute.IMAGE }) { route = AuthoringRoute.MARKDOWN }
+                AuthoringRoute.IMAGE -> ImagePrintScreen(image.state, imagePlatform, imageStatus, importedProfile,
+                    printState.isActive,
+                    onEdit = { printing?.cancelAll(); cancelPreparation(); image.edit(it) },
+                    onProfile = { printing?.cancelAll(); cancelPreparation(); image.configure(it, PrintOptions()) },
+                    onPrepare = { startPreparation { image.prepareAsync() } },
+                    onPreview = { route = AuthoringRoute.IMAGE_PREVIEW },
+                    onBack = { route = AuthoringRoute.HOME }, printingControls = printingControls,
+                    preparing = preparationJob != null)
+                AuthoringRoute.IMAGE_PREVIEW -> {
+                    val ready = image.state.result as? PhysicalPreviewResult.Ready
+                    if (ready != null) PhysicalPreviewScreen(ready.preview,
+                        syntheticTarget = isSyntheticProfile(image.state.profile), printingControls = printingControls,
+                        backLabel = "Back to image settings") { route = AuthoringRoute.IMAGE }
+                    else LaunchedEffect(Unit) { route = AuthoringRoute.IMAGE }
+                }
                 AuthoringRoute.MARKDOWN -> MarkdownScreen(authoring,
                     onHome = { route = AuthoringRoute.HOME }, onPreview = { route = AuthoringRoute.PREVIEW },
                     onPhysicalPreview = { physical.prepare(authoring.state.result); route = AuthoringRoute.PRINTER_SETUP })
@@ -78,12 +212,20 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null) {
                         { physical.prepare(authoring.state.result); route = AuthoringRoute.PRINTER_SETUP })
                 }
                 AuthoringRoute.PRINTER_SETUP -> PrinterSetupScreen(authoring.state.result, physical,
-                    onBack = { route = AuthoringRoute.MARKDOWN }, onPreview = { route = AuthoringRoute.PHYSICAL_PREVIEW })
+                    onBack = { route = AuthoringRoute.MARKDOWN }, onPreview = { route = AuthoringRoute.PHYSICAL_PREVIEW },
+                    printingControls = printingControls, printingBusy = printState.isActive || preparationJob != null,
+                    imagePlatform = imagePlatform, pickedImage = pickedImage, resolutionStatus = resolutionStatus,
+                    onResolve = resolveMarkdownImage, preparePhysical = preparePhysical)
                 AuthoringRoute.PHYSICAL_PREVIEW -> {
                     val ready = physical.state.result as? PhysicalPreviewResult.Ready
-                    if (ready != null) PhysicalPreviewScreen(ready.preview) { route = AuthoringRoute.PRINTER_SETUP }
+                    if (ready != null) PhysicalPreviewScreen(ready.preview,
+                        syntheticTarget = isSyntheticProfile(physical.state.profile), printingControls = printingControls) {
+                        route = AuthoringRoute.PRINTER_SETUP
+                    }
                     else PrinterSetupScreen(authoring.state.result, physical,
-                        { route = AuthoringRoute.MARKDOWN }, { route = AuthoringRoute.PHYSICAL_PREVIEW })
+                        { route = AuthoringRoute.MARKDOWN }, { route = AuthoringRoute.PHYSICAL_PREVIEW }, printingControls,
+                        printState.isActive || preparationJob != null, imagePlatform, pickedImage, resolutionStatus,
+                        resolveMarkdownImage, preparePhysical)
                 }
             }
         }
@@ -91,12 +233,13 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null) {
 }
 
 @Composable
-fun HomeScreen(onMarkdown: () -> Unit) {
+fun HomeScreen(onImage: (() -> Unit)? = null, onMarkdown: () -> Unit) {
     Column(Modifier.padding(24.dp).widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("RastrIO", style = MaterialTheme.typography.headlineLarge)
         Text("Markdown document workspace", style = MaterialTheme.typography.titleLarge)
         Text("Write a document, compile it, and inspect its logical layout.")
         AuthoringButton("Open Markdown", onClick = onMarkdown)
+        if (onImage != null) AuthoringButton("Open Image Print", onClick = onImage)
     }
 }
 
@@ -134,15 +277,38 @@ private data class DiagnosticRow(val label: String, val error: Boolean, val mess
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PrinterSetupScreen(authoring: MarkdownAuthoringResult, physical: ObservablePhysicalPreview,
-    onBack: () -> Unit, onPreview: () -> Unit) {
+    onBack: () -> Unit, onPreview: () -> Unit, printingControls: @Composable () -> Unit = {}, printingBusy: Boolean = false,
+    imagePlatform: ImagePlatform? = null, pickedImage: ImageInput? = null, resolutionStatus: String = "",
+    onResolve: (AssetReference) -> Unit = {},
+    preparePhysical: (PrinterProfile, PrintOptions) -> Unit = { profile, options -> physical.prepare(authoring, profile, options) }) {
     val state = physical.state
+    val imageReferences = remember(authoring) { authoring.semanticDocument()?.let(::markdownImageReferences).orEmpty() }
     LazyColumn(Modifier.fillMaxSize().padding(16.dp).widthIn(max = 960.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text("Printer preview setup", style = MaterialTheme.typography.headlineMedium)
             AuthoringButton("Back to Markdown", onClick = onBack)
-            Text("Synthetic test profiles only. These configurations are not verified commercial printers.",
+            Text(if (isSyntheticProfile(state.profile))
+                "Synthetic test profiles only. These configurations are not verified commercial printers."
+                else "Imported profile capabilities require physical verification on the selected printer.",
                 color = LocalAuthoringColors.current.warning, style = MaterialTheme.typography.bodySmall)
+        }
+        item { printingControls() }
+        if (imageReferences.isNotEmpty()) item {
+            Text("Resolve Markdown images explicitly", style = MaterialTheme.typography.titleMedium)
+            Text("No URL is fetched. Choose local pixels, then associate them with an image reference.",
+                style = MaterialTheme.typography.bodySmall)
+            AuthoringButton("Choose Markdown image", imagePlatform != null && !printingBusy,
+                onClick = { imagePlatform?.importImage() })
+            if (resolutionStatus.isNotEmpty()) Text(resolutionStatus, style = MaterialTheme.typography.bodySmall)
+        }
+        items(imageReferences) { reference ->
+            val identity = when (reference) {
+                is EmbeddedAssetReference -> reference.assetId
+                is ExternalAssetReference -> reference.uri
+            }
+            AuthoringButton("Use selected image for $identity", pickedImage != null && !printingBusy,
+                onClick = { onResolve(reference) })
         }
         item {
             Text("Selected profile: ${state.profile.display.name}", style = MaterialTheme.typography.titleMedium)
@@ -150,7 +316,7 @@ private fun PrinterSetupScreen(authoring: MarkdownAuthoringResult, physical: Obs
                 for ((profile, label) in listOf(SyntheticReferenceProfiles.narrow to "Synthetic 384 dots",
                     SyntheticReferenceProfiles.wide80mm to "Synthetic 576 dots",
                     SyntheticReferenceProfiles.rasterOnly to "Synthetic raster only")) {
-                    AuthoringButton(label, onClick = { physical.prepare(authoring, profile = profile) })
+                    AuthoringButton(label, !printingBusy, onClick = { preparePhysical(profile, state.options) })
                 }
             }
         }
@@ -163,12 +329,12 @@ private fun PrinterSetupScreen(authoring: MarkdownAuthoringResult, physical: Obs
                 CutIntent.AUTOMATIC_OR_MANUAL -> "Automatic cut or printed manual guide"
             }, style = MaterialTheme.typography.bodySmall)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AuthoringButton("No cut", onClick = { physical.prepare(authoring, options = state.options.copy(cutIntent = CutIntent.NONE)) })
-                AuthoringButton("Manual guide", onClick = { physical.prepare(authoring, options = state.options.copy(cutIntent = CutIntent.MANUAL_GUIDE)) })
-                AuthoringButton("Automatic full", onClick = { physical.prepare(authoring,
-                    options = state.options.copy(cutIntent = CutIntent.AUTOMATIC, cutMode = CutMode.FULL)) })
-                AuthoringButton("Automatic partial", onClick = { physical.prepare(authoring,
-                    options = state.options.copy(cutIntent = CutIntent.AUTOMATIC, cutMode = CutMode.PARTIAL)) })
+                AuthoringButton("No cut", !printingBusy, onClick = { preparePhysical(state.profile, state.options.copy(cutIntent = CutIntent.NONE)) })
+                AuthoringButton("Manual guide", !printingBusy, onClick = { preparePhysical(state.profile, state.options.copy(cutIntent = CutIntent.MANUAL_GUIDE)) })
+                AuthoringButton("Automatic full", !printingBusy, onClick = { preparePhysical(state.profile,
+                    state.options.copy(cutIntent = CutIntent.AUTOMATIC, cutMode = CutMode.FULL)) })
+                AuthoringButton("Automatic partial", !printingBusy, onClick = { preparePhysical(state.profile,
+                    state.options.copy(cutIntent = CutIntent.AUTOMATIC, cutMode = CutMode.PARTIAL)) })
             }
         }
         item {
@@ -181,7 +347,7 @@ private fun PrinterSetupScreen(authoring: MarkdownAuthoringResult, physical: Obs
                 is PhysicalPreviewResult.PreparationFailed -> Text("Physical preparation failed", color = LocalAuthoringColors.current.error)
                 is PhysicalPreviewResult.PreviewFailed -> Text("Physical preview failed", color = LocalAuthoringColors.current.error)
             }
-            AuthoringButton("Open physical preview", state.result is PhysicalPreviewResult.Ready, onPreview)
+            AuthoringButton("Open physical preview", state.result is PhysicalPreviewResult.Ready && !printingBusy, onPreview)
         }
         val rows = when (val result = state.result) {
             PhysicalPreviewResult.NotPrepared -> emptyList()

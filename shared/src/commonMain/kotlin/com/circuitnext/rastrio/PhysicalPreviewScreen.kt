@@ -19,6 +19,7 @@ package com.circuitnext.rastrio
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -60,16 +61,21 @@ internal fun physicalPreviewUsesMono(character: Char): Boolean =
     character in "⌐░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀∞∩≡≥≤⌠⌡≈∙√■"
 
 @Composable
-internal fun PhysicalPreviewScreen(preview: PrintPreview, onBack: () -> Unit) {
+internal fun PhysicalPreviewScreen(preview: PrintPreview, syntheticTarget: Boolean = true,
+    printingControls: @Composable () -> Unit = {}, backLabel: String = "Back to printer setup", onBack: () -> Unit) {
     var zoom by remember(preview) { mutableStateOf(1f) }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Physical preview", style = MaterialTheme.typography.headlineMedium)
-        AuthoringButton("Back to printer setup", onClick = onBack)
-        Text("Synthetic test target · ${preview.target.profileId}", style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.semantics { contentDescription = "Selected synthetic printer profile ${preview.target.profileId}" })
+        AuthoringButton(backLabel, onClick = onBack)
+        Text("${if (syntheticTarget) "Synthetic test target" else "Selected printer target"} · ${preview.target.profileId}",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.semantics {
+                contentDescription = "Selected ${if (syntheticTarget) "synthetic " else ""}printer profile ${preview.target.profileId}"
+            })
         Text("${preview.widthDots} dots wide · ${preview.target.horizontalDpi} × ${preview.target.verticalDpi} dpi",
             style = MaterialTheme.typography.bodySmall)
         Text("Exact prepared geometry · representative native glyphs", style = MaterialTheme.typography.bodySmall)
+        Box(Modifier.heightIn(max = 180.dp).verticalScroll(rememberScrollState())) { printingControls() }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AuthoringButton("Zoom out", enabled = zoom > 0.5f, onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.5f) })
             AuthoringButton("Zoom in", enabled = zoom < 3f, onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) })

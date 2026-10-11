@@ -32,7 +32,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":core:layout"))
             api(project(":core:profile"))
-            implementation(project(":core:raster"))
+            api(project(":core:raster"))
             implementation(project(":core:text"))
         }
     }
