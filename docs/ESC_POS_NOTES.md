@@ -1923,3 +1923,31 @@ At this revision, the reliable conclusions are:
 12. Physical hardware observations require evidence scoped to the specific claim and should be promoted to permanent numbered hardware tests where practical.
 13. Uncertainty is preferable to fabricated compatibility data. A conservative `TBD` or disabled capability is valid engineering state until evidence exists.
 
+
+## Phase 8/10 implementation byte evidence (2026-10-09)
+
+The generic registered encoder consumes immutable `PreparedPrint`; these are
+BYTE observations from automated exact-byte tests, not H50i compatibility claims.
+No H50i capability in the notebook is promoted by this software implementation.
+
+| Registered strategy / operation | Trusted syntax | Evidence scope |
+| --- | --- | --- |
+| escpos.init.standard | ESC @ (`1B 40`) | Initialization byte golden |
+| Exact generic motion | GS P horizontal/vertical DPI, GS L zero, GS W prepared width, ESC a left and ESC $ prepared x | Prepared coordinates; DPI >255 fails rather than approximates |
+| escpos.font.esc-m | ESC M registered parameter | Validated font selector golden |
+| escpos.code-page.esc-t | ESC t registered parameter | CP437 bytes already prepared; no host charset conversion |
+| Prepared native styles | ESC E bold, ESC - underline, GS ! prepared scale | State transition byte goldens |
+| Prepared advances | ESC J positive dot chunks <=255 | Includes explicit prepared padding feeds; native flush cannot under-advance buffered cell height |
+| escpos.raster.gs-v-0 | GS v 0 header, exact immutable packed payload | Final black=1/MSB-first bits; neither consumer regenerates graphics |
+| escpos.cut.gs-v | GS V 0 full / GS V 1 partial | Only already prepared validated cut operations |
+
+The serializer preflights the complete plan and encoded-byte ceiling before
+connection. Producer chunks are bounded to 64 KiB and await the sink. These chunks
+are independent of physical raster bands and Android write units. Cancellation,
+sink failure and any delivery fault are reported without automatic replay.
+
+All registered command syntax is documentation-derived; automated goldens
+establish only RastrIO byte output. The observed H50i has no automatic cutter,
+no verified raster strategy and no complete loadable geometry/protocol profile.
+See [H50I_PRINTING_RUNBOOK](H50I_PRINTING_RUNBOOK.md) for the missing physical
+evidence and the permanent HW-NNN acceptance sequence.

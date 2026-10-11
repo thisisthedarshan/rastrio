@@ -20,7 +20,17 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:printer"))
+            api(project(":core:printer"))
         }
     }
+}
+
+val jvmTestCompilation = kotlin.targets.getByName("jvm").compilations.getByName("test")
+tasks.register<JavaExec>("resourceHeapProbe") {
+    group = "verification"
+    description = "Checks bounded ESC/POS encoding and suspended-sink backpressure in a 64 MiB JVM."
+    dependsOn("jvmTestClasses")
+    classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
+    mainClass.set("com.circuitnext.rastrio.core.escpos.EncoderResourceHeapProbe")
+    maxHeapSize = "64m"
 }

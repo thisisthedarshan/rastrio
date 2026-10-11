@@ -31,6 +31,7 @@ data class PrintOptions(
     val cutIntent: CutIntent = CutIntent.NONE,
     val cutMode: CutMode = CutMode.FULL,
     val finalFeedDots: Int = 0,
+    val nativeUnderline: Boolean = false,
 ) {
     init {
         require(nativeFontId == null || nativeFontId.isNotBlank())
@@ -177,6 +178,19 @@ class ManualCutGuide internal constructor(
 ) : PreparedOperation {
     init { validateGraphic(bounds, graphic, strategy, sourceBlockIndex) }
 }
+/** Finalized image band; ordinal is stable within the immutable prepared plan. */
+class RasterOperation internal constructor(
+    override val bounds: DotBounds,
+    val graphic: PreparedMonochrome,
+    val strategy: String,
+    val bandOrdinal: Int,
+    override val sourceBlockIndex: Int? = null,
+) : PreparedOperation {
+    init {
+        validateGraphic(bounds, graphic, strategy, sourceBlockIndex)
+        require(bandOrdinal >= 0)
+    }
+}
 class Feed internal constructor(
     override val bounds: DotBounds,
     val advanceDots: Int,
@@ -218,6 +232,7 @@ class PreparedPrint internal constructor(
         var lastY = 0
         var textUnits = 0L
         var graphicBytes = 0L
+        var rasterOrdinal = 0
         for (operation in operations) {
             require(operation.bounds.right <= target.printableWidthDots && operation.bounds.bottom <= heightDots)
             require(operation.bounds.y >= lastY)
@@ -232,6 +247,11 @@ class PreparedPrint internal constructor(
                     graphicBytes += operation.graphic.sizeBytes
                 }
                 is ManualCutGuide -> {
+                    require(operation.graphic.sizeBytes <= resources.maxGraphicBandBytes)
+                    graphicBytes += operation.graphic.sizeBytes
+                }
+                is RasterOperation -> {
+                    require(operation.bandOrdinal == rasterOrdinal++)
                     require(operation.graphic.sizeBytes <= resources.maxGraphicBandBytes)
                     graphicBytes += operation.graphic.sizeBytes
                 }

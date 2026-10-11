@@ -3226,3 +3226,26 @@ text positions and wrapping; equal-y text from separate cells advances paper
 only after its last run. Unsupported styles, raster-only text, complex scripts
 and graphical markers or later physical primitives fail with structured
 diagnostics until their backends exist.
+
+## Phase 10 image-only preparation context
+
+Raster-only profiles may prepare explicitly resolved images without inventing
+native font capabilities. Their image-only layout context uses a two-vertical-dot
+body spacing unit (one-dot half-line image gap) and one-horizontal-dot indent;
+text measurement fails explicitly. Native-capable profiles retain their existing
+registered native typography context. Both paths use Core layout's finalized
+square image outer regions, then aspect-preserving fitting inside those regions.
+No Phase 11 raster text/shaping backend is implied by the image-only context.
+
+## Phase 8 transient native underline choice
+
+`PrintOptions.nativeUnderline` defaults to false. When true, preparation requests
+native underline for every native text run, combined with any semantic underline
+already present. This is a per-job choice, never a new `.td` or `.tcfg` field.
+Preparation rejects the choice with PRN101 when native text is unavailable and
+PRN102 when the effective profile does not declare native underline support.
+It never promotes an unknown printer capability or silently drops the style.
+The immutable `PreparedNativeStyle.underline` records the resolved result, so
+preview and serialization consume the same decision. False preserves existing
+semantic styles and default behavior. Hardware fixtures may use this explicit
+choice only after the selected printer's underline capability is verified.

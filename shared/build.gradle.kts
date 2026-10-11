@@ -69,6 +69,9 @@ kotlin {
             api(project(":core:preview"))
             api(project(":core:printer"))
             api(project(":core:profile"))
+            api(project(":core:escpos"))
+            api(project(":core:raster"))
+            implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -80,6 +83,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutinesTest)
         }
         jvmTest.dependencies {
             implementation(libs.compose.uiTest)
