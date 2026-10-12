@@ -47,6 +47,7 @@ internal fun TemplateScreen(
     onBack: () -> Unit, busy: Boolean = false, targetName: String = "",
     profileControls: @Composable () -> Unit = {}, printingControls: @Composable () -> Unit = {},
     previewStatus: String = "", onLogicalPreview: ((ThermalDocument) -> Unit)? = null,
+    onQrPreview: ((ThermalDocument) -> Unit)? = null,
 ) {
     var diagnostics by remember(forms.selected) { mutableStateOf(emptyList<TemplateDiagnostic>()) }
     fun edit(next: TemplateForms) {
@@ -131,6 +132,14 @@ internal fun TemplateScreen(
         }
         item {
             if (targetName.isNotEmpty()) Text("Preview target: $targetName")
+            if (forms.selected == TemplateKind.QR) {
+                Text("Physical preview shows the finalized QR symbol. Logical preview shows its placement placeholder.")
+                if (onQrPreview != null) AuthoringButton("Preview QR symbol", !busy) {
+                    val result = forms.build()
+                    diagnostics = result.diagnostics
+                    result.document?.let(onQrPreview)
+                }
+            }
             profileControls()
             AuthoringButton("Preview template", !busy) {
                 val result = forms.build()

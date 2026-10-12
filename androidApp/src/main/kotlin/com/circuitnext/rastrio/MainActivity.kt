@@ -42,6 +42,9 @@ class MainActivity : ComponentActivity() {
     private val profilePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
         printing.profileResult(it)
     }
+    private val profileExporter = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) {
+        printing.profileExportResult(it)
+    }
 
     private val imagePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         printing.imageResult(if (result.resultCode == RESULT_OK) result.data?.data else null)
@@ -50,7 +53,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() { super.onStart(); if (::printing.isInitialized) printing.setForeground(true) }
     override fun onStop() { if (::printing.isInitialized) printing.setForeground(false); super.onStop() }
     override fun onDestroy() {
-        if (::printing.isInitialized) { printing.bindActions({}, {}); printing.bindImageAction({}) }
+        if (::printing.isInitialized) { printing.bindActions({}, {}); printing.bindImageAction({}); printing.bindProfileExport({}) }
         super.onDestroy()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +73,7 @@ class MainActivity : ComponentActivity() {
                 printing.permissionResult(true)
             else bluetoothPermissionRequest.launch(permission)
         }, profile = { profilePicker.launch(arrayOf("application/json", "application/octet-stream", "*/*")) })
+        printing.bindProfileExport { profileExporter.launch("printer-profile.tcfg") }
         printing.bindImageAction {
             imagePicker.launch(android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(android.content.Intent.CATEGORY_OPENABLE)

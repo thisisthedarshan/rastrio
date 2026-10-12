@@ -105,11 +105,13 @@ class ImagePrintUiTest {
         onNodeWithText("Use Image fixture").performClick()
         onNodeWithText("Prepare image").performScrollTo().performClick()
         waitUntil { onAllNodesWithText("Image prepared:", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("image-print-list").performScrollToNode(hasText("Print width (dots)"))
         onNodeWithText("Print width (dots)").performScrollTo().performTextInput("invalid")
         onNodeWithText("Prepare image").performScrollTo().performClick()
         waitUntil { onAllNodesWithText("Invalid crop, print width, or image adjustment").fetchSemanticsNodes().isNotEmpty() }
         onNodeWithText("Invalid crop, print width, or image adjustment").assertExists()
         onNodeWithText("Open image physical preview").assertIsNotEnabled()
+        onNodeWithTag("image-print-list").performScrollToNode(hasText("Print prepared document"))
         onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
         assertEquals(0, platform.transport.connections)
     }

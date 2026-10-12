@@ -26,6 +26,8 @@ interface PrintingPlatform {
     val foreground: StateFlow<Boolean>
     fun refreshPairedPrinters()
     fun importProfile()
+    val supportsProfileExport: Boolean get() = false
+    fun exportProfile() = Unit
     fun selectPrinter(instance: PrinterInstance)
     fun createTransport(): PrinterTransport
 }

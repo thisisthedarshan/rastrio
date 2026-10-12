@@ -3195,3 +3195,82 @@ Hardware evidence may refine profiles, protocol strategies, transport policy, an
 The maintained inputs for HW-014–019 are now under `test-fixtures/hardware/`; see `PHASE_11_13_FIXTURES.md` there for exact Unicode scalars, QR payloads/EC/sizes, intended operations and regeneration/manual steps. The `.td` QR archives are written by the public strict portable writer and contain no printer strategy/capability.
 
 No HW-014–019 procedure is recorded as passed by supplying these fixtures or by synthetic software preparation. H50i native QR remains unverified and HW-017 capability-blocked until reliable host-command evidence establishes a qualifying profile. Actual Bluetooth transfer, paper legibility, complex-script appearance and scanned payload/quiet-zone acceptance require recorded hardware execution.
+
+## Phase 14 calibration foundation
+
+All following procedures are **NOT RUN** for this change. The operator-supplied
+self-test inventory is recorded in [H50I_DEVELOPMENT_DRAFT](H50I_DEVELOPMENT_DRAFT.md).
+Opening Printer Lab, importing a strictly valid profile or generating a synthetic
+preview establishes no physical capability. A profile draft without geometry
+cannot be printed; obtain the missing physical facts using documented equipment
+or an independently captured, controlled calibration path before using RastrIO.
+
+### HW-036 — CP437 selector and character verification
+
+**Prerequisites:** actual unit/firmware identified; evidence for initialization,
+native font geometry and the exact registered CP437 selector; a strictly validated
+profile with no cutter; reliable transport and captured byte stream. A self-test
+report of CP437 alone does not satisfy the selector prerequisite.
+
+**Input:** at most four lines, 32 characters each: ASCII `CP437 0123456789`, Latin
+`ÇüéâäàåçêëèïîìÄÅ`, line drawing `┌─┐│└┘`, and Greek/math `αΓπΣσµτΦΘΩδ∞`.
+Use semantic paragraphs with the verified native-capable profile and inspect
+`PreparedPrint` to require native text for every test line. Reject raster fallback
+for this native-map test, even when it would look correct. Reject a failed preparation;
+never replace it with raw selector commands or silent raster fallback when
+claiming a native character-map result. Control bytes are not printable fixtures.
+
+**Procedure:** record actual unit, profile ID/revision/hash, effective overrides,
+font/backend and transport policy. Inspect the finalized plan and byte capture.
+Explicitly initiate one print. Photograph each line and compare the glyphs with
+an independent CP437 reference and the selected byte mapping. Record gaps,
+substitutions, selector/reset behavior and measured font cell/line spacing.
+
+**Expected preview/output:** representative native glyph appearance with exact
+prepared cell positions; the paper must show the requested character repertoire
+and preserve line spacing. Byte transmission alone cannot pass the test. A partial
+or ambiguous transfer is recorded as such and must never trigger automatic retry.
+
+**Evidence/pass:** only the tested selector, glyph subset and unit/firmware scope
+may be marked verified after captured bytes and independent paper comparison.
+Untested page entries remain unknown. Update `ESC-OBS-0114`/`ESC-OBS-0115` and the
+profile evidence record deliberately; there is no automatic capability promotion.
+
+### HW-037 — Geometry calibration and development-profile gate
+
+**Prerequisites:** actual unit and measurement tools; trustworthy independent dot
+density evidence or a documented, externally controlled raster test path. Do not
+substitute an arbitrary DPI or full-width dot count to bootstrap RastrIO printing.
+If the command path is unknown, capture documentation/bytes first and record the
+procedure as blocked. A width measured in millimetres alone cannot pass.
+
+**Procedure:** record horizontal and vertical dot counts independently over known
+physical spans; repeat measurements to reduce ruler error. Record uncertainties,
+clipping, actual head width and firmware scope. Calculate each axis from its own
+known dots and measured span (`dots × 25.4 / measuredMm`); do not derive both axes
+from paper size or density setting. Confirm reliable printable dot width separately.
+Once these facts and an output strategy are established, create a strictly valid
+development profile and run HW-012 with no cut: a bounded raster of no more than
+1024 columns and 64 rows, visible edge markers and eight-dot interval marks.
+Require an explicit operator print for each attempt; no repeated diagnostic loop.
+
+**Expected preview/output:** exact finalized raster dots, full visible left/right
+markers and independently measured horizontal/vertical geometry. Physical paper
+must agree with the intended calibrated dimensions. Store actual unit, profile
+revision/hash/overrides, transport, prepared-artifact/stream hashes, photos and
+measurements privately where identifiers are sensitive. Acknowledged bytes and
+paper acceptance are separate outcomes; inspect paper after an ambiguous transfer
+and never retry automatically.
+
+**Evidence/pass:** all three geometry facts and the tested raster strategy/limits
+must have scoped evidence before the profile becomes usable for raster QR. Record
+`ESC-OBS-0113` and `ESC-OBS-0108`; keep native font/CP437/native QR/barcode/cutter
+capabilities disabled until their own evidence exists. No automatic promotion.
+
+Continue native-font validation with HW-001/002/004, raster packing with HW-007,
+raster QR plus external scanning with HW-018/019, native QR compatibility with
+HW-017, and Bluetooth write-size/pacing with HW-029. Those procedures retain their
+recorded prerequisites, explicit bounded prints, physical-output accounting and
+no-automatic-retry rules. EAN13 host-command execution remains outside this minimal
+foundation: the semantic/prepared barcode operation is not implemented, so the
+firmware self-test observation cannot enable or demonstrate host support.

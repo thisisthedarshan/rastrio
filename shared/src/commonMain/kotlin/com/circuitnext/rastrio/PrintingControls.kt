@@ -41,6 +41,7 @@ internal fun PrintingControls(
     onPrepare: () -> Unit,
     onPrint: () -> Unit,
     showSelection: Boolean = true,
+    prepareLabel: String = "Preview imported profile",
 ) {
     val active = state.isActive
     val eligible = foreground && canPrintPrepared(selected, profile, ready?.print, preparedProfile) && session != null
@@ -49,9 +50,15 @@ internal fun PrintingControls(
         Text(platformStatus, style = MaterialTheme.typography.bodySmall)
         if (showSelection) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AuthoringButton("Import printer profile", !active, platform::importProfile)
+            if (platform.supportsProfileExport) AuthoringButton("Export printer profile", !active && profile != null, platform::exportProfile)
+            AuthoringButton(prepareLabel, !active && profile != null, onPrepare)
             AuthoringButton("Refresh paired printers", !active, platform::refreshPairedPrinters)
         }
+        if (showSelection && profile == null) Text("APP140: No validated physical printer profile selected. Synthetic preview remains available.",
+            style = MaterialTheme.typography.bodySmall)
         if (showSelection && profile != null) Text("Imported profile: ${profile.display.name}", style = MaterialTheme.typography.bodySmall)
+        if (showSelection && profile != null) Text("Imported configuration · physical capabilities unverified",
+            style = MaterialTheme.typography.bodySmall)
         if (showSelection) for (printer in printers) AuthoringButton("Use ${printer.displayName}", !active, onClick = { onSelect(printer) })
         if (selected != null) {
             Text("Selected printer: ${selected.displayName}")

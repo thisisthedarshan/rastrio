@@ -60,6 +60,32 @@ internal suspend fun readProfileStream(open: () -> InputStream?): ByteArray = su
     } finally { active.set(null) }
 }
 
+internal suspend fun writeProfileStream(bytes: ByteArray, open: () -> java.io.OutputStream?) {
+    require(bytes.size in 1..1024 * 1024) { "Profile output limit exceeded" }
+    suspendCancellableCoroutine<Unit> { continuation ->
+        val active = AtomicReference<java.io.OutputStream?>()
+        continuation.invokeOnCancellation { try { active.get()?.close() } catch (_: java.io.IOException) { } }
+        try {
+            val output = open() ?: throw IllegalArgumentException("Unwritable profile destination")
+            active.set(output)
+            if (!continuation.isActive) { output.close(); return@suspendCancellableCoroutine }
+            output.use {
+                var offset = 0
+                while (offset < bytes.size) {
+                    if (!continuation.isActive) throw CancellationException("Profile export cancelled")
+                    val count = minOf(8192, bytes.size - offset)
+                    it.write(bytes, offset, count)
+                    offset += count
+                }
+                it.flush()
+            }
+            continuation.resume(Unit)
+        } catch (failure: Exception) {
+            if (continuation.isActive) continuation.resumeWithException(failure)
+        } finally { active.set(null) }
+    }
+}
+
 /** Private fixed-path storage; acquisition and strict decoding precede publication. */
 class AndroidPrintingPlatform(
     private val context: Context,
@@ -69,8 +95,10 @@ class AndroidPrintingPlatform(
 ) : PrintingPlatform, ImagePlatform {
     private val instances = PrinterInstanceStore(context)
     private val savedProfile = AtomicFile(File(context.filesDir, "selected-printer.tcfg"))
-    private val codec = TcfgCodec(BaselineTrustedProfileRegistry,
-        PrinterProfileValidationLimits(600,1024,256,8,1024,131072,16,65536,1000,16))
+    private var chooseProfileExport: () -> Unit = {}
+    private var profileExportSnapshot: ByteArray? = null
+    private var profileExportJob: Job? = null
+    private val profileExportMutex = Mutex()
     private val mutablePrinters = MutableStateFlow<List<PrinterInstance>>(emptyList())
     private val mutableProfile = MutableStateFlow<PrinterProfile?>(null)
     private var profileGeneration = 0L
@@ -141,6 +169,43 @@ class AndroidPrintingPlatform(
     }
     override fun refreshPairedPrinters() = requestPermission()
     override fun importProfile() = chooseProfile()
+    override val supportsProfileExport: Boolean get() = true
+    fun bindProfileExport(action: () -> Unit) { chooseProfileExport = action }
+    override fun exportProfile() {
+        val profile = mutableProfile.value ?: run {
+            mutableStatus.value = "APP140: Select a validated physical profile before export"; return
+        }
+        when (val result = PrinterProfileFiles.encode(profile)) {
+            is ProfileValidationResult.Failure -> mutableStatus.value = result.diagnostics.joinToString("\n") { "${it.code}: ${it.message}" }
+            is ProfileValidationResult.Success -> {
+                profileExportSnapshot = result.value
+                chooseProfileExport()
+            }
+        }
+    }
+    fun profileExportResult(uri: Uri?) {
+        val bytes = profileExportSnapshot
+        profileExportSnapshot = null
+        if (uri == null) { mutableStatus.value = "Profile export cancelled"; return }
+        if (bytes == null) { mutableStatus.value = "APP143: No validated profile export pending"; return }
+        if (uri.scheme != "content") { mutableStatus.value = "APP143: Export requires a document-provider destination"; return }
+        profileExportJob?.cancel()
+        profileExportJob = scope.launch {
+            profileExportMutex.withLock {
+            try {
+                withContext(Dispatchers.IO) {
+                    withTimeout(30_000) { writeProfileStream(bytes) { context.contentResolver.openOutputStream(uri, "wt") } }
+                }
+                mutableStatus.value = "Validated profile exported; no printer identity included. Physical capabilities remain unverified."
+            } catch (_: TimeoutCancellationException) {
+                mutableStatus.value = "APP143: Profile export timed out; destination may contain partial data"
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) {
+                mutableStatus.value = "APP143: Profile export failed; destination may contain partial data"
+            }
+            }
+        }
+    }
     fun permissionResult(granted: Boolean) {
         if (!granted) {
             mutablePrinters.value = emptyList()
@@ -184,8 +249,14 @@ class AndroidPrintingPlatform(
                 val bytes = withContext(Dispatchers.IO) {
                     withTimeout(30_000) { readProfileStream { context.contentResolver.openInputStream(uri) } }
                 }
-                val validated = withContext(Dispatchers.Default) { decode(bytes) }
-                    ?: throw IllegalArgumentException("Invalid profile")
+                val decoded = withContext(Dispatchers.Default) { PrinterProfileFiles.decode(bytes) }
+                val validated = when (decoded) {
+                    is ProfileValidationResult.Success -> decoded.value.profile
+                    is ProfileValidationResult.Failure -> {
+                        if (generation == profileGeneration) mutableStatus.value = decoded.diagnostics.joinToString("\n") { "${it.code}: ${it.message}" }
+                        return@launch
+                    }
+                }
                 if (generation != profileGeneration) return@launch
                 withContext(Dispatchers.IO) {
                     val output = savedProfile.startWrite()
@@ -206,11 +277,8 @@ class AndroidPrintingPlatform(
         }
     }
 
-    private fun decode(bytes: ByteArray): PrinterProfile? = when (val result = codec.decode(bytes)) {
-        is ProfileValidationResult.Success -> result.value.profile.takeUnless {
-            it.profileId.startsWith("synthetic") || it.profileId.startsWith("rastrio.synthetic") ||
-                it.profileId.startsWith("org.rastrio.test.")
-        }
+    private fun decode(bytes: ByteArray): PrinterProfile? = when (val result = PrinterProfileFiles.decode(bytes)) {
+        is ProfileValidationResult.Success -> result.value.profile
         is ProfileValidationResult.Failure -> null
     }
 

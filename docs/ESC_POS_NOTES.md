@@ -1954,6 +1954,23 @@ evidence and the permanent HW-NNN acceptance sequence.
 
 ## Phase 13 native QR serialization (2026-10-12)
 
+### H50i inventory corroboration (2026-10-13)
+
+The user supplied a physical self-test transcription reporting 2-inch / 58 mm
+paper, 48 mm print width, USB/Bluetooth, default font 12×24, CP437, QR and EAN13,
+maximum speed 60 mm/s, density 5 and autofeed 0 mm. This is **printer-reported**
+evidence supplied by the operator, corroborating the existing H50i observation
+inventory; no new agent-executed hardware result or photo is available. See
+[the development draft](H50I_DEVELOPMENT_DRAFT.md) for established values and
+missing calibration. Temperature 33 remains transient telemetry.
+
+No dot width, horizontal/vertical DPI, CP437 selector, raster band limit, native
+QR/barcode host strategy, cutter support or transport pacing is promoted by this
+transcription. No synthetic profile is relabeled as H50i, and no `.tcfg` schema
+or validation rule is changed.
+
+### Generic native QR byte evidence
+
 `escpos.qr.model2` serializes an already finalized `NativeQr`. The generic
 serializer follows the documented Epson Model 2 family:
 

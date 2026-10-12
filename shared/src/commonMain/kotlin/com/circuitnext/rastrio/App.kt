@@ -48,7 +48,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 
-private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW, TEMPLATES, TEMPLATE_PREVIEW, TEMPLATE_LOGICAL_PREVIEW }
+private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW, TEMPLATES, TEMPLATE_PREVIEW, TEMPLATE_LOGICAL_PREVIEW, PRINTER_MANAGEMENT, PRINTER_LAB }
 
 @Stable
 internal class ObservablePhysicalPreview(private val session: PhysicalPreviewSession) {
@@ -166,8 +166,16 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
         }
     }
     LaunchedEffect(importedProfile) {
+        if (!isSyntheticProfile(physical.state.profile) && physical.state.profile != importedProfile) {
+            printing?.cancelAll(); cancelPreparation()
+            physical.configure(importedProfile ?: SyntheticReferenceProfiles.narrow, physical.state.options)
+            templateStatus = if (importedProfile == null)
+                "APP140: Physical profile removed. Synthetic software preview selected; physical printing is unavailable."
+                else "APP142: Target profile changed. Prepare again with the current profile."
+        }
         if (!isSyntheticProfile(image.state.profile) && image.state.profile != importedProfile) {
-            cancelPreparation(); image.invalidate()
+            printing?.cancelAll(); cancelPreparation()
+            image.configure(importedProfile ?: SyntheticReferenceProfiles.narrow)
         }
     }
     val imageRoute = route == AuthoringRoute.IMAGE || route == AuthoringRoute.IMAGE_PREVIEW
@@ -195,14 +203,20 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
                 selectedLocator = instance.transportLocator
                 printingPlatform.selectPrinter(instance)
                 if (importedProfile != null) {
-                    if (imageRoute) image.configure(importedProfile, PrintOptions())
+                    if (route == AuthoringRoute.PRINTER_MANAGEMENT) {
+                        physical.configure(importedProfile, physical.state.options.copy(cutIntent = CutIntent.NONE))
+                        image.configure(importedProfile)
+                    } else if (imageRoute) image.configure(importedProfile, PrintOptions())
                     else preparePhysical(importedProfile,
                         physical.state.options.copy(cutIntent = CutIntent.NONE))
                 }
             },
             onPrepare = { if (importedProfile != null) {
                 printing?.cancelAll()
-                if (imageRoute) { image.configure(importedProfile); startPreparation { image.prepareAsync() } }
+                if (route == AuthoringRoute.PRINTER_MANAGEMENT) {
+                    physical.configure(importedProfile, physical.state.options.copy(cutIntent = CutIntent.NONE))
+                    image.configure(importedProfile)
+                } else if (imageRoute) { image.configure(importedProfile); startPreparation { image.prepareAsync() } }
                 else preparePhysical(importedProfile, physical.state.options)
             } },
             onPrint = {
@@ -213,18 +227,47 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
                 }
             },
             showSelection = route != AuthoringRoute.PHYSICAL_PREVIEW && route != AuthoringRoute.IMAGE_PREVIEW && route != AuthoringRoute.TEMPLATE_PREVIEW,
+            prepareLabel = if (route == AuthoringRoute.PRINTER_MANAGEMENT) "Assign imported profile" else "Preview imported profile",
         )
     }
     AuthoringTheme {
         Surface(Modifier.fillMaxSize().safeDrawingPadding().imePadding(), color = MaterialTheme.colorScheme.background) {
             when (route) {
                 AuthoringRoute.HOME -> HomeScreen(onImage = { route = AuthoringRoute.IMAGE },
-                    onTemplates = { enterAuthoring(AuthoringRoute.TEMPLATES) }) { enterAuthoring(AuthoringRoute.MARKDOWN) }
+                    onTemplates = { enterAuthoring(AuthoringRoute.TEMPLATES) },
+                    onPrinters = { enterAuthoring(AuthoringRoute.PRINTER_MANAGEMENT) }) { enterAuthoring(AuthoringRoute.MARKDOWN) }
+                AuthoringRoute.PRINTER_MANAGEMENT -> PrinterManagementScreen(physical.state.profile,
+                    printingControls = printingControls,
+                    onBack = { route = AuthoringRoute.HOME },
+                    onLab = { route = AuthoringRoute.PRINTER_LAB },
+                    onProfile = {
+                        printing?.cancelAll(); cancelPreparation()
+                        physical.configure(it, physical.state.options.copy(cutIntent = CutIntent.NONE))
+                        image.configure(it)
+                    })
+                AuthoringRoute.PRINTER_LAB -> PrinterLabScreen(
+                    onBack = { route = AuthoringRoute.PRINTER_MANAGEMENT },
+                    onQrFixture = {
+                        enterAuthoring(AuthoringRoute.TEMPLATES)
+                        templateForms = templateForms.copy(selected = TemplateKind.QR,
+                            qr = QrMessageState("https://example.invalid/rastrio/hw-018", errorCorrection = com.circuitnext.rastrio.core.document.QrErrorCorrection.HIGH),
+                            qrSizeMm = "30")
+                        templateDocument = null; templateLogical = null
+                        physical.configure(physical.state.profile, physical.state.options.copy(qrStrategy = QrStrategy.RASTER, cutIntent = CutIntent.NONE))
+                        templateStatus = "Raster QR test draft. Prepare and inspect before explicitly printing once."
+                    })
                 AuthoringRoute.TEMPLATES -> TemplateScreen(templateForms,
                     onForms = { templateForms = it; templateDocument = null; templateLogical = null; templateStatus = ""; printing?.cancelAll(); cancelPreparation(); physical.invalidate() },
                     onPreview = { document ->
                         templateDocument = document
                         startPreparation { physical.prepareAsync(document, physical.state.profile, physical.state.options) }
+                    },
+                    onQrPreview = { document ->
+                        templateDocument = document
+                        startPreparation {
+                            physical.prepareAsync(document, physical.state.profile, physical.state.options)
+                            if (physical.state.result is PhysicalPreviewResult.Ready) route = AuthoringRoute.TEMPLATE_PREVIEW
+                        }
                     },
                     onBack = { route = AuthoringRoute.HOME }, busy = printState.isActive || preparationJob != null,
                     targetName = physical.state.profile.display.name,
@@ -306,7 +349,8 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
 }
 
 @Composable
-fun HomeScreen(onImage: (() -> Unit)? = null, onTemplates: (() -> Unit)? = null, onMarkdown: () -> Unit) {
+fun HomeScreen(onImage: (() -> Unit)? = null, onTemplates: (() -> Unit)? = null,
+    onPrinters: (() -> Unit)? = null, onMarkdown: () -> Unit) {
     Column(Modifier.padding(24.dp).widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("RastrIO", style = MaterialTheme.typography.headlineLarge)
         Text("Markdown document workspace", style = MaterialTheme.typography.titleLarge)
@@ -314,6 +358,7 @@ fun HomeScreen(onImage: (() -> Unit)? = null, onTemplates: (() -> Unit)? = null,
         AuthoringButton("Open Markdown", onClick = onMarkdown)
         if (onImage != null) AuthoringButton("Open Image Print", onClick = onImage)
         if (onTemplates != null) AuthoringButton("Open Templates", onClick = onTemplates)
+        if (onPrinters != null) AuthoringButton("Open Printers", onClick = onPrinters)
     }
 }
 
