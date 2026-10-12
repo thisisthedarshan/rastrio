@@ -204,4 +204,86 @@ class EscPosEncoderTest {
         assertIs<EncodingResult.Failure>(result)
     }
 
+    @Test fun nativeQrHasExactModelSizeCorrectionFramingQuietZonesAndRestoredState() {
+        for ((correction, parameter) in listOf(QrErrorCorrection.LOW to "30", QrErrorCorrection.MEDIUM to "31",
+            QrErrorCorrection.QUARTILE to "32", QrErrorCorrection.HIGH to "33")) {
+            val plan = prepare(ThermalDocument(blocks = listOf(QrCode("A", Alignment.LEFT, correction,
+                Length(58.0 / 203 * 25.4)), CodeBlock("B"))), SyntheticReferenceProfiles.wide80mm,
+                PrintOptions(qrStrategy = QrStrategy.NATIVE))
+            val qr = plan.operations.filterIsInstance<NativeQr>().single()
+            assertEquals(21, qr.moduleCount)
+            assertEquals(2, qr.moduleSizeDots)
+            assertEquals(58, qr.advanceDots)
+            val expectedQr = "1b4a08 1d2100 1d4c0800 1d572a00" +
+                "1d286b040031413200 1d286b0300314302 1d286b03003145" + parameter +
+                "1d286b040031503041 1d286b0300315130 1d4c0000 1d574002 1b4a08"
+            val expectedOperations = plan.operations.joinToString("") {
+                when (it) {
+                    is NativeQr -> expectedQr
+                    is Feed -> "1b4a" + it.advanceDots.toString(16).padStart(2, '0')
+                    is NativeText -> {
+                        assertEquals("B", it.text)
+                        assertEquals(0, it.bounds.x)
+                        assertEquals(24, it.advanceDots)
+                        textRun("42")
+                    }
+                    else -> error("Unexpected operation ${it::class}")
+                }
+            }
+            golden(initialization.replace("1d578001", "1d574002") + expectedOperations, plan)
+        }
+    }
+
+    @Test fun binaryQrPayloadIsLengthDelimitedAndNotNativeTextEscaped() {
+        val payload = "A\u0000\u001b\u001d\n"
+        val plan = prepare(ThermalDocument(blocks = listOf(QrCode(payload, Alignment.LEFT, QrErrorCorrection.LOW,
+            Length(29.0 / 203 * 25.4)))), SyntheticReferenceProfiles.wide80mm,
+            PrintOptions(qrStrategy = QrStrategy.NATIVE))
+        val encoded = encode(plan)
+        val frame = hex("1d286b080031503041001b1d0a 1d286b0300315130")
+        assertTrue(encoded.toList().windowed(frame.size).any { it == frame.toList() })
+        assertEquals(payload.map { it.code }, plan.operations.filterIsInstance<NativeQr>().single().payloadBytes)
+        assertContentEquals(encoded, encode(plan, EscPosEncoder(EncodingResourcePolicy(maxChunkBytes = 1))))
+    }
+
+    @Test fun rasterQrSerializesEveryOriginalBandWithoutGeneratingAMatrix() {
+        val plan = prepare(ThermalDocument(blocks = listOf(QrCode("https://example.org", Alignment.CENTER,
+            QrErrorCorrection.HIGH, Length(87.0 / 203 * 25.4)))), SyntheticReferenceProfiles.narrow,
+            PrintOptions(qrStrategy = QrStrategy.RASTER))
+        val expected = mutableListOf<Byte>()
+        expected.addAll(hex(initialization).toList())
+        for (operation in plan.operations) when (operation) {
+            is RasterQr -> {
+                val b = operation.bounds
+                val g = operation.graphic
+                expected.addAll(byteArrayOf(0x1d, 0x4c, (b.x and 255).toByte(), (b.x ushr 8).toByte(),
+                    0x1d, 0x76, 0x30, 0, (g.rowBytes and 255).toByte(), (g.rowBytes ushr 8).toByte(),
+                    (g.heightDots and 255).toByte(), (g.heightDots ushr 8).toByte()).toList())
+                expected.addAll(g.copyBytes().toList())
+                expected.addAll(hex("1d4c0000").toList())
+            }
+            is Feed -> expected.addAll(hex("1b4a" + operation.advanceDots.toString(16).padStart(2, '0')).toList())
+            else -> error("Unexpected operation")
+        }
+        assertTrue(plan.operations.any { it is RasterQr })
+        assertContentEquals(expected.toByteArray(), encode(plan))
+    }
+
+    @Test fun nativeQrAlignmentLeavesFourModuleMarginsAtEveryPreparedPosition() {
+        for ((alignment, x, innerHex) in listOf(Triple(Alignment.LEFT, 0, "0800"),
+            Triple(Alignment.CENTER, 259, "0b01"), Triple(Alignment.RIGHT, 518, "0e02"))) {
+            val plan = prepare(ThermalDocument(blocks = listOf(QrCode("A", alignment,
+                QrErrorCorrection.LOW, Length(58.0 / 203 * 25.4)))), SyntheticReferenceProfiles.wide80mm,
+                PrintOptions(qrStrategy = QrStrategy.NATIVE))
+            assertEquals(x, plan.operations.filterIsInstance<NativeQr>().single().bounds.x)
+            val encoded = encode(plan)
+            val position = hex("1b4a08 1d2100 1d4c" + innerHex + "1d572a00")
+            assertTrue(encoded.toList().windowed(position.size).any { it == position.toList() })
+            val size = encoded.size.toLong()
+            assertEquals("ESC120", assertIs<EncodingResult.Failure>(
+                EscPosEncoder(EncodingResourcePolicy(maxEncodedBytes = size - 1)).validate(plan)).diagnostic.code)
+            assertIs<EncodingResult.Success>(EscPosEncoder(EncodingResourcePolicy(maxEncodedBytes = size)).validate(plan))
+        }
+    }
+
 }

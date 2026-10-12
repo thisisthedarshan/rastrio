@@ -1,0 +1,62 @@
+{
+  "unicode": "18.0.0",
+  "uax14": "revision 57",
+  "uax29": "Unicode 18.0",
+  "source": "https://www.unicode.org/Public/18.0.0/ucd/",
+  "files": [
+    {
+      "file": "DerivedCoreProperties.txt",
+      "sha256": "09c928886a178fcafd93c29e4bd59073a058e5a100b716d425cb563ab50f68c9",
+      "bytes": 1159889,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/DerivedCoreProperties.txt"
+    },
+    {
+      "file": "EastAsianWidth.txt",
+      "sha256": "a0cf29eacd00cfcaec4381c6b7c281685f18dbb4e7ff82b4076ccb342ca839aa",
+      "bytes": 204705,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/EastAsianWidth.txt"
+    },
+    {
+      "file": "GraphemeBreakProperty.txt",
+      "sha256": "0839dcb79e4ac639ecd538b1abf7c9d22e3f9dd265b7e182d33627aa4d75b45a",
+      "bytes": 100009,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/GraphemeBreakProperty.txt"
+    },
+    {
+      "file": "GraphemeBreakTest.txt",
+      "sha256": "b0cf047ee94485bbdc846de2b902f5f8a815f6b674f9d04223cddadd91c9df31",
+      "bytes": 137090,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/GraphemeBreakTest.txt"
+    },
+    {
+      "file": "LICENSE.txt",
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+      "bytes": 1995,
+      "upstream": "https://www.unicode.org/license.txt"
+    },
+    {
+      "file": "LineBreak.txt",
+      "sha256": "ae8cf1970c73f3f1a12d77852df96c4b2b1723ca8b388e36bb5739250c6849de",
+      "bytes": 266206,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/LineBreak.txt"
+    },
+    {
+      "file": "LineBreakTest.txt",
+      "sha256": "fd9ff9eca411080085b41471bba79ae19d9db2e16924f9770b8509f1affd3f95",
+      "bytes": 3178750,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/auxiliary/LineBreakTest.txt"
+    },
+    {
+      "file": "UnicodeData.txt",
+      "sha256": "0736451de439ae7baf1425136617da495e09ee5afbe6e394374db7009ea08950",
+      "bytes": 2243593,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/UnicodeData.txt"
+    },
+    {
+      "file": "emoji-data.txt",
+      "sha256": "80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1",
+      "bytes": 108719,
+      "upstream": "https://www.unicode.org/Public/18.0.0/ucd/emoji/emoji-data.txt"
+    }
+  ]
+}

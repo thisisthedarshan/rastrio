@@ -3193,3 +3193,11 @@ Image fitting respects the existing finalized square logical outer region in
 TEXT_RENDERING_SPEC. Aspect-preserving pixels fit inside it with independently
 resolved horizontal/vertical DPI; unused paper space is represented by prepared
 feeds. These are authoritative physical operations, not preview-only padding.
+
+## Phase 11–13 text and QR projection
+
+`PreparedGraphicKind.RASTER_TEXT` and `RASTER_QR` expose the identical immutable prepared monochrome content as `EXACT_PREPARED_DOTS`. Preview never re-shapes text, regenerates QR matrices or reconstructs invalid finalized content. Baselines, alignment, bands and quiet-zone geometry are preparation-owned.
+
+`NATIVE_QR` projects its frozen representative matrix with `EXACT_GEOMETRY_REPRESENTATIVE_QR`. It shares intended dimensions/payload/EC with the serialized native command, but firmware mask/mode choices need not match the representative pixels. The implemented native subset is ASCII byte-mode-compatible version 1 with a validated Model 2 profile. Larger/non-ASCII Auto requests use raster; forced Native fails when representation is unverified. No H50i native capability is inferred.
+
+Markdown and templates reuse the same physical preparation/session pipeline. Entering either workspace invalidates an older physical plan. Template target/QR choices before validated document generation remain NotPrepared, so preview and print controls cannot expose a previous Markdown job.

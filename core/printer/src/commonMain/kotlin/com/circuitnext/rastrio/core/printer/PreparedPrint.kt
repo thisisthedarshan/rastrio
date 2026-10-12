@@ -19,6 +19,8 @@ import com.circuitnext.rastrio.core.layout.LogicalDocument
 import com.circuitnext.rastrio.core.profile.RegisteredSelector
 import com.circuitnext.rastrio.core.text.SnapshotList
 
+enum class QrStrategy { AUTO, NATIVE, RASTER }
+
 enum class CutIntent { NONE, MANUAL_GUIDE, AUTOMATIC, AUTOMATIC_OR_MANUAL }
 enum class CutMode { FULL, PARTIAL }
 enum class PreparedAlignment { LEFT, CENTER, RIGHT }
@@ -32,6 +34,7 @@ data class PrintOptions(
     val cutMode: CutMode = CutMode.FULL,
     val finalFeedDots: Int = 0,
     val nativeUnderline: Boolean = false,
+    val qrStrategy: QrStrategy = QrStrategy.AUTO,
 ) {
     init {
         require(nativeFontId == null || nativeFontId.isNotBlank())
@@ -178,14 +181,80 @@ class ManualCutGuide internal constructor(
 ) : PreparedOperation {
     init { validateGraphic(bounds, graphic, strategy, sourceBlockIndex) }
 }
+/** Finalized immutable graphic band; semantics remain explicit in concrete operations. */
+sealed interface PreparedRasterGraphic : PreparedOperation {
+    val graphic: PreparedMonochrome
+    val strategy: String
+    val bandOrdinal: Int
+}
+
+class RasterText internal constructor(
+    override val bounds: DotBounds,
+    override val graphic: PreparedMonochrome,
+    override val strategy: String,
+    override val bandOrdinal: Int,
+    val alignment: PreparedAlignment,
+    val baselineDots: Int,
+    val lineAdvanceDots: Int,
+    val backendIdentity: String,
+    val fontIdentity: String,
+    override val sourceBlockIndex: Int? = null,
+) : PreparedRasterGraphic {
+    init {
+        validateGraphic(bounds, graphic, strategy, sourceBlockIndex)
+        require(bandOrdinal >= 0 && baselineDots >= 0 && lineAdvanceDots > 0)
+        require(backendIdentity.isNotBlank() && fontIdentity.isNotBlank())
+    }
+}
+class RasterQr internal constructor(
+    override val bounds: DotBounds,
+    override val graphic: PreparedMonochrome,
+    override val strategy: String,
+    override val bandOrdinal: Int,
+    val moduleSizeDots: Int,
+    val moduleCount: Int,
+    val errorCorrection: String,
+    override val sourceBlockIndex: Int? = null,
+) : PreparedRasterGraphic {
+    val quietZoneModules: Int get() = 4
+    init {
+        validateGraphic(bounds, graphic, strategy, sourceBlockIndex)
+        require(bandOrdinal >= 0 && moduleSizeDots > 0 && moduleCount in 21..177 && (moduleCount - 17) % 4 == 0)
+        require(errorCorrection in listOf("L", "M", "Q", "H"))
+    }
+}
+/** Firmware module appearance is representative; bytes and intended bounds are finalized. */
+class NativeQr internal constructor(
+    override val bounds: DotBounds,
+    val payloadBytes: SnapshotList<Int>,
+    val strategy: String,
+    val moduleSizeDots: Int,
+    val moduleCount: Int,
+    val errorCorrection: String,
+    val representativeGraphic: PreparedMonochrome,
+    override val sourceBlockIndex: Int? = null,
+) : PreparedOperation {
+    val model: String get() = "model2"
+    val quietZoneModules: Int get() = 4
+    val advanceDots: Int get() = bounds.height
+    init {
+        require(payloadBytes.isNotEmpty() && payloadBytes.size <= 2953 && payloadBytes.all { it in 0..255 })
+        require(strategy == "escpos.qr.model2" && moduleSizeDots in 1..8)
+        require(moduleCount in 21..177 && (moduleCount - 17) % 4 == 0 && errorCorrection in listOf("L", "M", "Q", "H"))
+        require(bounds.width.toLong() == (moduleCount + 8).toLong() * moduleSizeDots && bounds.height == bounds.width)
+        require(representativeGraphic.widthDots == bounds.width && representativeGraphic.heightDots == bounds.height)
+        require(sourceBlockIndex == null || sourceBlockIndex >= 0)
+    }
+}
+
 /** Finalized image band; ordinal is stable within the immutable prepared plan. */
 class RasterOperation internal constructor(
     override val bounds: DotBounds,
-    val graphic: PreparedMonochrome,
-    val strategy: String,
-    val bandOrdinal: Int,
+    override val graphic: PreparedMonochrome,
+    override val strategy: String,
+    override val bandOrdinal: Int,
     override val sourceBlockIndex: Int? = null,
-) : PreparedOperation {
+) : PreparedRasterGraphic {
     init {
         validateGraphic(bounds, graphic, strategy, sourceBlockIndex)
         require(bandOrdinal >= 0)
@@ -250,10 +319,14 @@ class PreparedPrint internal constructor(
                     require(operation.graphic.sizeBytes <= resources.maxGraphicBandBytes)
                     graphicBytes += operation.graphic.sizeBytes
                 }
-                is RasterOperation -> {
+                is PreparedRasterGraphic -> {
                     require(operation.bandOrdinal == rasterOrdinal++)
                     require(operation.graphic.sizeBytes <= resources.maxGraphicBandBytes)
                     graphicBytes += operation.graphic.sizeBytes
+                }
+                is NativeQr -> {
+                    require(operation.representativeGraphic.sizeBytes <= resources.maxGraphicBandBytes)
+                    graphicBytes += operation.representativeGraphic.sizeBytes
                 }
                 is Feed, is AutomaticCut -> Unit
             }

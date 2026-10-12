@@ -121,9 +121,18 @@ class EscPosEncoder(private val resources: EncodingResourcePolicy = EncodingReso
                     pendingHeight = 0
                     y += operation.advanceDots
                 }
-                is RasterOperation -> { graphic(operation.strategy, operation.graphic, target.dialectId, pending, index); y += operation.bounds.height }
+                is PreparedRasterGraphic -> { graphic(operation.strategy, operation.graphic, target.dialectId, pending, index); y += operation.bounds.height }
                 is Separator -> { graphic(operation.strategy, operation.graphic, target.dialectId, pending, index); y += operation.bounds.height }
                 is ManualCutGuide -> { graphic(operation.strategy, operation.graphic, target.dialectId, pending, index); y += operation.bounds.height }
+                is NativeQr -> {
+                    strategy(operation.strategy, StrategyPurpose.QR, target.dialectId, index)
+                    val capacity = when (operation.errorCorrection) { "L" -> 17; "M" -> 14; "Q" -> 11; "H" -> 7; else -> 0 }
+                    // Firmware chooses compaction; only version 1 has a guaranteed minimum dimension.
+                    if (pending || operation.strategy != "escpos.qr.model2" || operation.moduleCount != 21 ||
+                        operation.payloadBytes.size > capacity || operation.payloadBytes.any { it !in 0..127 })
+                        abort("ESC107", "Native QR cannot preserve the prepared geometry", index)
+                    y += operation.advanceDots
+                }
                 is AutomaticCut -> {
                     strategy(operation.strategy, StrategyPurpose.CUT, target.dialectId, index)
                     if (operation.strategy != "escpos.cut.gs-v" || pending)
@@ -174,9 +183,10 @@ class EscPosEncoder(private val resources: EncodingResourcePolicy = EncodingReso
                     yieldAll(feed(operation.advanceDots))
                 }
                 is Feed -> yieldAll(feed(operation.advanceDots))
-                is RasterOperation -> yieldAll(raster(operation.bounds, operation.graphic))
+                is PreparedRasterGraphic -> yieldAll(raster(operation.bounds, operation.graphic))
                 is Separator -> yieldAll(raster(operation.bounds, operation.graphic))
                 is ManualCutGuide -> yieldAll(raster(operation.bounds, operation.graphic))
+                is NativeQr -> yieldAll(nativeQr(operation, print.target.printableWidthDots))
                 is AutomaticCut -> yield(bytes(0x1d, 0x56, if (operation.mode == CutMode.FULL) 0 else 1))
             }
         }
@@ -188,6 +198,27 @@ class EscPosEncoder(private val resources: EncodingResourcePolicy = EncodingReso
             yield(bytes(0x1b, 0x4a, advance))
             remaining -= advance
         }
+    }
+    private fun nativeQr(operation: NativeQr, printableWidth: Int): Sequence<ByteArray> = sequence {
+        val quiet = operation.quietZoneModules * operation.moduleSizeDots
+        val x = operation.bounds.x + quiet
+        val width = operation.moduleCount * operation.moduleSizeDots
+        // Function 181 excludes quiet zones, feeds symbol height and returns to beginning of line.
+        yieldAll(feed(quiet))
+        yield(bytes(0x1d, 0x21, 0))
+        yield(bytes(0x1d, 0x4c, x and 255, x ushr 8))
+        yield(bytes(0x1d, 0x57, width and 255, width ushr 8))
+        yield(bytes(0x1d, 0x28, 0x6b, 4, 0, 49, 65, 50, 0))
+        yield(bytes(0x1d, 0x28, 0x6b, 3, 0, 49, 67, operation.moduleSizeDots))
+        val correction = when (operation.errorCorrection) { "L" -> 48; "M" -> 49; "Q" -> 50; else -> 51 }
+        yield(bytes(0x1d, 0x28, 0x6b, 3, 0, 49, 69, correction))
+        val length = operation.payloadBytes.size + 3
+        yield(bytes(0x1d, 0x28, 0x6b, length and 255, length ushr 8, 49, 80, 48))
+        yield(ByteArray(operation.payloadBytes.size) { operation.payloadBytes[it].toByte() })
+        yield(bytes(0x1d, 0x28, 0x6b, 3, 0, 49, 81, 48))
+        yield(bytes(0x1d, 0x4c, 0, 0))
+        yield(bytes(0x1d, 0x57, printableWidth and 255, printableWidth ushr 8))
+        yieldAll(feed(quiet))
     }
     private fun raster(bounds: DotBounds, content: PreparedMonochrome): Sequence<ByteArray> = sequence {
         yield(bytes(0x1d, 0x4c, bounds.x and 255, bounds.x ushr 8))

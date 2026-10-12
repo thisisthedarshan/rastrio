@@ -79,8 +79,38 @@ class NativeTextCoverageTest {
         val wider = typography.copy(fixedCell = FixedCellGeometry(2.5, 2.0, 4.0))
         assertEquals(10.0, assertIs<TextMeasureResult.Success>(measurer.measure(request.copy(typography = wider))).measurement.advanceMm)
         val asciiRequest = request.copy(text = "A B~")
-        assertEquals(AsciiFixedCellMeasurer().measure(asciiRequest), measurer.measure(asciiRequest))
+        val ascii = assertIs<TextMeasureResult.Success>(AsciiFixedCellMeasurer().measure(asciiRequest)).measurement
+        val native = assertIs<TextMeasureResult.Success>(measurer.measure(asciiRequest)).measurement
+        assertEquals(ascii.clusters, native.clusters)
+        assertEquals(ascii.advanceMm, native.advanceMm)
+        assertEquals(ascii.metrics, native.metrics)
         assertIs<TextMeasureResult.Failure>(AsciiFixedCellMeasurer().measure(request))
+    }
+
+    @Test fun nativeBreaksUseUnicode18WithoutChangingCoverage() {
+        val measurer = RegisteredFixedCellMeasurer()
+        for ((text, expected) in listOf(
+            "a-b" to listOf(BreakOpportunity(2, BreakKind.ALLOWED)),
+            "-ab" to emptyList(),
+            "a\u00a0b" to emptyList(),
+        )) {
+            val measured = assertIs<TextMeasureResult.Success>(measurer.measure(TextMeasureRequest(text, typography))).measurement
+            assertEquals(expected, measured.breakOpportunities)
+            assertEquals(text.indices.map { MeasuredCluster(it, it + 1, 0.1) }, measured.clusters)
+            assertEquals(LogicalGeometry.millimetres(100_000L * text.length), measured.advanceMm)
+        }
+        val unsupported = assertIs<TextMeasureResult.Failure>(measurer.measure(TextMeasureRequest("漢字", typography)))
+        assertEquals("TXT100", unsupported.diagnostics.single().code)
+    }
+
+    @Test fun nativeMeasurementRunEndsDoNotForceStyleSpanBreaks() {
+        val measurer = RegisteredFixedCellMeasurer()
+        for ((text, style) in listOf("ab" to TextStyle(), "cd" to TextStyle(weight = TextWeight.BOLD))) {
+            val measured = assertIs<TextMeasureResult.Success>(measurer.measure(TextMeasureRequest(text, typography.copy(style = style)))).measurement
+            assertEquals(emptyList(), measured.breakOpportunities)
+        }
+        val hyphenated = assertIs<TextMeasureResult.Success>(measurer.measure(TextMeasureRequest("prefix-suffix", typography))).measurement
+        assertEquals(listOf(BreakOpportunity(7, BreakKind.ALLOWED)), hyphenated.breakOpportunities)
     }
 
     @Test fun resourcesAndCoordinateOverflowFailBeforeFinalGeometry() {

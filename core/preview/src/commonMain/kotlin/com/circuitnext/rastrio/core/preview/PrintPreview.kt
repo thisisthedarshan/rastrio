@@ -32,8 +32,8 @@ data class PhysicalPreviewResourcePolicy(
 }
 
 data class PrintPreviewDiagnostic(val code: String, val message: String, val sourceBlockIndex: Int? = null)
-enum class PhysicalPreviewAccuracy { EXACT_GEOMETRY_REPRESENTATIVE_GLYPHS, EXACT_PREPARED_DOTS, EXACT_PAPER_ADVANCE }
-enum class PreparedGraphicKind { SEPARATOR, MANUAL_CUT_GUIDE, IMAGE }
+enum class PhysicalPreviewAccuracy { EXACT_GEOMETRY_REPRESENTATIVE_GLYPHS, EXACT_PREPARED_DOTS, EXACT_PAPER_ADVANCE, EXACT_GEOMETRY_REPRESENTATIVE_QR }
+enum class PreparedGraphicKind { SEPARATOR, MANUAL_CUT_GUIDE, IMAGE, RASTER_TEXT, RASTER_QR, NATIVE_QR }
 
 /** Original prepared bounds stay authoritative; clippedBounds only limits viewport painting. */
 sealed interface PhysicalPreviewPrimitive {
@@ -54,7 +54,8 @@ data class MonochromePrimitive(
     val kind: PreparedGraphicKind,
     override val clippedBounds: DotBounds,
 ) : PhysicalPreviewPrimitive {
-    override val accuracy = PhysicalPreviewAccuracy.EXACT_PREPARED_DOTS
+    override val accuracy = if (kind == PreparedGraphicKind.NATIVE_QR)
+        PhysicalPreviewAccuracy.EXACT_GEOMETRY_REPRESENTATIVE_QR else PhysicalPreviewAccuracy.EXACT_PREPARED_DOTS
 }
 data class FeedPrimitive(
     override val operation: Feed,
@@ -131,6 +132,9 @@ class PrintPreview internal constructor(
                 is Separator -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.SEPARATOR, clipped)
                 is ManualCutGuide -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.MANUAL_CUT_GUIDE, clipped)
                 is RasterOperation -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.IMAGE, clipped)
+                is RasterText -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.RASTER_TEXT, clipped)
+                is RasterQr -> MonochromePrimitive(operation, operation.graphic, PreparedGraphicKind.RASTER_QR, clipped)
+                is NativeQr -> MonochromePrimitive(operation, operation.representativeGraphic, PreparedGraphicKind.NATIVE_QR, clipped)
                 is Feed -> FeedPrimitive(operation, clipped)
                 is AutomaticCut -> error("Cut annotations are handled separately")
             }

@@ -176,8 +176,10 @@ data class LogicalTextRun(
     val bounds: LogicalBounds,
     val typography: ResolvedTypography,
     val measurement: TextMeasurement,
+    val sourceFlowId: Int = 0,
+    val sourceStartOffset: Int = 0,
 ) {
-    init { require(text.length == measurement.textLength) }
+    init { require(text.length == measurement.textLength && sourceFlowId >= 0 && sourceStartOffset >= 0) }
 }
 
 sealed interface LayoutResult {

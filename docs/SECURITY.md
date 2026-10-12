@@ -2009,3 +2009,11 @@ At every boundary:
 - ambiguous partial physical output is never automatically retried.
 
 These contracts apply from the first implementation of each feature and are not deferred release-hardening tasks.
+
+## Phase 11–13 implemented boundaries
+
+Untrusted text selects only checked-in hash-verified fonts; arbitrary font import and host font fallback remain unimplemented. Malformed UTF-16, significant unsupported bidi/emoji, excess fallback-run work and unrepresentable raster geometry fail before a prepared plan is published. Cancellation and input-selected native work limits cover measurement as well as rasterization. JVM native extraction uses a private temporary directory, fixed mapped library filename and 16 MiB read ceiling; runtime library/classpath configuration is trusted host launch configuration, not an imported document path. Android uses APK-packaged libraries. No runtime download is introduced.
+
+QR payloads are opaque semantic bytes, never fetched URLs or executable command programs. Effective profiles/overrides are validated before selection; forced Native cannot silently downgrade. Prepared graphic snapshots include quiet-zone pixels and are bounded/immutable. Encoder/preview consume the finalized artifacts and fail on invalid content instead of regenerating. Template navigation invalidates old document plans before exposing preview/print. Diagnostics/count-only resource probes do not log user print content.
+
+The initial targeted diff review identified repeated uninterruptible fallback font setup (CWE-400); the implementation bounds requests to 256 fallback runs before JNI and passes cooperative cancellation into measurement. Retained native caches were deliberately avoided. Re-review and regression/heap evidence must accompany completion; a bounded single native shaping call remains an explicit cancellation limit.

@@ -133,7 +133,7 @@ class LayoutFoundationTest {
     @Test fun foundationDoesNotIgnoreMandatoryBreaksFromAnInjectedBackend() {
         val service = TextMeasurer { request -> TextMeasureResult.Success(TextMeasurement(2, 4.0, request.typography.metrics,
             SnapshotList(listOf(MeasuredCluster(0, 1, 2.0), MeasuredCluster(1, 2, 2.0))),
-            SnapshotList(listOf(BreakOpportunity(1, BreakKind.MANDATORY))))) }
+            SnapshotList(listOf(BreakOpportunity(1, BreakKind.MANDATORY))), canSliceWithoutReshaping = true)) }
         val output = assertIs<LayoutResult.Success>(FoundationLayoutEngine(service).layout(
             ThermalDocument(blocks = listOf(p("AB"))), constraints)).document
         assertEquals(listOf("A", "B"), assertIs<LogicalTextBlock>(output.blocks.single()).lines.map { it.runs.single().text })

@@ -26,3 +26,21 @@ tasks.register<JavaExec>("resourceHeapProbe") {
     mainClass.set("com.circuitnext.rastrio.core.raster.RasterResourceHeapProbe")
     maxHeapSize = "32m"
 }
+
+tasks.register<JavaExec>("qrResourceHeapProbe") {
+    group = "verification"
+    description = "Checks version-40 QR generation and band streaming in a 16 MiB JVM."
+    dependsOn("jvmTestClasses")
+    classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
+    mainClass.set("com.circuitnext.rastrio.core.raster.QrResourceHeapProbe")
+    maxHeapSize = "16m"
+}
+
+tasks.register<JavaExec>("qrReferenceDecodeFixtures") {
+    group = "verification"
+    description = "Exports synthetic final raster fixtures for the independent offline decoder."
+    dependsOn("jvmTestClasses")
+    classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
+    mainClass.set("com.circuitnext.rastrio.core.raster.QrReferenceDecodeProbe")
+    args(providers.gradleProperty("qrFixtureDir").getOrElse("/tmp/rastrio-qr-decode-fixtures"))
+}

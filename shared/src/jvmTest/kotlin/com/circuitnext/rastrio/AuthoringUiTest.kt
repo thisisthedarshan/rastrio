@@ -98,7 +98,7 @@ class AuthoringUiTest {
         onNodeWithTag("markdown-source").performTextInput("世界")
         onNodeWithText("Compile").performClick()
         onNodeWithText("Layout failed").assertExists()
-        onNodeWithText("Error · Layout · TXT100", substring = true).assertExists()
+        onNodeWithText("Error · Layout · TXT130", substring = true).assertExists()
         onNodeWithText("Open logical preview").assertIsNotEnabled()
     }
 

@@ -42,6 +42,8 @@ data class TextMeasurement(
     val metrics: TypographyMetrics,
     val clusters: SnapshotList<MeasuredCluster>,
     val breakOpportunities: SnapshotList<BreakOpportunity>,
+    /** True only when removing surrounding text cannot change retained cluster advances. */
+    val canSliceWithoutReshaping: Boolean = false,
 ) {
     init {
         require(textLength >= 0 && advanceMm.isFinite() && advanceMm >= 0.0)
@@ -109,6 +111,6 @@ class AsciiFixedCellMeasurer(private val resources: TextResourcePolicy = TextRes
             if (character == ' ') breaks.add(BreakOpportunity(index + 1, BreakKind.ALLOWED))
         }
         return TextMeasureResult.Success(TextMeasurement(request.text.length, advance, request.typography.metrics,
-            SnapshotList(clusters), SnapshotList(breaks)))
+            SnapshotList(clusters), SnapshotList(breaks), canSliceWithoutReshaping = true))
     }
 }

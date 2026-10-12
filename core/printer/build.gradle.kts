@@ -27,6 +27,15 @@ tasks.register<JavaExec>("resourceHeapProbe") {
     maxHeapSize = "128m"
 }
 
+tasks.register<JavaExec>("generatePhase111213HardwareFixtures") {
+    group = "verification"
+    description = "Writes strict portable semantic QR hardware fixtures and verifies synthetic preparation."
+    dependsOn("jvmTestClasses")
+    classpath = files(jvmTestCompilation.output.allOutputs, jvmTestCompilation.runtimeDependencyFiles)
+    mainClass.set("com.circuitnext.rastrio.core.printer.Phase111213HardwareFixtures")
+    args(rootProject.file("test-fixtures/hardware").absolutePath)
+}
+
 kotlin {
     sourceSets {
         commonMain.dependencies {

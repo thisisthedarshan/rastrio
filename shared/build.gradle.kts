@@ -71,6 +71,7 @@ kotlin {
             api(project(":core:profile"))
             api(project(":core:escpos"))
             api(project(":core:raster"))
+            api(project(":core:templates"))
             implementation(libs.kotlinx.coroutinesCore)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

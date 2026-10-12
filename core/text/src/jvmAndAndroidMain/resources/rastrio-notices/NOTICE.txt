@@ -1,0 +1,7 @@
+RastrIO controlled text backend third-party notices
+
+Portions of this software are copyright © 1996–2026 The FreeType Project (https://freetype.org). All rights reserved.
+HarfBuzz: Old MIT license; see HARFBUZZ-COPYING.txt.
+FreeType: FreeType License; see FREETYPE-LICENSE.txt and FREETYPE-FTL.txt.
+Unicode data: Unicode License v3; see LICENSE.txt.
+Bundled fonts: SIL Open Font License 1.1; see rastrio-fonts/NOTO-OFL.txt and JETBRAINS-OFL.txt.

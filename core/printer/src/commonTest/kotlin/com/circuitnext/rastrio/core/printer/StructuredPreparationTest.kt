@@ -130,7 +130,7 @@ class StructuredPreparationTest {
             Checklist(listOf(ChecklistItem(true, listOf(paragraph("A"))))))) {
             val failure = assertIs<PreparationResult.Failure>(BasicPreparationEngine().prepare(
                 ThermalDocument(blocks = listOf(paragraph("Before"), Quote(listOf(block)))), SyntheticReferenceProfiles.narrow))
-            assertEquals("PRN104", failure.diagnostics.single().code)
+            assertEquals("TXT132", failure.diagnostics.single().code)
             assertEquals(1, failure.diagnostics.single().sourceBlockIndex)
         }
         val failure = assertIs<PreparationResult.Failure>(BasicPreparationEngine().prepare(

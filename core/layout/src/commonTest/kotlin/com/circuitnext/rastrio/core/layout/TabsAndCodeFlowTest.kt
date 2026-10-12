@@ -120,7 +120,7 @@ class TabsAndCodeFlowTest {
 
     @Test fun codeEmergencyWrapPreservesInjectedMultiCodeUnitClusters() {
         val service = TextMeasurer { request -> TextMeasureResult.Success(TextMeasurement(4, 6.0, request.typography.metrics,
-            SnapshotList(listOf(MeasuredCluster(0, 2, 3.0), MeasuredCluster(2, 4, 3.0))), SnapshotList(emptyList()))) }
+            SnapshotList(listOf(MeasuredCluster(0, 2, 3.0), MeasuredCluster(2, 4, 3.0))), SnapshotList(emptyList()), canSliceWithoutReshaping = true)) }
         assertEquals(listOf("AB", "CD"), texts(layout(CodeBlock("ABCD"), width = 3.0, measurer = service)))
     }
 }

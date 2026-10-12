@@ -92,13 +92,13 @@ class RegisteredFixedCellMeasurer(
         }
         val cellAdvance = LogicalGeometry.millimetres(ticks)
         val clusters = ArrayList<MeasuredCluster>(request.text.length)
-        val breaks = mutableListOf<BreakOpportunity>()
-        request.text.forEachIndexed { index, character ->
+        for (index in request.text.indices) {
             clusters.add(MeasuredCluster(index, index + 1, cellAdvance))
-            if (character == ' ') breaks.add(BreakOpportunity(index + 1, BreakKind.ALLOWED))
         }
+        // A measured run end is not a semantic paragraph boundary.
+        val breaks = UnicodeLineBreaking.opportunities(request.text).filter { it.offset < request.text.length }
         return TextMeasureResult.Success(TextMeasurement(
             request.text.length, LogicalGeometry.millimetres(ticks * request.text.length),
-            request.typography.metrics, SnapshotList(clusters), SnapshotList(breaks)))
+            request.typography.metrics, SnapshotList(clusters), SnapshotList(breaks), canSliceWithoutReshaping = true))
     }
 }

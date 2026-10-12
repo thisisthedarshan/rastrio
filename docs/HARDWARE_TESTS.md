@@ -3189,3 +3189,9 @@ Preview   protocol encoder
 ```
 
 Hardware evidence may refine profiles, protocol strategies, transport policy, and bug fixes. It MUST NOT weaken the architectural rule that `PreparedPrint` is the authoritative physical plan shared by preview and encoding.
+
+## Phase 11–13 supplied acceptance inputs
+
+The maintained inputs for HW-014–019 are now under `test-fixtures/hardware/`; see `PHASE_11_13_FIXTURES.md` there for exact Unicode scalars, QR payloads/EC/sizes, intended operations and regeneration/manual steps. The `.td` QR archives are written by the public strict portable writer and contain no printer strategy/capability.
+
+No HW-014–019 procedure is recorded as passed by supplying these fixtures or by synthetic software preparation. H50i native QR remains unverified and HW-017 capability-blocked until reliable host-command evidence establishes a qualifying profile. Actual Bluetooth transfer, paper legibility, complex-script appearance and scanned payload/quiet-zone acceptance require recorded hardware execution.

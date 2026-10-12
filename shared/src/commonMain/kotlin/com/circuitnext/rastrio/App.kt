@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -29,6 +30,10 @@ import androidx.compose.ui.unit.dp
 import com.circuitnext.rastrio.core.markdown.MarkdownDiagnostic
 import com.circuitnext.rastrio.core.markdown.MarkdownSeverity
 import com.circuitnext.rastrio.core.printer.*
+import com.circuitnext.rastrio.core.document.ThermalDocument
+import com.circuitnext.rastrio.core.text.createPlatformRasterTextBackend
+import com.circuitnext.rastrio.core.preview.LogicalPreview
+import com.circuitnext.rastrio.core.templates.*
 import com.circuitnext.rastrio.core.document.AssetReference
 import com.circuitnext.rastrio.core.document.EmbeddedAssetReference
 import com.circuitnext.rastrio.core.document.ExternalAssetReference
@@ -43,19 +48,26 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 
-private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW }
+private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW, TEMPLATES, TEMPLATE_PREVIEW, TEMPLATE_LOGICAL_PREVIEW }
 
 @Stable
 internal class ObservablePhysicalPreview(private val session: PhysicalPreviewSession) {
     var state by mutableStateOf(session.state)
         private set
     fun invalidate() { session.invalidate(); state = session.state }
+    fun configure(profile: PrinterProfile, options: PrintOptions) {
+        session.configure(profile, options); state = session.state
+    }
     fun resolveImage(reference: AssetReference, image: ResolvedRasterImage): Boolean {
         val resolved = session.resolveImage(reference, image); state = session.state; return resolved
     }
     fun prepare(authoring: MarkdownAuthoringResult, profile: PrinterProfile = state.profile,
         options: PrintOptions = state.options) {
         session.prepare(authoring, profile, options); state = session.state
+    }
+    suspend fun prepareAsync(document: ThermalDocument, profile: PrinterProfile = state.profile,
+        options: PrintOptions = state.options) {
+        try { session.prepareAsync(document, profile, options) } finally { state = session.state }
     }
     suspend fun prepareAsync(authoring: MarkdownAuthoringResult, profile: PrinterProfile = state.profile,
         options: PrintOptions = state.options) {
@@ -93,13 +105,18 @@ internal class ObservableAuthoring(private val session: MarkdownAuthoringSession
 @Composable
 fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: PrintingPlatform? = null,
     printingSessions: PrinterSessionStore? = null, imagePlatform: ImagePlatform? = printingPlatform as? ImagePlatform) {
-    val physical = remember(session) { ObservablePhysicalPreview(PhysicalPreviewSession()) }
-    val authoring = remember(session) { ObservableAuthoring(session ?: createAuthoringSession(), physical) }
+    val textBackend = remember { createPlatformRasterTextBackend() }
+    val physical = remember(session) { ObservablePhysicalPreview(PhysicalPreviewSession(rasterTextBackend = textBackend)) }
+    var templateForms by rememberTemplateFormsState()
+    var templateDocument by remember { mutableStateOf<ThermalDocument?>(null) }
+    var templateLogical by remember { mutableStateOf<LogicalPreview?>(null) }
+    var templateStatus by remember { mutableStateOf("") }
+    val authoring = remember(session) { ObservableAuthoring(session ?: createAuthoringSession(rasterTextBackend = textBackend), physical) }
     val image = remember { ObservableImagePrint(ImagePrintSession()) }
     val pickedImage = imagePlatform?.image?.collectAsState()?.value
     val imageStatus = imagePlatform?.imageStatus?.collectAsState()?.value.orEmpty()
     var resolutionStatus by remember { mutableStateOf("") }
-    var route by remember { mutableStateOf(AuthoringRoute.HOME) }
+    var route by rememberSaveable { mutableStateOf(AuthoringRoute.HOME) }
     val printing = remember(printingPlatform, printingSessions) { printingSessions ?: printingPlatform?.let { PrinterSessionStore(it::createTransport) } }
     var selectedLocator by remember(printingPlatform) { mutableStateOf<String?>(null) }
     val printers = printingPlatform?.printers?.collectAsState()?.value ?: emptyList()
@@ -122,8 +139,23 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
         task.start()
     }
     val preparePhysical: (PrinterProfile, PrintOptions) -> Unit = { profile, options ->
-        val request = authoring.state.result
-        startPreparation { physical.prepareAsync(request, profile, options) }
+        val document = templateDocument
+        val templateRoute = route == AuthoringRoute.TEMPLATES || route == AuthoringRoute.TEMPLATE_PREVIEW || route == AuthoringRoute.TEMPLATE_LOGICAL_PREVIEW
+        if (templateRoute) {
+            if (document != null) startPreparation { physical.prepareAsync(document, profile, options) }
+            else {
+                cancelPreparation()
+                physical.configure(profile, options)
+                templateStatus = "Preview template to prepare its current content"
+            }
+        } else {
+            val request = authoring.state.result
+            startPreparation { physical.prepareAsync(request, profile, options) }
+        }
+    }
+    val enterAuthoring: (AuthoringRoute) -> Unit = { destination ->
+        printing?.cancelAll(); cancelPreparation(); physical.invalidate()
+        route = destination
     }
     DisposableEffect(printing) { onDispose { printing?.cancelAll(); preparationJob?.cancel() } }
     LaunchedEffect(route, foreground) { printing?.cancelAll(); cancelPreparation() }
@@ -180,13 +212,54 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
                     scope.launch { printSession.print(selected!!, prepared!!, importedProfile!!.writeGuidance()) }
                 }
             },
-            showSelection = route != AuthoringRoute.PHYSICAL_PREVIEW && route != AuthoringRoute.IMAGE_PREVIEW,
+            showSelection = route != AuthoringRoute.PHYSICAL_PREVIEW && route != AuthoringRoute.IMAGE_PREVIEW && route != AuthoringRoute.TEMPLATE_PREVIEW,
         )
     }
     AuthoringTheme {
         Surface(Modifier.fillMaxSize().safeDrawingPadding().imePadding(), color = MaterialTheme.colorScheme.background) {
             when (route) {
-                AuthoringRoute.HOME -> HomeScreen(onImage = { route = AuthoringRoute.IMAGE }) { route = AuthoringRoute.MARKDOWN }
+                AuthoringRoute.HOME -> HomeScreen(onImage = { route = AuthoringRoute.IMAGE },
+                    onTemplates = { enterAuthoring(AuthoringRoute.TEMPLATES) }) { enterAuthoring(AuthoringRoute.MARKDOWN) }
+                AuthoringRoute.TEMPLATES -> TemplateScreen(templateForms,
+                    onForms = { templateForms = it; templateDocument = null; templateLogical = null; templateStatus = ""; printing?.cancelAll(); cancelPreparation(); physical.invalidate() },
+                    onPreview = { document ->
+                        templateDocument = document
+                        startPreparation { physical.prepareAsync(document, physical.state.profile, physical.state.options) }
+                    },
+                    onBack = { route = AuthoringRoute.HOME }, busy = printState.isActive || preparationJob != null,
+                    targetName = physical.state.profile.display.name,
+                    profileControls = {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AuthoringButton("Narrow preview", preparationJob == null && !printState.isActive) { preparePhysical(SyntheticReferenceProfiles.narrow, physical.state.options) }
+                            AuthoringButton("Wide preview", preparationJob == null && !printState.isActive) { preparePhysical(SyntheticReferenceProfiles.wide80mm, physical.state.options) }
+                            for (strategy in QrStrategy.entries) AuthoringButton("QR ${strategy.name.lowercase()}", preparationJob == null && !printState.isActive) {
+                                preparePhysical(physical.state.profile, physical.state.options.copy(qrStrategy = strategy))
+                            }
+                            AuthoringButton("Open physical preview", physical.state.result is PhysicalPreviewResult.Ready && preparationJob == null) { route = AuthoringRoute.TEMPLATE_PREVIEW }
+                        }
+                    }, printingControls = printingControls,
+                    previewStatus = when (val result = physical.state.result) {
+                        is PhysicalPreviewResult.PreparationFailed -> result.diagnostics.joinToString("\n") { "${it.code}: ${it.message}" }
+                        is PhysicalPreviewResult.PreviewFailed -> result.diagnostics.joinToString("\n") { "${it.code}: ${it.message}" }
+                        is PhysicalPreviewResult.Ready -> "Physical preview ready. $templateStatus"
+                        else -> templateStatus
+                    }, onLogicalPreview = { document ->
+                        when (val logical = createTemplateLogicalPreview(document, textBackend)) {
+                            is TemplateLogicalResult.Ready -> { templateLogical = logical.preview; templateStatus = ""; route = AuthoringRoute.TEMPLATE_LOGICAL_PREVIEW }
+                            is TemplateLogicalResult.Failed -> templateStatus = logical.message
+                        }
+                    })
+                AuthoringRoute.TEMPLATE_LOGICAL_PREVIEW -> {
+                    val preview = templateLogical
+                    if (preview != null) PreviewScreen(preview, backLabel = "Back to templates") { route = AuthoringRoute.TEMPLATES }
+                    else LaunchedEffect(Unit) { route = AuthoringRoute.TEMPLATES }
+                }
+                AuthoringRoute.TEMPLATE_PREVIEW -> {
+                    val ready = physical.state.result as? PhysicalPreviewResult.Ready
+                    if (ready != null) PhysicalPreviewScreen(ready.preview, syntheticTarget = isSyntheticProfile(physical.state.profile),
+                        printingControls = printingControls, backLabel = "Back to templates") { route = AuthoringRoute.TEMPLATES }
+                    else LaunchedEffect(Unit) { route = AuthoringRoute.TEMPLATES }
+                }
                 AuthoringRoute.IMAGE -> ImagePrintScreen(image.state, imagePlatform, imageStatus, importedProfile,
                     printState.isActive,
                     onEdit = { printing?.cancelAll(); cancelPreparation(); image.edit(it) },
@@ -233,13 +306,14 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
 }
 
 @Composable
-fun HomeScreen(onImage: (() -> Unit)? = null, onMarkdown: () -> Unit) {
+fun HomeScreen(onImage: (() -> Unit)? = null, onTemplates: (() -> Unit)? = null, onMarkdown: () -> Unit) {
     Column(Modifier.padding(24.dp).widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("RastrIO", style = MaterialTheme.typography.headlineLarge)
         Text("Markdown document workspace", style = MaterialTheme.typography.titleLarge)
         Text("Write a document, compile it, and inspect its logical layout.")
         AuthoringButton("Open Markdown", onClick = onMarkdown)
         if (onImage != null) AuthoringButton("Open Image Print", onClick = onImage)
+        if (onTemplates != null) AuthoringButton("Open Templates", onClick = onTemplates)
     }
 }
 
@@ -253,7 +327,7 @@ internal fun MarkdownScreen(authoring: ObservableAuthoring, onHome: () -> Unit, 
             Text("Markdown", style = MaterialTheme.typography.headlineMedium)
             AuthoringButton("Back to Home", onClick = onHome)
         }
-        Text("Logical authoring canvas: 120 mm by default. Text coverage: printable ASCII.",
+        Text("Logical authoring canvas: 120 mm by default. Controlled bundled font coverage; unsupported content produces diagnostics.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(value = state.source, onValueChange = authoring::edit,
             label = { Text("Markdown source") }, placeholder = { Text("# Your document") },

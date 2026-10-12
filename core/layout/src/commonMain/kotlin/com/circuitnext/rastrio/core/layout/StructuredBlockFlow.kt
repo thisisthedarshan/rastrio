@@ -132,14 +132,15 @@ private class BlockFrame(
 private class ListFrame(
     val block: DocumentBlock, val source: Int, val destination: BlockFrame,
     val markerX: Double, val contentX: Double, val contentWidth: Double, val columnWidth: Double,
-    val listDepth: Int, val startY: Double, val measured: List<TextMeasurement>,
+    val listDepth: Int, val startY: Double, val measured: List<ResolvedMarkerText>,
 ) : FlowFrame {
     val items = mutableListOf<LogicalListItem>()
     var position = 0
     val count: Int get() = when (block) { is OrderedList -> block.items.size; is UnorderedList -> block.items.size; else -> (block as Checklist).items.size }
 }
 
-internal class StructuredBlockFlow(private val measurer: TextMeasurer, private val constraints: LayoutConstraints) {
+internal class StructuredBlockFlow(private val measurer: TextMeasurer, private val constraints: LayoutConstraints,
+    private val typographyResolver: TextFlowTypographyResolver? = null) {
     private val diagnostics = mutableListOf<LayoutDiagnostic>()
     private var items = 0L
     private var y = 0.0
@@ -156,17 +157,6 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
             abort("LAY120", "Geometry item count exceeds layout policy", index)
         items += count
     }
-    private fun measure(text: String, typography: ResolvedTypography, index: Int): TextMeasurement {
-        charge(1, index)
-        val measured = when (val result = measurer.measure(TextMeasureRequest(text, typography))) {
-            is TextMeasureResult.Success -> result.measurement
-            is TextMeasureResult.Failure -> failMeasurement(result.diagnostics, index, ::charge)
-        }
-        if (measured.textLength != text.length || measured.metrics != typography.metrics)
-            abort("LAY103", "Measurement does not match resolved typography or input", index)
-        charge(measured.clusters.size, index)
-        return measured
-    }
     private fun remaining(width: Double, indent: Double, index: Int): Double {
         if (LogicalGeometry.fits(width, indent)) abort("LAY107", "Indentation and markers exhaust available width", index)
         return LogicalGeometry.subtract(width, indent)
@@ -175,7 +165,7 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
         val width = LogicalGeometry.normalize(constraints.canvasWidth.value)
         val root = BlockFrame(document.blocks.iterator(), null, 0.0, width, 0, 0.0, FrameKind.ROOT)
         val stack = mutableListOf<FlowFrame>(root)
-        val textFlow = TextBlockFlow(measurer, constraints, ::charge, diagnostics)
+        val textFlow = TextBlockFlow(measurer, constraints, ::charge, diagnostics, typographyResolver)
         val tableFlow = TableBlockFlow(constraints, textFlow, ::charge)
         val placeholderFlow = PlaceholderBlockFlow(constraints, ::charge)
         try {
@@ -247,14 +237,14 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
                                     TextLayoutPolicyV1.outerListIndentEm else TextLayoutPolicyV1.nestedListIndentEm)
                                 var column = when (block) { is Checklist -> LogicalGeometry.scale(em(index), TextLayoutPolicyV1.checklistSideEm)
                                     is UnorderedList -> LogicalGeometry.scale(em(index), TextLayoutPolicyV1.unorderedSideEm); else -> 0.0 }
-                                val measured = mutableListOf<TextMeasurement>()
+                                val measured = mutableListOf<ResolvedMarkerText>()
                                 if (block is OrderedList) for (position in 0 until count) {
                                     charge(1, index) // retained marker slot before marker string/service allocations
-                                    val marker = measure("${block.start + position.toLong()}.", constraints.typography.listMarker, index)
-                                    column = maxOf(column, LogicalGeometry.normalize(marker.advanceMm))
+                                    val marker = textFlow.measureMarker("${block.start + position.toLong()}.", constraints.typography.listMarker, index)
+                                    column = maxOf(column, LogicalGeometry.normalize(marker.measurement.advanceMm))
                                     measured.add(marker)
                                 }
-                                val gap = LogicalGeometry.normalize(measure(" ", body, index).advanceMm)
+                                val gap = LogicalGeometry.normalize(textFlow.measureUnresolved(" ", body, index).advanceMm)
                                 val offset = LogicalGeometry.add(LogicalGeometry.add(indent, column), gap)
                                 val available = remaining(frame.width, offset, index)
                                 stack.add(ListFrame(block, index, frame, LogicalGeometry.add(frame.x, indent),
@@ -277,14 +267,14 @@ internal class StructuredBlockFlow(private val measurer: TextMeasurer, private v
                         val marker: LogicalListMarker = when (val block = frame.block) {
                             is OrderedList -> {
                                 val measured = frame.measured[position]
-                                val advance = LogicalGeometry.normalize(measured.advanceMm)
+                                val advance = LogicalGeometry.normalize(measured.measurement.advanceMm)
                                 val markerX = LogicalGeometry.add(frame.markerX, LogicalGeometry.subtract(frame.columnWidth, advance))
-                                val typography = constraints.typography.listMarker
+                                val typography = measured.typography
                                 val markerHeight = LogicalGeometry.normalize(typography.metrics.lineHeightMm)
                                 if (markerHeight == 0.0) abort("LAY122", "Marker cannot make coordinate progress", index)
                                 LogicalOrderedMarker(block.start + position.toLong(),
-                                    LogicalTextRun("${block.start + position.toLong()}.", LogicalBounds(markerX, y, advance,
-                                        markerHeight), typography, measured),
+                                    LogicalTextRun(measured.text, LogicalBounds(markerX, y, advance,
+                                        markerHeight), typography, measured.measurement, measured.flowId),
                                     LogicalGeometry.add(y, typography.metrics.baselineOffsetMm))
                             }
                             is UnorderedList -> LogicalUnorderedMarker(graphicBounds(frame.markerX, frame.columnWidth))

@@ -21,6 +21,7 @@ import com.circuitnext.rastrio.core.profile.PrinterProfile
 import com.circuitnext.rastrio.core.profile.SyntheticReferenceProfiles
 import com.circuitnext.rastrio.core.preview.*
 import com.circuitnext.rastrio.core.text.SnapshotList
+import com.circuitnext.rastrio.core.text.RasterTextBackend
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
@@ -47,9 +48,10 @@ data class PhysicalPreviewState(
 
 /** Coordinates Core only; each output change replaces the plan, with no physical algorithms here. */
 class PhysicalPreviewSession(
+    private val rasterTextBackend: RasterTextBackend? = null,
     private val preparePrint: (ThermalDocument, PrinterProfile, PrintOptions, () -> Boolean) -> PreparationResult =
         { document, profile, options, isCancelled ->
-            BasicPreparationEngine().prepare(document, profile, options, isCancelled = isCancelled) },
+            BasicPreparationEngine(rasterTextBackend = rasterTextBackend).prepare(document, profile, options, isCancelled = isCancelled) },
     private val previewResources: PhysicalPreviewResourcePolicy = PhysicalPreviewResourcePolicy(),
 ) {
     var state = PhysicalPreviewState()
@@ -61,6 +63,12 @@ class PhysicalPreviewSession(
         preparedDocument = null
         resolvedImages = emptyMap()
         state = state.copy(result = PhysicalPreviewResult.NotPrepared)
+    }
+
+    /** Keep target choices without preparing content from another authoring workspace. */
+    fun configure(profile: PrinterProfile, options: PrintOptions = state.options) {
+        invalidate()
+        state = state.copy(profile = profile, options = options)
     }
 
     /** Explicit binding to the current picked pixels; changing the source releases older bindings. */
@@ -79,14 +87,21 @@ class PhysicalPreviewSession(
         profile: PrinterProfile = state.profile,
         options: PrintOptions = state.options,
     ) {
-        val document = authoring.semanticDocument()
+        prepareDocument(authoring.semanticDocument(), profile, options)
+    }
+
+    fun prepare(document: ThermalDocument, profile: PrinterProfile = state.profile, options: PrintOptions = state.options) {
+        prepareDocument(document, profile, options)
+    }
+
+    private fun prepareDocument(document: ThermalDocument?, profile: PrinterProfile, options: PrintOptions) {
         if (document != null && document == preparedDocument && profile == state.profile && options == state.options) return
         val input = PhysicalPreviewState(profile, options)
         state = input
         preparedDocument = null
         if (document == null) return
         val prepared = if (resolvedImages.isEmpty()) preparePrint(document, profile, options, { false })
-            else BasicPreparationEngine().prepare(document, profile, options, resolvedImages = resolvedImages)
+            else BasicPreparationEngine(rasterTextBackend = rasterTextBackend).prepare(document, profile, options, resolvedImages = resolvedImages)
         val result = project(prepared)
         // A reentrant source/options change must not publish an obsolete preparation.
         if (state === input) {
@@ -97,7 +112,14 @@ class PhysicalPreviewSession(
 
     suspend fun prepareAsync(authoring: MarkdownAuthoringResult, profile: PrinterProfile = state.profile,
         options: PrintOptions = state.options) {
-        val document = authoring.semanticDocument()
+        prepareDocumentAsync(authoring.semanticDocument(), profile, options)
+    }
+
+    suspend fun prepareAsync(document: ThermalDocument, profile: PrinterProfile = state.profile, options: PrintOptions = state.options) {
+        prepareDocumentAsync(document, profile, options)
+    }
+
+    private suspend fun prepareDocumentAsync(document: ThermalDocument?, profile: PrinterProfile, options: PrintOptions) {
         if (document != null && document == preparedDocument && profile == state.profile && options == state.options) return
         val input = PhysicalPreviewState(profile, options)
         val images = resolvedImages.toMap()
@@ -107,7 +129,7 @@ class PhysicalPreviewSession(
         val job = currentCoroutineContext().job
         val result = withContext(Dispatchers.Default) {
             val prepared = if (images.isEmpty()) preparePrint(document, profile, options, { !job.isActive })
-                else BasicPreparationEngine().prepare(document, profile, options, resolvedImages = images,
+                else BasicPreparationEngine(rasterTextBackend = rasterTextBackend).prepare(document, profile, options, resolvedImages = images,
                     isCancelled = { !job.isActive })
             project(prepared)
         }

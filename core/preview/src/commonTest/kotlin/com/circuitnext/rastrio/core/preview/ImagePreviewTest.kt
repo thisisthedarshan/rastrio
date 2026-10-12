@@ -58,4 +58,40 @@ class ImagePreviewTest {
             assertContentEquals(baseline,primitive.graphic.copyBytes())
         }
     }
+    @Test fun qrTilesRetainOriginalArtifactsAndDeclareNativeMatrixAccuracy() {
+        for (strategy in listOf(QrStrategy.NATIVE, QrStrategy.RASTER)) {
+            val plan = assertIs<PreparationResult.Success>(BasicPreparationEngine().prepare(
+                ThermalDocument(blocks = listOf(QrCode("A", Alignment.CENTER, QrErrorCorrection.HIGH,
+                    Length(58.0 / 203 * 25.4)))), SyntheticReferenceProfiles.wide80mm,
+                PrintOptions(qrStrategy = strategy))).print
+            val preview = assertIs<PrintPreviewResult.Success>(plan.toPrintPreview(
+                PhysicalPreviewResourcePolicy(preferredTileHeightDots = 7))).preview
+            val primitives = (0 until preview.tileCount).flatMap {
+                assertIs<PrintPreviewTileResult.Success>(preview.tile(it)).tile.primitives.filterIsInstance<MonochromePrimitive>()
+            }
+            assertTrue(primitives.size > 1)
+            for (primitive in primitives) {
+                assertTrue(plan.operations.any { it === primitive.operation })
+                when (val original = primitive.operation) {
+                    is NativeQr -> {
+                        assertSame(original.representativeGraphic, primitive.graphic)
+                        assertEquals(PreparedGraphicKind.NATIVE_QR, primitive.kind)
+                        assertEquals(PhysicalPreviewAccuracy.EXACT_GEOMETRY_REPRESENTATIVE_QR, primitive.accuracy)
+                    }
+                    is RasterQr -> {
+                        assertSame(original.graphic, primitive.graphic)
+                        assertEquals(PreparedGraphicKind.RASTER_QR, primitive.kind)
+                        assertEquals(PhysicalPreviewAccuracy.EXACT_PREPARED_DOTS, primitive.accuracy)
+                    }
+                    else -> error("Unexpected QR primitive")
+                }
+                val before = primitive.graphic.copyBytes()
+                primitive.graphic.copyBytes().fill(0)
+                assertContentEquals(before, primitive.graphic.copyBytes())
+                assertTrue(primitive.clippedBounds.y >= primitive.bounds.y)
+                assertTrue(primitive.clippedBounds.bottom <= primitive.bounds.bottom)
+            }
+        }
+    }
+
 }

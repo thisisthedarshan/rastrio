@@ -1951,3 +1951,44 @@ establish only RastrIO byte output. The observed H50i has no automatic cutter,
 no verified raster strategy and no complete loadable geometry/protocol profile.
 See [H50I_PRINTING_RUNBOOK](H50I_PRINTING_RUNBOOK.md) for the missing physical
 evidence and the permanent HW-NNN acceptance sequence.
+
+## Phase 13 native QR serialization (2026-10-12)
+
+`escpos.qr.model2` serializes an already finalized `NativeQr`. The generic
+serializer follows the documented Epson Model 2 family:
+
+| Function | Prepared parameter / framing |
+| --- | --- |
+| [165: model](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lparen_lk_fn165.html) | `GS ( k 04 00 31 41 32 00`, Model 2 |
+| [167: module size](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lparen_lk_fn167.html) | `GS ( k 03 00 31 43 n`, integer prepared module size |
+| [169: correction](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lparen_lk_fn169.html) | `GS ( k 03 00 31 45 n`, L/M/Q/H selectors 48/49/50/51 |
+| [180: store](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lparen_lk_fn180.html) | length = payload byte count + 3; `31 50 30` followed by opaque prepared bytes |
+| [181: print](https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lparen_lk_fn181.html) | `GS ( k 03 00 31 51 30` |
+
+Function 181 documents automatic mode selection, symbol-height paper advance,
+beginning-of-line restoration, and exclusion of quiet zones. RastrIO supplies
+four-module top/bottom blank feeds and places the symbol at prepared x plus the
+four-module left quiet zone. It sets the print area to the finalized inner
+symbol width and resets character scaling before printing, then restores the
+full target print area and zero margin. No extra line feed is emitted after the
+symbol, and no backward paper motion is used.
+
+Automatic firmware mode optimization can reduce symbol versions. This first
+implementation therefore accepts native output only for ASCII byte payloads
+whose prepared byte-mode matrix is version 1: at most 17/14/11/7 bytes for
+L/M/Q/H. The firmware cannot optimize below Model 2 version 1. Larger or
+non-ASCII payloads use the preparation-selected raster path; forced unsupported
+native geometry fails with a structured diagnostic. Extending native geometry
+requires a separately verified strategy. Opaque control bytes inside this small
+payload remain length-framed data; they are never emitted as native text.
+
+Physical preview reads the frozen representative native matrix with an explicit
+representative-QR accuracy classification. Raster QR and raster text reuse the
+same immutable graphic objects consumed by `GS v 0` serialization, with exact
+prepared-dot accuracy. Neither downstream consumer generates matrices or shapes
+text.
+
+Evidence is **DOC** plus automated byte-golden fixtures in `EscPosEncoderTest`;
+the test-run result belongs in the phase report. This is not H50i hardware
+compatibility evidence. `HW-017`, `HW-018` and `HW-019` remain the physical
+acceptance procedures; no H50i capability is promoted here.

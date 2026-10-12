@@ -74,7 +74,7 @@ internal fun PhysicalPreviewScreen(preview: PrintPreview, syntheticTarget: Boole
             })
         Text("${preview.widthDots} dots wide · ${preview.target.horizontalDpi} × ${preview.target.verticalDpi} dpi",
             style = MaterialTheme.typography.bodySmall)
-        Text("Exact prepared geometry · representative native glyphs", style = MaterialTheme.typography.bodySmall)
+        Text("Exact raster dots · representative native glyphs and QR matrix", style = MaterialTheme.typography.bodySmall)
         Box(Modifier.heightIn(max = 180.dp).verticalScroll(rememberScrollState())) { printingControls() }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AuthoringButton("Zoom out", enabled = zoom > 0.5f, onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.5f) })
@@ -155,10 +155,15 @@ internal fun PhysicalPreviewCanvas(preview: PrintPreview, zoom: Float = 1f, modi
                                 }
                                 for (primitive in tile.primitives) when (primitive) {
                                     is NativeTextPrimitive -> NativeCells(primitive.operation, tile.bounds.y, zoom, verticalZoom, font, symbols)
-                                    is MonochromePrimitive -> if (primitive.kind == PreparedGraphicKind.MANUAL_CUT_GUIDE) {
+                                    is MonochromePrimitive -> if (primitive.kind in listOf(PreparedGraphicKind.MANUAL_CUT_GUIDE, PreparedGraphicKind.NATIVE_QR, PreparedGraphicKind.RASTER_QR, PreparedGraphicKind.RASTER_TEXT)) {
                                         Box(Modifier.absoluteOffset { IntOffset((primitive.bounds.x * factorX).roundToInt(), (primitive.clippedBounds.y * factorY).roundToInt() - topPx) }
                                             .size((primitive.bounds.width * zoom).dp, (primitive.clippedBounds.height * verticalZoom).dp)
-                                            .semantics { contentDescription = "Manual cut guide, printed content" })
+                                            .semantics { contentDescription = when (primitive.kind) {
+                                                PreparedGraphicKind.NATIVE_QR -> "Native QR, representative firmware matrix, exact prepared geometry"
+                                                PreparedGraphicKind.RASTER_QR -> "Raster QR, exact prepared dots"
+                                                PreparedGraphicKind.RASTER_TEXT -> "Raster text, exact prepared dots"
+                                                else -> "Manual cut guide, printed content"
+                                            } })
                                     }
                                     is FeedPrimitive -> Box(Modifier.absoluteOffset(0.dp, ((primitive.clippedBounds.y - tile.bounds.y) * verticalZoom).dp)
                                         .size(paperWidth, (primitive.clippedBounds.height * verticalZoom).dp)

@@ -3249,3 +3249,112 @@ The immutable `PreparedNativeStyle.underline` records the resolved result, so
 preview and serialization consume the same decision. False preserves existing
 semantic styles and default behavior. Hardware fixtures may use this explicit
 choice only after the selected printer's underline capability is verified.
+
+## Phase 11 controlled implementation metadata
+
+The JVM/Android text adapter is `BundledRasterTextBackend`, implementing the
+portable `RasterTextBackend : TextMeasurer`. It uses checked-in HarfBuzz 14.6.0
+(with its own Unicode 18.0 generated shaping tables) and FreeType 2.14.3 sources. `core/text/native/CMakeLists.txt` verifies both
+archive SHA-256 hashes before offline extraction and disables external optional
+libraries, CoreText, LCD rendering, embedded font bitmaps and hinting. Raster
+coverage is FreeType normal 256-level grayscale, with black pixels at coverage
+128 or greater; packed output has MSB-first rows and zero padding bits.
+HarfBuzz buffer language is explicitly `und` and direction is explicitly LTR
+before segment-property guessing; only script is inferred from controlled text
+and pinned Unicode data. This prevents the guess operation from resolving
+language through the process/OS locale. The backend identity records this
+language/direction policy. Language-specific `locl` substitutions are therefore
+selected under `und`, including lowercase `i` and Turkish `İ`/`ı` reference
+content; no host language preference is implicitly applied. Repeat raster tests
+include `iİıI`. These tests assert controlled repeatability, not an OS-locale
+switch: changing Java `Locale` alone would not reliably exercise HarfBuzz's
+native locale resolver.
+
+Authoritative measurements shape at 2540 DPI (100 pixels/mm), normalize cluster
+advances through `LogicalGeometry`, and merge HarfBuzz clusters with extended
+grapheme boundaries. Raster requests supply final dimensions, baseline and
+horizontal/vertical DPI; they never wrap. Significant ink outside the supplied
+physical box fails instead of being silently clipped. Underline and strike are
+finalized one-dot rules at 0.08 em below and 0.3 em above the baseline respectively.
+The fixed decoration positions are versioned in the backend identity.
+
+`core/text/unicode/manifest.json` pins official Unicode 18.0 data, including both
+complete conformance fixtures. `unicode/generate.py` generates portable property
+ranges. Segmentation uses UAX #29 revision 49, including Unicode 18's revised
+GB9c linker rule; default line opportunities use UAX #14 revision 57. Dictionary
+word breaking and hyphen insertion are absent. Measurement filters ordinary
+break opportunities through finalized grapheme/shaping boundaries; the raw
+line-break service remains independently testable against Unicode's default
+conformance data. Both registered native and raster measurement adapters omit
+the UAX #14 end-of-text sentinel: a measured style-run end is not a semantic
+paragraph boundary and must not force a line break. Native fixed-cell text uses
+the same Unicode ordinary break policy without changing repertoire coverage.
+
+`core/text/src/jvmAndAndroidMain/resources/rastrio-fonts/manifest.json` records
+file hashes, exact internal family/style/version names, upstream URLs, roles and
+licenses. Primary faces are Noto Sans and JetBrains Mono 2.304; the Devanagari
+fallback is Noto Sans Devanagari regular/bold. Fallback boundaries preserve
+complete graphemes and adjacent same-font runs are shaped together. No synthetic
+Devanagari italic is offered: a request for that missing face fails. Unsupported
+strong bidi content, missing glyphs, malformed UTF-16, unsupported controls and
+unrepresentable final raster geometry produce content-free diagnostics. Color
+emoji and arbitrary OS/user fonts are outside this controlled adapter.
+
+Input shaping requests are bounded to 65,536 UTF-16 units, 131,072 output glyphs
+and one MiB per trusted font. Each request has a trusted hard ceiling of 256
+controlled-font fallback runs. Both measurement and rasterization preflight the
+complete run partition and fail with `TXT120` before any request-specific JNI
+work when that ceiling is exceeded. A uniform 65,536-unit run remains supported.
+The bound limits font reparsing to at most 256 native shape calls per measurement,
+and at most 256 raster calls plus 256 advance-shape calls per rasterization;
+native handles remain call-scoped rather than entering an implicit persistent
+cache. Caller/job aggregate work and memory budgets remain preparation-owned. Each final text bitmap is at most eight MiB, with both
+axes bounded to 32,768 dots; printer preparation must additionally apply its
+aggregate resident/cumulative/band budgets. Backend construction eagerly verifies all eleven finite bundled faces by size
+and SHA-256 before loading JNI or publishing a usable backend. Missing, corrupt,
+oversized or unreadable font resources produce `TextBackendUnavailableException`
+with content-free `TXT132`; platform resolution returns the explicit unsupported
+adapter. Checked resource I/O failures are caught, while allocation errors are
+not swallowed. Native handles and buffers are scoped to a call and released by RAII.
+The cancellation-aware `measure(request, isCancelled)` contract checks before
+and after work; the controlled adapter additionally polls every 64 graphemes
+while partitioning and between every native font run. Rasterization polls at the
+same preflight/run boundaries, before its advance-shape calls, and every 64 glyphs
+during native rendering. Cancellation returns the content-free `TXT130`
+diagnostic. A single native shape call is bounded by the UTF-16/glyph ceilings.
+`TextResourceHeapProbe` exercises the maximum uniform request, exact/one-over
+fallback limits, adversarial 65,536-run input and in-measurement cancellation in
+a separate 32 MiB JVM. That JVM heap setting does not itself account for native
+allocations; explicit native font/glyph/raster bounds and call-scoped release
+provide those controls.
+Native shared libraries packaged for Desktop are extracted into a private
+lifecycle-managed temporary directory when ordinary library loading is
+unavailable. Native extraction is bounded to 16 MiB. Runtime never fetches fonts
+or native libraries.
+
+Android and Desktop use the same JNI bridge and controlled font bytes. Exact
+pixel comparison is asserted only for the tested build/platform configuration;
+cross-ABI pixel equality still requires platform-specific evidence. JS/Wasm
+compile the portable segmentation/contracts; application integration must report
+unsupported raster preparation when no reference adapter is supplied.
+
+HarfBuzz's original copyright/license notice is retained in
+`core/text/native/HARFBUZZ-COPYING.txt`. FreeType is redistributed under the
+FreeType License route, retaining `FREETYPE-LICENSE.txt` and `FREETYPE-FTL.txt`.
+Portions of this software are copyright © 1996–2026 The FreeType Project
+(https://freetype.org). All rights reserved. Both font families retain their SIL
+Open Font License notices. Unicode data retains Unicode License v3. Copies of
+native/Unicode notices, including FreeType's additional BDF/PCF/hash/zlib
+contribution notices, are included with the adapter's packaged resources.
+
+## Phase 11 finalized contextual line geometry
+
+`TextMeasurement.canSliceWithoutReshaping` defaults to false. Only a measurer whose cluster advances are context independent may set it; the registered native fixed-cell and ASCII measurers do. Bundled font typography having a fixed cell for tabs/code does not establish that its shaped advances are context independent. Full spans retain their exact measurement; partial context-sensitive spans are measured in their final isolated substring context before geometry is published. Tabs are recomputed from the corrected preceding advance.
+
+A candidate line that no longer fits contracts at boundaries safe in both the original and final shaping contexts, preferring legal breaks. At most eight contractions are allowed per line (`LAY123` on nonconvergence). Candidate selection is conservative: it does not expand when isolated shaping decreases the advance. This avoids assuming monotone shaping widths while retaining legal/safe wrapping, exact alignment and source offsets. An indivisible oversized cluster is retained with `LAY101`, never split or silently dropped. Aggregate measurement work is limited to eight times the configured document UTF-16 budget, using checked Long accounting before each backend call; excess fails `LAY120`.
+
+Printer preparation promotes every native run sharing a physical row with fallback text/semantic markers, then performs at most eight complete layout passes before finalization (`PRN143` on nonconvergence). Raster text stores backend/font fingerprints, finalized baseline/alignment/advance and immutable monochrome bands. Run origins are floored onto the physical dot grid; complete printable-row composition avoids independently clipping adjacent styled runs. Preparation enforces a 2 MiB row scratch/band ceiling,8 MiB resident graphics and 128 MiB cumulative graphics. Physical preview/serialization require no text service after successful preparation.
+
+Synthesized ordered-list markers also receive positive stable source-flow IDs from the same allocator as paragraphs/cells. Their whole marker text is resolved and measured before reserving the list column; final marker baseline/height/advance use that resolved typography. A fallback row therefore promotes its numbered marker as well as its body, while independent native items remain native. Marker and list-gap measurements use the same document-wide work budget. Flow0 is reserved for legacy/default externally constructed runs, not newly generated numbered markers.
+
+The reference adapter rejects U+200E/U+200F direction marks, U+202A–U+202E embedding/override controls and U+2066–U+206F isolate/legacy directional controls before shaping or rasterization. These cannot be silently consumed as zero-advance default-ignorable glyphs while the verified adapter is LTR-only. Unsupported content produces structured failure and no partial prepared plan.

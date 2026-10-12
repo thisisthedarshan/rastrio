@@ -138,7 +138,8 @@ class ImagePrintSessionTest {
         session.edit(ImagePrintEdits(widthDots = "19"))
         first.join()
         assertSame(PhysicalPreviewResult.NotPrepared, session.state.result)
-        val cancelled = launch(start = CoroutineStart.UNDISPATCHED) { session.prepareAsync() }
+        // Cancel a queued job; UNDISPATCHED can finish this tiny fixture before cancel().
+        val cancelled = launch { session.prepareAsync() }
         cancelled.cancel()
         cancelled.join()
         assertSame(PhysicalPreviewResult.NotPrepared, session.state.result)

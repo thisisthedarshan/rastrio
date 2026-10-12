@@ -3450,3 +3450,13 @@ streams, and native results are never published after cancellation. Native codec
 execution itself cannot be forcibly interrupted on all supported Android versions.
 Profile acquisition limits actual read bytes to 1 MiB; no whole input is acquired
 before its limit is checked. Permission/device errors never log content/locators.
+
+## Phase 11–13 concrete work and graphics limits
+
+Controlled text permits at most 65,536 UTF-16 units,131,072 shaped glyphs and 256 fallback font runs per request. Both measurement and rasterization preflight the run ceiling before JNI calls (`TXT120`). Cancellation reaches partitioning and between native font runs (`TXT130`); one HarfBuzz call remains bounded and cannot be forcibly interrupted. Native font/face/glyph buffers are scoped to a call. The 32 MiB `:core:text:resourceHeapProbe` exercises maximum uniform input, exact/over-limit fallback runs, hostile alternation and in-measurement cancellation. Its heap limit covers Java memory; native memory has explicit separate bounds.
+
+Contextual layout correction uses at most 8 contractions per selected line and charges all measurement input before invocation against 8 × the configured document UTF-16 budget. Existing retained-item/depth/line/operation controls still apply. Whole-row raster composition is limited to 2 MiB before scratch allocation; finalized text/QR bands share the existing 2 MiB band,8 MiB resident and 128 MiB cumulative prepared-graphic ceilings. No full receipt bitmap or prepared spool was introduced.
+
+QR generation is bounded to 2953 opaque payload bytes, Model 2 version 40 (177 modules), exact selected EC capacity and four-module quiet zones. Actual requests may fail at lower selected-EC/ECI capacities or when integral scaling cannot fit. Profile-aware bands use balanced partitions before emission. `:core:raster:qrResourceHeapProbe` streams 32 version 40 symbols under 16 MiB heap; independent decode uses synthetic exported final pixels only.
+
+Shared template drafts retain at most 128 items per list and 32768 aggregate UTF-16 units. Core semantic builders separately bound 1000 list items,64 KiB UTF-8 per field,8 MiB aggregate and 10000 lines, with strict surrogate validation and conservative 16 MiB JSON reservation. These are input/work ceilings, not permission to exceed preparation or preview limits.

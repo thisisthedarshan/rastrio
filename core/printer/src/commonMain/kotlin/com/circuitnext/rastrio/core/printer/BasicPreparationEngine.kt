@@ -37,6 +37,7 @@ class BasicPreparationEngine(
     private val profileLimits: PrinterProfileValidationLimits = PrinterProfileValidationLimits(
         600, 1024, 256, 8, 1024, 131072, 16, 65536, 1000, 16,
     ),
+    private val rasterTextBackend: RasterTextBackend? = null,
 ) {
     fun prepare(
         document: ThermalDocument,
@@ -64,7 +65,7 @@ class BasicPreparationEngine(
         preflight(document, images, capability.supported, isCancelled)
         if (!capability.supported && (options.nativeFontId != null || options.codePageId != null ||
             options.widthScale != 1 || options.heightScale != 1 || options.nativeUnderline)) fail("PRN101", "Native options are unavailable")
-        if (options.nativeUnderline && !capability.styles.underline)
+        if (options.nativeUnderline && !capability.styles.underline && rasterTextBackend == null)
             fail("PRN102", "Requested native underline is unsupported")
         val font = if (!capability.supported) null else if (options.nativeFontId == null) capability.fonts.first()
             else capability.fonts.firstOrNull { it.id == options.nativeFontId }
@@ -106,23 +107,17 @@ class BasicPreparationEngine(
         val metrics = TypographyMetrics(heightMm, 0.0, advanceMm - heightMm, advanceMm, heightMm)
         val body = ResolvedTypography(font?.let { "native:${it.id}" } ?: "image-spacing-v1", TextStyle(), metrics,
             FixedCellGeometry(cellMm, cellMm, heightMm))
-        val context = TypographyContext(body, body.copy(style = TextStyle(role = TextRole.CODE)),
-            body.copy(style = TextStyle(role = TextRole.LIST_MARKER)),
-            SnapshotList(List(6) { body.copy(style = TextStyle(weight = TextWeight.BOLD, role = TextRole.HEADING)) }))
+        val actualBody = if (font == null && rasterTextBackend != null) rasterTextBackend.typography() else body
+        val context = TypographyContext(actualBody, actualBody.copy(style = TextStyle(role = TextRole.CODE)),
+            actualBody.copy(style = TextStyle(role = TextRole.LIST_MARKER)),
+            SnapshotList(List(6) { actualBody.copy(style = TextStyle(weight = TextWeight.BOLD, role = TextRole.HEADING)) }))
         val constraints = LayoutConstraints(Length(widthMm, LengthUnit.MM), Orientation.PORTRAIT,
             context, layoutResources.copy(maxTextCodeUnits = min(layoutResources.maxTextCodeUnits, resources.maxTextCodeUnits)))
         val measurer = if (page != null) RegisteredFixedCellMeasurer(page.repertoire,
             TextResourcePolicy(min(64 * 1024, min(resources.maxTextCodeUnits, layoutResources.maxItems))))
             else TextMeasurer { TextMeasureResult.Failure(SnapshotList(listOf(TextDiagnostic("TXT101", "Image-only layout cannot measure text")))) }
-        val logical = when (val result = FoundationLayoutEngine(measurer).layout(document, constraints)) {
-            is LayoutResult.Success -> result.document
-            is LayoutResult.Failure -> {
-                if (result.diagnostics.size > resources.maxDiagnostics) fail("PRN120", "Diagnostic count exceeds preparation policy")
-                throw PreparationAbort(SnapshotList(result.diagnostics.map {
-                    PreparationDiagnostic(it.code, it.message, it.sourceBlockIndex)
-                }))
-            }
-        }
+        val logical = layoutWithTextStrategies(document, constraints, effective, options, measurer,
+            rasterTextBackend, resources, isCancelled)
         if (logical.diagnostics.size > resources.maxDiagnostics) fail("PRN120", "Diagnostic count exceeds preparation policy")
         val target = PreparedTarget(effective.profileId, effective.profileRevision, g.horizontalDpi, g.verticalDpi,
             g.printableWidthDots, (effective.protocol as EscPosProtocolProfile).dialectId,
@@ -131,7 +126,7 @@ class BasicPreparationEngine(
         val preparedFont = font?.let { PreparedNativeFont(it.id, it.selector, it.cellWidthDots, it.cellHeightDots,
             it.lineAdvanceDots ?: it.cellHeightDots) }
         val preparedPage = page?.let { PreparedCodePage(it.id, it.repertoire, it.selector) }
-        val job = BasicPhysicalPlan(resources, effective, target, preparedFont, preparedPage, options, images, isCancelled)
+        val job = BasicPhysicalPlan(resources, effective, target, preparedFont, preparedPage, options, images, rasterTextBackend, isCancelled)
         job.blocks(logical.blocks)
         job.feedTo(dots(logical.heightMm, g.verticalDpi, resources.maxHeightDots))
         job.feed(options.finalFeedDots)
@@ -146,6 +141,8 @@ class BasicPreparationEngine(
         PreparationResult.Success(PreparedPrint(logical, target, SnapshotList(job.operations),
             SnapshotList(diagnostics),
             job.cursor, resources))
+    } catch (failure: TextBackendUnavailableException) {
+        PreparationResult.Failure(SnapshotList(failure.diagnostics.map { PreparationDiagnostic(it.code, it.message) }))
     } catch (failure: PreparationAbort) {
         PreparationResult.Failure(failure.diagnostics)
     } catch (_: IllegalArgumentException) {
@@ -158,7 +155,7 @@ class BasicPreparationEngine(
         var textUnits = 0L
         var inlineNodes = 0L
         fun text(value: String, source: Int) {
-            if (!nativeAvailable) fail("PRN101", "Native text is unavailable; raster text is not implemented", source)
+            if (!nativeAvailable && rasterTextBackend == null) fail("PRN101", "Native text is unavailable; raster text backend is unavailable", source)
             if (value.length.toLong() > resources.maxTextCodeUnits.toLong() - textUnits)
                 fail("PRN120", "Source text exceeds preparation policy", source)
             textUnits += value.length
@@ -203,9 +200,23 @@ class BasicPreparationEngine(
                     if (block.asset !in images) fail("PRN104", "Image asset has not been explicitly resolved", source)
                     null
                 }
+                is QrCode -> {
+                    if (block.payload.isEmpty() || block.payload.length > 2953) fail("PRN140", "QR payload is empty or exceeds capacity", source)
+                    null
+                }
                 is Quote -> block.blocks.iterator()
+                is Checklist -> {
+                    items += block.items.size
+                    if (items > layoutResources.maxItems) fail("PRN120", "Item count exceeds preparation policy", source)
+                    sequence { for (item in block.items) yieldAll(item.blocks) }.iterator()
+                }
+                is UnorderedList -> {
+                    items += block.items.size
+                    if (items > layoutResources.maxItems) fail("PRN120", "Item count exceeds preparation policy", source)
+                    sequence { for (item in block.items) yieldAll(item.blocks) }.iterator()
+                }
                 is OrderedList -> {
-                    if (!nativeAvailable) fail("PRN101", "Native list markers are unavailable", source)
+                    if (!nativeAvailable && rasterTextBackend == null) fail("PRN101", "List marker text backend is unavailable", source)
                     items += block.items.size
                     if (items > layoutResources.maxItems) fail("PRN120", "Item count exceeds preparation policy", source)
                     sequence { for (item in block.items) yieldAll(item.blocks) }.iterator()
@@ -241,14 +252,14 @@ class BasicPreparationEngine(
     }
 }
 
-private class PreparationAbort(val diagnostics: SnapshotList<PreparationDiagnostic>) : RuntimeException()
-private fun fail(code: String, message: String, source: Int? = null): Nothing =
+internal class PreparationAbort(val diagnostics: SnapshotList<PreparationDiagnostic>) : RuntimeException()
+internal fun fail(code: String, message: String, source: Int? = null): Nothing =
     throw PreparationAbort(SnapshotList(listOf(PreparationDiagnostic(code, message, source))))
 private fun multiply(value: Int, scale: Int): Int {
     if (value <= 0 || scale <= 0 || value > Int.MAX_VALUE / scale) fail("PRN120", "Native cell geometry exceeds safe bounds")
     return value * scale
 }
-private fun dots(mm: Double, dpi: Int, maximum: Int): Int {
+internal fun dots(mm: Double, dpi: Int, maximum: Int): Int {
     val converted = LogicalGeometry.normalize(mm) / 25.4 * dpi
     if (!converted.isFinite() || converted < 0.0) fail("PRN120", "Invalid physical coordinate")
     val rounded = round(converted)
@@ -264,6 +275,7 @@ private class BasicPhysicalPlan(
     private val page: PreparedCodePage?,
     private val options: PrintOptions,
     private val images: Map<AssetReference, ResolvedRasterImage>,
+    private val rasterTextBackend: RasterTextBackend?,
     private val isCancelled: () -> Boolean,
 ) {
     val operations = mutableListOf<PreparedOperation>()
@@ -295,7 +307,8 @@ private class BasicPhysicalPlan(
     }
     private data class Element(val bounds: LogicalBounds, val source: Int,
         val runs: List<LogicalTextRun>? = null, val alignment: Alignment = Alignment.LEFT,
-        val image: LogicalImagePlaceholder? = null)
+        val image: LogicalImagePlaceholder? = null, val qr: LogicalQrPlaceholder? = null,
+        val marker: LogicalListMarker? = null, val baselineMm: Double = bounds.yMm + bounds.heightMm)
 
     fun blocks(blocks: List<LogicalBlock>) {
         val elements = mutableListOf<Element>()
@@ -304,7 +317,7 @@ private class BasicPhysicalPlan(
             elements.add(element)
         }
         fun text(block: LogicalTextBlock) {
-            for (line in block.lines) add(Element(line.bounds, block.sourceBlockIndex, line.runs, line.alignment))
+            for (line in block.lines) add(Element(line.bounds, block.sourceBlockIndex, line.runs, line.alignment, baselineMm = line.baselineMm))
         }
         val stack = mutableListOf(blocks.iterator())
         while (stack.isNotEmpty()) {
@@ -313,14 +326,14 @@ private class BasicPhysicalPlan(
                 is LogicalTextBlock -> { text(block); null }
                 is LogicalSeparator -> { add(Element(block.bounds, block.sourceBlockIndex)); null }
                 is LogicalImagePlaceholder -> { add(Element(block.bounds, block.sourceBlockIndex, alignment = block.alignment, image = block)); null }
+                is LogicalQrPlaceholder -> { add(Element(block.bounds, block.sourceBlockIndex, alignment = block.alignment, qr = block)); null }
                 is LogicalQuoteBlock -> block.blocks.iterator()
                 is LogicalListBlock -> {
-                    if (block.kind != LogicalListKind.ORDERED)
-                        fail("PRN104", "Graphic list markers require a later preparation strategy", block.sourceBlockIndex)
                     for (item in block.items) {
-                        val marker = item.marker as? LogicalOrderedMarker
-                            ?: fail("PRN104", "List marker requires a later preparation strategy", block.sourceBlockIndex)
-                        add(Element(marker.bounds, block.sourceBlockIndex, listOf(marker.run), Alignment.RIGHT))
+                        val marker = item.marker
+                        if (marker is LogicalOrderedMarker)
+                            add(Element(marker.bounds, block.sourceBlockIndex, listOf(marker.run), Alignment.RIGHT, baselineMm = marker.baselineMm))
+                        else add(Element(marker.bounds, block.sourceBlockIndex, emptyList(), marker = marker))
                     }
                     sequence { for (item in block.items) yieldAll(item.blocks) }.iterator()
                 }
@@ -339,6 +352,11 @@ private class BasicPhysicalPlan(
             val first = elements[position]
             val y = dots(first.bounds.yMm, target.verticalDpi, resources.maxHeightDots)
             feedTo(y)
+            if (first.qr != null) {
+                qr(first.qr)
+                position++
+                continue
+            }
             if (first.image != null) {
                 image(first.image)
                 position++
@@ -355,10 +373,15 @@ private class BasicPhysicalPlan(
             var groupEnd = position
             var height = 0
             var runCount = 0
+            var rasterRow = false
             while (groupEnd < elements.size) {
                 val element = elements[groupEnd]
-                if (element.runs == null || dots(element.bounds.yMm, target.verticalDpi, resources.maxHeightDots) != y) break
-                height = maxOf(height, dots(element.bounds.heightMm, target.verticalDpi, resources.maxHeightDots))
+                if (element.runs == null) break
+                val elementY = dots(element.bounds.yMm, target.verticalDpi, resources.maxHeightDots)
+                val elementRaster = element.marker != null || element.runs.any { isRasterTypography(it.typography) }
+                if (elementY != y && (!(rasterRow || elementRaster) || elementY >= y + height)) break
+                height = maxOf(height, dots(element.bounds.yMm + element.bounds.heightMm, target.verticalDpi, resources.maxHeightDots) - y)
+                rasterRow = rasterRow || elementRaster
                 if (element.runs.size > resources.maxOperations - runCount) fail("PRN120", "Operation count exceeds preparation policy", element.source)
                 runCount += element.runs.size
                 groupEnd++
@@ -367,6 +390,12 @@ private class BasicPhysicalPlan(
             val advance = if (groupEnd < elements.size) min(height,
                 dots(elements[groupEnd].bounds.yMm, target.verticalDpi, resources.maxHeightDots) - y) else height
             val next = end(advance)
+            if ((position until groupEnd).any { index -> elements[index].marker != null ||
+                elements[index].runs!!.any { isRasterTypography(it.typography) } }) {
+                rasterText(elements.subList(position, groupEnd), y, height, advance)
+                position = groupEnd
+                continue
+            }
             reserve(runCount)
             if (runCount == 0) feed(advance)
             else {
@@ -381,6 +410,111 @@ private class BasicPhysicalPlan(
             }
             position = groupEnd
         }
+    }
+
+    private fun rasterText(elements: List<Element>, y: Int, height: Int, advance: Int) {
+        val backend = rasterTextBackend ?: fail("TXT132", "Controlled raster text backend is unavailable", elements.first().source)
+        val capability = profile.raster
+        if (!capability.supported) fail("PRN104", "Text requires an available raster strategy", elements.first().source)
+        if (height <= 0 || advance != height) fail("PRN143", "Raster row overlaps another physical row", elements.first().source)
+        val width = target.printableWidthDots
+        if (width > (capability.maxWidthDots ?: 0)) fail("PRN104", "Raster text row exceeds raster width capability")
+        val rowBytes = (width + 7) / 8
+        val payload = rowBytes.toLong() * height
+        if (payload > resources.maxPreparedGraphicBytes - graphicBytes || payload > resources.maxResidentGraphicBytes - graphicBytes || payload > resources.maxGraphicBandBytes)
+            fail("PRN120", "Raster text exceeds prepared graphic budgets")
+        val packed = ByteArray(payload.toInt())
+        val identities = linkedSetOf<String>()
+        var baseline = 0
+        for (element in elements) {
+            baseline = maxOf(baseline, dots(element.baselineMm, target.verticalDpi, resources.maxHeightDots) - y)
+            for (run in element.runs!!) {
+                if (isCancelled()) fail("PRN130", "Preparation cancelled")
+                if (run.text.isEmpty() || run.text == "\t") continue
+                val typography = if (isRasterTypography(run.typography)) run.typography else backend.typography(
+                    run.typography.style.copy(underline = run.typography.style.underline || options.nativeUnderline),
+                    run.typography.metrics.ascentMm + run.typography.metrics.descentMm)
+                val offset = floor(run.bounds.xMm / 25.4 * target.horizontalDpi + 0.000001).toInt()
+                val result = backend.rasterize(RasterTextRequest(run.text, typography, width, height,
+                    dots(element.baselineMm, target.verticalDpi, resources.maxHeightDots) - y,
+                    target.horizontalDpi, target.verticalDpi, isCancelled, offset))
+                when (result) {
+                    is RasterTextResult.Failure -> {
+                        if (isCancelled()) fail("PRN130", "Preparation cancelled")
+                        throw PreparationAbort(SnapshotList(result.diagnostics.map { PreparationDiagnostic(it.code, it.message, element.source) }))
+                    }
+                    is RasterTextResult.Success -> {
+                        if (result.bitmap.widthDots != width || result.bitmap.heightDots != height)
+                            fail("PRN120", "Text backend returned inconsistent final geometry", element.source)
+                        val content = result.bitmap.copyBytes()
+                        for (index in packed.indices) packed[index] = (packed[index].toInt() or content[index].toInt()).toByte()
+                        identities.add(result.fontIdentity)
+                    }
+                }
+            }
+            element.marker?.let { marker -> drawMarker(marker, packed, width, height, y) }
+        }
+        val band = capability.bandHeightDots ?: fail("PRN104", "Raster text band capability is unavailable")
+        val rows = minOf(band.preferred, band.max, resources.maxGraphicBandBytes / rowBytes)
+        if (rows < band.min || height.toLong() < ((height.toLong() + rows - 1) / rows) * band.min)
+            fail("PRN120", "Raster text cannot satisfy band constraints")
+        var start = 0
+        while (start < height) {
+            val remaining = height - start
+            val left = (remaining + rows - 1) / rows
+            val count = minOf(rows, remaining - (left - 1) * band.min)
+            reserve()
+            val graphic = PreparedMonochrome(width, count, packed.copyOfRange(start * rowBytes, (start + count) * rowBytes))
+            operations.add(RasterText(DotBounds(0, y + start, width, count), graphic, capability.preferredStrategy!!,
+                rasterOrdinal++, preparedAlignment(elements.first().alignment), baseline, height,
+                backend.identity, identities.joinToString("+").ifEmpty { "semantic-marker-v1" }, elements.first().source))
+            graphicBytes += graphic.sizeBytes
+            start += count
+        }
+        cursor = end(advance)
+    }
+    private fun drawMarker(marker: LogicalListMarker, packed: ByteArray, width: Int, height: Int, y: Int) {
+        val rowBytes = (width + 7) / 8
+        fun point(x: Int, py: Int) {
+            if (x !in 0 until width || py !in 0 until height) fail("PRN120", "Marker exceeds finalized row geometry")
+            val index = py * rowBytes + x / 8
+            packed[index] = (packed[index].toInt() or (128 ushr (x % 8))).toByte()
+        }
+        val x = dots(marker.bounds.xMm, target.horizontalDpi, width)
+        val top = dots(marker.bounds.yMm, target.verticalDpi, resources.maxHeightDots) - y
+        val w = maxOf(1, dots(marker.bounds.widthMm, target.horizontalDpi, width))
+        val h = maxOf(1, dots(marker.bounds.heightMm, target.verticalDpi, height))
+        if (marker is LogicalUnorderedMarker) {
+            for (py in top until top + h) for (px in x until x + w) {
+                val dx = 2 * (px - x) + 1 - w
+                val dy = 2 * (py - top) + 1 - h
+                if (dx.toLong() * dx * h * h + dy.toLong() * dy * w * w <= w.toLong() * w * h * h) point(px, py)
+            }
+        } else if (marker is LogicalChecklistMarker) {
+            val strokeX = maxOf(1, dots(marker.strokeWidthMm, target.horizontalDpi, width))
+            val strokeY = maxOf(1, dots(marker.strokeWidthMm, target.verticalDpi, height))
+            for (py in 0 until h) for (px in 0 until w)
+                if (px < strokeX || px >= w - strokeX || py < strokeY || py >= h - strokeY) point(x + px, top + py)
+            if (marker.checked) for ((a, b) in marker.checkPoints.zipWithNext()) {
+                val ax = dots(a.xMm, target.horizontalDpi, width)
+                val ay = dots(a.yMm, target.verticalDpi, resources.maxHeightDots) - y
+                val bx = dots(b.xMm, target.horizontalDpi, width)
+                val by = dots(b.yMm, target.verticalDpi, resources.maxHeightDots) - y
+                val dx = bx - ax; val dy = by - ay
+                val length = dx.toLong() * dx + dy.toLong() * dy
+                val radius = maxOf(strokeX, strokeY) / 2.0
+                for (py in top until top + h) for (px in x until x + w) {
+                    val projection = if (length == 0L) 0.0 else ((px - ax).toDouble() * dx + (py - ay).toDouble() * dy) / length
+                    if (projection in 0.0..1.0) {
+                        val ex = px - (ax + projection * dx); val ey = py - (ay + projection * dy)
+                        if (ex * ex + ey * ey <= radius * radius) point(px, py)
+                    }
+                }
+            }
+        }
+    }
+    private fun preparedAlignment(alignment: Alignment) = when (alignment) {
+        Alignment.LEFT -> PreparedAlignment.LEFT; Alignment.CENTER -> PreparedAlignment.CENTER; Alignment.RIGHT -> PreparedAlignment.RIGHT
     }
 
     private fun native(run: LogicalTextRun, alignment: Alignment, source: Int, y: Int, advance: Int) {
@@ -425,6 +559,44 @@ private class BasicPhysicalPlan(
     private fun multiplyWidth(count: Int): Int {
         if (count > Int.MAX_VALUE / cellWidth) fail("PRN120", "Text width exceeds safe bounds")
         return count * cellWidth
+    }
+    private fun qr(block: LogicalQrPlaceholder) {
+        val resolved = resolveQr(block, profile, target, options, resources, graphicBytes, isCancelled)
+        val start = cursor
+        val boxHeight = dots(block.bounds.heightMm, target.verticalDpi, resources.maxHeightDots)
+        val bottom = end(boxHeight)
+        if (resolved.native) {
+            reserve()
+            val graphic = resolved.nativeGraphic!!
+            operations.add(NativeQr(DotBounds(resolved.x, start, resolved.size, resolved.size),
+                SnapshotList(resolved.payload.map { it.toInt() and 255 }), "escpos.qr.model2",
+                resolved.scale, resolved.matrix.size, resolved.correction, graphic, block.sourceBlockIndex))
+            graphicBytes += graphic.sizeBytes
+            cursor += resolved.size
+        } else {
+            val raster = profile.raster
+            val band = raster.bandHeightDots!!
+            val result = resolved.matrix.rasterBands(resolved.scale,
+                bandHeight = minOf(band.preferred, band.max, resources.maxGraphicBandBytes / ((resolved.size + 7) / 8)),
+                minBandHeight = band.min,
+                policy = RasterResourcePolicy(maxPayloadBytes = minOf(resources.maxPreparedGraphicBytes - graphicBytes,
+                    resources.maxResidentGraphicBytes.toLong() - graphicBytes), maxBandBytes = resources.maxGraphicBandBytes),
+                isCancelled = isCancelled) { prepared ->
+                reserve()
+                val graphic = PreparedMonochrome(prepared.width, prepared.height, prepared.copyBytes())
+                operations.add(RasterQr(DotBounds(resolved.x, start + prepared.startRow, prepared.width, prepared.height),
+                    graphic, raster.preferredStrategy!!, rasterOrdinal++, resolved.scale, resolved.matrix.size,
+                    resolved.correction, block.sourceBlockIndex))
+                graphicBytes += graphic.sizeBytes
+                cursor = start + prepared.startRow + prepared.height
+            }
+            when (result) {
+                is RasterResult.Invalid -> fail("PRN120", result.message, block.sourceBlockIndex)
+                RasterResult.Cancelled -> fail("PRN130", "Preparation cancelled", block.sourceBlockIndex)
+                is RasterResult.Completed -> Unit
+            }
+        }
+        feedTo(bottom)
     }
     private fun image(block: LogicalImagePlaceholder) {
         val source = block.sourceBlockIndex

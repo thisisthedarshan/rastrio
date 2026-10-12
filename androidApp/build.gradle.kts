@@ -40,6 +40,13 @@ dependencies {
 android {
     namespace = "com.circuitnext.rastrio"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    ndkVersion = libs.versions.android.ndk.get()
+    externalNativeBuild {
+        cmake {
+            path = file("../core/text/native/CMakeLists.txt")
+            version = libs.versions.android.cmake.get()
+        }
+    }
 
     defaultConfig {
         applicationId = "com.circuitnext.rastrio"
@@ -47,6 +54,10 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        testInstrumentationRunner = "com.circuitnext.rastrio.BundledTextRuntimeInstrumentation"
+        externalNativeBuild {
+            cmake { arguments += listOf("-DANDROID_STL=c++_shared") }
+        }
     }
     packaging {
         resources {

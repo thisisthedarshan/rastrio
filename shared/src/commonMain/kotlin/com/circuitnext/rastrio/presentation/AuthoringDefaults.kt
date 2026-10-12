@@ -24,7 +24,11 @@ import com.circuitnext.rastrio.core.text.*
  * Metrics come from the bundled JetBrains Mono 2.304 font; see its resource manifest.
  * This deliberately uses the existing restricted ASCII backend, including coverage diagnostics.
  */
-fun createAuthoringSession(widthMm: Double = 120.0, orientation: Orientation = Orientation.PORTRAIT): MarkdownAuthoringSession {
+fun createAuthoringSession(widthMm: Double = 120.0, orientation: Orientation = Orientation.PORTRAIT, rasterTextBackend: RasterTextBackend? = null): MarkdownAuthoringSession {
+    if (rasterTextBackend != null && rasterTextBackend !is UnsupportedRasterTextBackend) {
+        val typography = bundledAuthoringTypography(rasterTextBackend)
+        return MarkdownAuthoringSession(LayoutConstraints(Length(widthMm), orientation, typography), FoundationLayoutEngine(rasterTextBackend))
+    }
     fun face(em: Double, style: TextStyle): ResolvedTypography {
         val ascent = em * 1.020
         val descent = em * 0.300

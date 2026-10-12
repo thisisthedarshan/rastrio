@@ -119,7 +119,7 @@ class ParagraphFlowTest {
 
     @Test fun suppliedMandatoryBreakIsHonoredWithoutInventingSemanticBreak() {
         val service = TextMeasurer { request -> TextMeasureResult.Success(TextMeasurement(2, 4.0, request.typography.metrics,
-            SnapshotList(listOf(MeasuredCluster(0, 1, 2.0), MeasuredCluster(1, 2, 2.0))), SnapshotList(listOf(BreakOpportunity(1, BreakKind.MANDATORY))))) }
+            SnapshotList(listOf(MeasuredCluster(0, 1, 2.0), MeasuredCluster(1, 2, 2.0))), SnapshotList(listOf(BreakOpportunity(1, BreakKind.MANDATORY))), canSliceWithoutReshaping = true)) }
         val output = layout(listOf(p("AB")), service = service)
         assertEquals(listOf("A", "B"), texts(output))
         assertEquals(listOf(false, false), lines(output).map { it.endsWithExplicitBreak })

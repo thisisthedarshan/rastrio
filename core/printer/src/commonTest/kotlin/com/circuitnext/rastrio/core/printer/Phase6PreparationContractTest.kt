@@ -178,7 +178,8 @@ class Phase6PreparationContractTest {
                     operation.font.id, operation.codePage.id, operation.style, operation.alignment, operation.advanceDots)
                 is Separator -> listOf(operation.bounds, operation.strategy, operation.graphic.copyBytes().toList())
                 is ManualCutGuide -> listOf(operation.bounds, operation.strategy, operation.graphic.copyBytes().toList())
-                is RasterOperation -> listOf(operation.bounds, operation.strategy, operation.bandOrdinal, operation.graphic.copyBytes().toList())
+                is PreparedRasterGraphic -> listOf(operation.bounds, operation.strategy, operation.bandOrdinal, operation.graphic.copyBytes().toList())
+                is NativeQr -> listOf(operation.bounds, operation.payloadBytes.toList(), operation.strategy, operation.moduleSizeDots, operation.errorCorrection)
                 is Feed -> listOf(operation.bounds, operation.advanceDots)
                 is AutomaticCut -> listOf(operation.bounds, operation.mode, operation.strategy)
             }
@@ -266,8 +267,7 @@ class Phase6PreparationContractTest {
 
     @Test fun unavailableRasterFallbackAndUnsupportedContentFailExplicitly() {
         assertCode("PRN101", failed(profile = SyntheticReferenceProfiles.rasterOnly))
-        for (block in listOf(QrCode("private", Alignment.LEFT, QrErrorCorrection.AUTO),
-            Image(EmbeddedAssetReference("private"), Alignment.LEFT, AutoSizing))) {
+        for (block in listOf(Image(EmbeddedAssetReference("private"), Alignment.LEFT, AutoSizing))) {
             val input = ThermalDocument(blocks = document().blocks + block)
             assertCode("PRN104", failed(input))
         }

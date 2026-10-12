@@ -22,6 +22,13 @@ interface LogicalLayoutEngine {
     fun layout(document: ThermalDocument, constraints: LayoutConstraints): LayoutResult
 }
 
+/** Partitions an unchanged source span into typography resolved by the caller. */
+fun interface TextFlowTypographyResolver {
+    fun resolve(flowId: Int, sourceOffset: Int, text: String, typography: ResolvedTypography): SnapshotList<ResolvedTextSpan>
+}
+
+data class ResolvedTextSpan(val text: String, val typography: ResolvedTypography)
+
 /** Centrally versioned portable logical layout dimensions; all changes affect output. */
 object TextLayoutPolicyV1 {
     const val paragraphAfterLineFactor: Double = 0.5
@@ -45,10 +52,11 @@ object TextLayoutPolicyV1 {
 }
 
 /** Shared text flow and bounded iterative structured-block flow; no hidden I/O or printer policy. */
-class FoundationLayoutEngine(private val measurer: TextMeasurer) : LogicalLayoutEngine {
+class FoundationLayoutEngine(private val measurer: TextMeasurer,
+    private val typographyResolver: TextFlowTypographyResolver? = null) : LogicalLayoutEngine {
     override fun layout(document: ThermalDocument, constraints: LayoutConstraints): LayoutResult = try {
         preflightDocument(document, constraints.resources)
-        StructuredBlockFlow(measurer, constraints).layout(document)
+        StructuredBlockFlow(measurer, constraints, typographyResolver).layout(document)
     } catch (failure: LayoutAbort) {
         LayoutResult.Failure(failure.diagnostics)
     } catch (_: IllegalArgumentException) {
