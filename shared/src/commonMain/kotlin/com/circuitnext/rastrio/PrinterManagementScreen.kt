@@ -25,12 +25,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.circuitnext.rastrio.core.profile.PrinterProfile
 import com.circuitnext.rastrio.core.profile.SyntheticReferenceProfiles
-import com.circuitnext.rastrio.printing.isSyntheticProfile
+import com.circuitnext.rastrio.printing.*
 
 @Composable
 internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: @Composable () -> Unit,
-    onBack: () -> Unit, onLab: () -> Unit, onProfile: (PrinterProfile) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp).widthIn(max = 960.dp),
+    onBack: () -> Unit, onLab: () -> Unit, onProfile: (PrinterProfile) -> Unit,
+    onCreate: () -> Unit, drafts: List<ProfileDraft>, onEdit: (ProfileDraft) -> Unit,
+    onDuplicate: () -> Unit, onDuplicateDraft: (ProfileDraft) -> Unit,
+    pairedDevices: List<PairedPrinterDevice>, addingPrinter: Boolean, pendingDevice: PairedPrinterDevice?,
+    physicalProfile: PrinterProfile?, onAdd: () -> Unit, onDevice: (PairedPrinterDevice) -> Unit, onSavePrinter: () -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().testTag("printer-management-list").padding(16.dp).widthIn(max = 960.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text("Printers and profiles", style = MaterialTheme.typography.headlineMedium)
@@ -41,6 +45,27 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
             Text(if (isSyntheticProfile(profile)) "Synthetic preview only · no physical capability verification"
                 else "Imported configuration · physical capabilities unverified")
             Text("Preparation validates this configuration and creates the effective physical plan. A printer connection is only needed to transmit it.")
+        }
+        item {
+            AuthoringButton("Add Printer", onClick = onAdd)
+            if (addingPrinter) {
+                Text("1. Select Device → 2. Create/Select Profile → 3. Validate/Calibrate → 4. Save Printer")
+                Text("Pair in Android settings first. Selection does not connect or print. Bluetooth Classic SPP is required; a BLE-only device needs a separately verified GATT transport.")
+                if (pairedDevices.isEmpty()) Text("No paired devices available. Check Nearby devices permission, enable Bluetooth and refresh.")
+                for (device in pairedDevices) {
+                    AuthoringButton("Select ${device.displayName}", device.supportsClassic) { onDevice(device) }
+                    if (!device.supportsClassic) Text("BLUETOOTH_BLE_INCOMPATIBLE: BLE-only device; Classic SPP is unavailable")
+                }
+                if (pendingDevice != null) Text("Selected device: ${pendingDevice.displayName}")
+                Text(if (physicalProfile == null) "Create or import a valid profile before saving this printer" else "Selected profile: ${physicalProfile.display.name}")
+                AuthoringButton("Save Printer", pendingDevice?.supportsClassic == true && physicalProfile != null, onSavePrinter)
+            }
+            AuthoringButton("Create Printer Profile", onClick = onCreate)
+            AuthoringButton("Duplicate selected profile", onClick = onDuplicate)
+            for (draft in drafts) {
+                AuthoringButton("Edit ${draft["display.name"].ifBlank { draft.draftId }}") { onEdit(draft) }
+                AuthoringButton("Duplicate draft ${draft["display.name"].ifBlank { draft.draftId }}") { onDuplicateDraft(draft) }
+            }
         }
         item { printingControls() }
         item {
@@ -54,7 +79,7 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
 
 /** Evidence and bounded test drafts only; this screen never opens a transport or prints. */
 @Composable
-internal fun PrinterLabScreen(onBack: () -> Unit, onQrFixture: () -> Unit) {
+internal fun PrinterLabScreen(onBack: () -> Unit, onQrFixture: () -> Unit, calibrationControls: @Composable () -> Unit = {}) {
     LazyColumn(Modifier.fillMaxSize().padding(16.dp).widthIn(max = 960.dp).testTag("printer-lab-list"),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -77,6 +102,7 @@ internal fun PrinterLabScreen(onBack: () -> Unit, onQrFixture: () -> Unit) {
             Text("Record the actual unit, profile/revision/overrides, transport, captured bytes and observed paper. Bytes transmitted do not prove physical output. Inspect ambiguous output before any explicitly confirmed new attempt. Never promote capabilities automatically.")
             Text("Detailed procedures and evidence are maintained in docs/HARDWARE_TESTS.md and docs/ESC_POS_NOTES.md.")
         }
+        item { calibrationControls() }
         item {
             Text("Bounded QR test draft", style = MaterialTheme.typography.titleMedium)
             Text("Create the maintained HW-018 30 mm High-EC raster QR draft. Its example.invalid URL is opaque test data and is never opened. Prepare, inspect the exact-dot preview and explicitly print once using an evidence-backed associated profile. Synthetic preview requires no connected printer.")

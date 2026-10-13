@@ -2009,3 +2009,29 @@ Evidence is **DOC** plus automated byte-golden fixtures in `EscPosEncoderTest`;
 the test-run result belongs in the phase report. This is not H50i hardware
 compatibility evidence. `HW-017`, `HW-018` and `HW-019` remain the physical
 acceptance procedures; no H50i capability is promoted here.
+
+
+## Phase 14 discovery and bounded candidate experiments (2026-10-13)
+
+Source inspection found paired-device publication was conditional on an imported
+profile. The application now publishes paired-device metadata independently,
+then explicitly saves a selected device/profile association. This establishes a
+software configuration obstruction; it does not establish the cause of every
+physical H50i connection failure.
+
+Classic RFCOMM uses the existing SPP UUID. Android device type distinguishes
+Classic, dual-mode, BLE-only and unknown metadata; Classic/dual device type is
+not proof of an SPP service or socket compatibility. No connected Android device
+was available during implementation to inspect the actual H50i services. Its
+Classic/SPP versus BLE-only status remains **TBD**, and no GATT characteristic or
+BLE write path was invented. A failed SPP connection is reported separately from
+permissions, disabled/unavailable Bluetooth, absent pairing and BLE incompatibility.
+
+Lab candidates select registered Core strategies and use production preparation,
+finalized artifacts and ESC/POS encoding. Output is explicit, resource-bounded and
+isolated from ordinary profile activation. Native QR candidate experiments are
+not verified native QR capability; firmware QR/EAN13 self-test observations remain
+Hardware Observed inventory rather than host-command acceptance. All printer
+procedures remain NOT RUN. The 1,024-byte Android transport write ceiling is policy,
+not a hardware-tested buffer limit. Unknown DPI, printable dot width, CP437/font
+selectors, raster strategy/bands and native command compatibility remain unknown.

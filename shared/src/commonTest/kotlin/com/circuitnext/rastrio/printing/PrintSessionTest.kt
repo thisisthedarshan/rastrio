@@ -362,4 +362,23 @@ class PrintSessionTest {
         assertEquals("TRANSPORT_CLOSE_FAILURE", session.state.value.diagnosticCode)
         assertFalse(session.state.value.toString().contains("private device identity"))
     }
+    @Test fun trustedBluetoothFailuresStayDistinctAndNeverWrite() = runTest {
+        val plan = ready().print
+        for (failure in TransportFailure.entries) {
+            var writes = 0
+            val transport = object : PrinterTransport {
+                override val constraints = TransportConstraints(10)
+                override suspend fun connect(instance: PrinterInstance): Unit = throw PrinterTransportException(failure)
+                override suspend fun write(bytes: ByteArray, offset: Int, length: Int): Int { writes++; return length }
+                override fun close() = Unit
+            }
+            val session = PrintSession(transport)
+            session.print(instance(plan), plan)
+            assertEquals(failure.name, session.state.value.diagnosticCode)
+            assertEquals(PrintSessionPhase.FAILED_BEFORE_TRANSMISSION, session.state.value.phase)
+            assertFalse(session.state.value.outputMayExist)
+            assertEquals(0, writes)
+        }
+    }
+
 }

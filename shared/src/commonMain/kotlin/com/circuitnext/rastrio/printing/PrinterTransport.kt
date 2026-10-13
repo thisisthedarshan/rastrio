@@ -17,6 +17,24 @@ package com.circuitnext.rastrio.printing
 
 enum class PrinterTransportKind { BLUETOOTH_CLASSIC, DEVELOPMENT }
 
+enum class BluetoothDeviceKind { CLASSIC, DUAL, BLE_ONLY, UNKNOWN }
+
+/** Discovery metadata only; choosing a device does not connect or activate a profile. */
+data class PairedPrinterDevice(val locator: String, val displayName: String, val kind: BluetoothDeviceKind) {
+    init { require(validMetadata(locator, 1024) && validMetadata(displayName, 256)) }
+    val supportsClassic: Boolean get() = kind != BluetoothDeviceKind.BLE_ONLY
+    override fun toString(): String = "PairedPrinterDevice(kind=$kind)"
+}
+
+enum class TransportFailure {
+    BLUETOOTH_PERMISSION_REQUIRED, BLUETOOTH_UNAVAILABLE, BLUETOOTH_DISABLED,
+    BLUETOOTH_DEVICE_ABSENT, BLUETOOTH_BLE_INCOMPATIBLE, BLUETOOTH_SPP_CONNECTION_FAILED,
+    TRANSPORT_INCOMPATIBLE,
+}
+
+/** Only trusted codes reach diagnostics; exception details may contain private platform metadata. */
+class PrinterTransportException(val failure: TransportFailure) : Exception(failure.name)
+
 /** Local application state; never exported as capability data or included in diagnostic messages. */
 data class PrinterInstance(
     val id: String,

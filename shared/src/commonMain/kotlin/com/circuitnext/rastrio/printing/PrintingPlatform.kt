@@ -17,9 +17,15 @@ package com.circuitnext.rastrio.printing
 
 import com.circuitnext.rastrio.core.profile.PrinterProfile
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /** OS access is explicit; ordinary selection and job UI remain shared. */
 interface PrintingPlatform {
+    val pairedDevices: StateFlow<List<PairedPrinterDevice>> get() = EmptyPrintingState.devices
+    val selectedPrinter: StateFlow<PrinterInstance?> get() = EmptyPrintingState.selected
+    val profileDraftStorage: ProfileDraftStorage get() = EmptyPrintingState.drafts
+    fun activateProfile(profile: PrinterProfile): Boolean = false
+    fun savePrinter(device: PairedPrinterDevice, profile: PrinterProfile) = Unit
     val printers: StateFlow<List<PrinterInstance>>
     val profile: StateFlow<PrinterProfile?>
     val status: StateFlow<String>
@@ -30,4 +36,10 @@ interface PrintingPlatform {
     fun exportProfile() = Unit
     fun selectPrinter(instance: PrinterInstance)
     fun createTransport(): PrinterTransport
+}
+
+private object EmptyPrintingState {
+    val devices: StateFlow<List<PairedPrinterDevice>> = MutableStateFlow(emptyList())
+    val selected: StateFlow<PrinterInstance?> = MutableStateFlow(null)
+    val drafts: ProfileDraftStorage = MemoryProfileDraftStorage()
 }

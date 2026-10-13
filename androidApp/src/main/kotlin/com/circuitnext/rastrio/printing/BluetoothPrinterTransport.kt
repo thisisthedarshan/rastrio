@@ -36,7 +36,7 @@ internal fun bluetoothPermission(apiLevel: Int): String? =
     if (apiLevel >= 31) Manifest.permission.BLUETOOTH_CONNECT else null
 
 internal fun safeDeviceName(name: String?): String =
-    name.orEmpty().filter { !it.isISOControl() && it !in '\u202a'..'\u202e' && it !in '\u2066'..'\u2069' }
+    name.orEmpty().filter { !it.isISOControl() && it != '\u2028' && it != '\u2029' && it !in '\u202a'..'\u202e' && it !in '\u2066'..'\u2069' }
         .take(80).ifBlank { "Paired Bluetooth device" }
 
 internal interface PrinterSocket {
@@ -58,23 +58,35 @@ class BluetoothPrinterTransport internal constructor(
     constructor(context: Context, constraints: TransportConstraints) : this({ instance -> try {
         val adapter = requireBluetooth(context)
         val device = adapter.bondedDevices.firstOrNull { it.address == instance.transportLocator }
-            ?: throw IOException("Selected paired device is unavailable")
-        if (device.type == BluetoothDevice.DEVICE_TYPE_LE) throw IOException("Bluetooth Classic SPP is required")
+            ?: throw PrinterTransportException(TransportFailure.BLUETOOTH_DEVICE_ABSENT)
+        requireClassicDevice(bluetoothDeviceKind(device.type))
         val handle = device.createRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"))
         object : PrinterSocket {
-            override fun connect() = handle.connect()
+            override fun connect() {
+                try { handle.connect() }
+                catch (_: SecurityException) { throw PrinterTransportException(TransportFailure.BLUETOOTH_PERMISSION_REQUIRED) }
+                catch (_: IOException) { throw PrinterTransportException(TransportFailure.BLUETOOTH_SPP_CONNECTION_FAILED) }
+            }
             override fun write(bytes: ByteArray, offset: Int, length: Int) {
-                requireBluetooth(context)
-                handle.outputStream.write(bytes, offset, length)
+                try {
+                    requireBluetooth(context)
+                    handle.outputStream.write(bytes, offset, length)
+                } catch (_: SecurityException) {
+                    throw PrinterTransportException(TransportFailure.BLUETOOTH_PERMISSION_REQUIRED)
+                }
             }
             override fun close() = handle.close()
         }
-    } catch (failure: SecurityException) {
-        throw SecurityException("Bluetooth connection permission is unavailable", failure)
+    } catch (_: SecurityException) {
+        throw PrinterTransportException(TransportFailure.BLUETOOTH_PERMISSION_REQUIRED)
+    } catch (_: IOException) {
+        throw PrinterTransportException(TransportFailure.BLUETOOTH_SPP_CONNECTION_FAILED)
     } }, constraints)
 
     override suspend fun connect(instance: PrinterInstance) {
         close()
+        if (instance.transportKind != PrinterTransportKind.BLUETOOTH_CLASSIC)
+            throw PrinterTransportException(TransportFailure.TRANSPORT_INCOMPATIBLE)
         val token = synchronized(lock) { generation }
         blocking {
             val candidate = openSocket(instance)
@@ -124,17 +136,29 @@ class BluetoothPrinterTransport internal constructor(
 internal fun requireBluetooth(context: Context): BluetoothAdapter {
     val permission = bluetoothPermission(Build.VERSION.SDK_INT)
     if (permission != null && context.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
-        throw SecurityException("Bluetooth connection permission is required")
+        throw PrinterTransportException(TransportFailure.BLUETOOTH_PERMISSION_REQUIRED)
     val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
-        ?: throw IOException("Bluetooth is unavailable")
-    if (!adapter.isEnabled) throw IOException("Bluetooth is disabled")
+        ?: throw PrinterTransportException(TransportFailure.BLUETOOTH_UNAVAILABLE)
+    if (!adapter.isEnabled) throw PrinterTransportException(TransportFailure.BLUETOOTH_DISABLED)
     return adapter
 }
 
-internal data class PairedPrinter(val locator: String, val displayName: String)
-internal fun pairedPrinters(context: Context): List<PairedPrinter> = try { requireBluetooth(context).bondedDevices
-    .filter { it.type != BluetoothDevice.DEVICE_TYPE_LE }
-    .take(100).map { PairedPrinter(it.address, safeDeviceName(it.name)) }.sortedBy { it.displayName }
-} catch (failure: SecurityException) {
-    throw SecurityException("Bluetooth connection permission is unavailable", failure)
+internal fun bluetoothDeviceKind(type: Int): BluetoothDeviceKind = when (type) {
+    BluetoothDevice.DEVICE_TYPE_CLASSIC -> BluetoothDeviceKind.CLASSIC
+    BluetoothDevice.DEVICE_TYPE_DUAL -> BluetoothDeviceKind.DUAL
+    BluetoothDevice.DEVICE_TYPE_LE -> BluetoothDeviceKind.BLE_ONLY
+    else -> BluetoothDeviceKind.UNKNOWN
+}
+
+internal fun requireClassicDevice(kind: BluetoothDeviceKind) {
+    if (kind == BluetoothDeviceKind.BLE_ONLY)
+        throw PrinterTransportException(TransportFailure.BLUETOOTH_BLE_INCOMPATIBLE)
+}
+
+internal fun pairedPrinters(context: Context): List<PairedPrinterDevice> = try {
+    requireBluetooth(context).bondedDevices.take(100).map {
+        PairedPrinterDevice(it.address, safeDeviceName(it.name), bluetoothDeviceKind(it.type))
+    }.sortedBy { it.displayName }
+} catch (_: SecurityException) {
+    throw PrinterTransportException(TransportFailure.BLUETOOTH_PERMISSION_REQUIRED)
 }

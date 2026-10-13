@@ -30,6 +30,7 @@ class PrinterInstanceStoreTest {
             arrayOf(SharedPreferences.Editor::class.java)) { proxy, method, args ->
             when (method.name) {
                 "putInt", "putString" -> { values[args[0] as String] = args[1]; proxy }
+                "clear" -> { values.clear(); proxy }
                 "commit" -> commitResult
                 else -> error("Unexpected editor call: ${method.name}")
             }
@@ -78,4 +79,42 @@ class PrinterInstanceStoreTest {
         assertFalse(store.save(instance()))
         assertFailsWith<IllegalArgumentException> { store.save(instance().copy(transportKind = PrinterTransportKind.DEVELOPMENT)) }
     }
+    @Test fun profileDraftsRoundTripPrivatelyAndRejectMalformedStoredData() {
+        val memory = Preferences()
+        val storage = AndroidProfileDraftStorage(memory.preferences)
+        val draft = ProfileDraft.fresh("local-draft").withField("display.name", "Unknown printer")
+        assertTrue(storage.saveDrafts(listOf(draft)))
+        assertEquals(listOf(draft), AndroidProfileDraftStorage(memory.preferences).loadDrafts())
+        assertFalse(draft.encodeLocal().contains("private-locator"))
+        memory.values["draft0"] = "x".repeat(65537)
+        assertTrue(storage.loadDrafts().isEmpty())
+        memory.values["draft0"] = draft.encodeLocal()
+        memory.values["count"] = 33
+        assertTrue(storage.loadDrafts().isEmpty())
+        memory.values["count"] = "invalid type"
+        assertTrue(storage.loadDrafts().isEmpty())
+    }
+
+    @Test fun profileDraftStorageLimitsAndCommitFailureDoNotActivateAnything() {
+        val memory = Preferences()
+        val storage = AndroidProfileDraftStorage(memory.preferences)
+        val draft = ProfileDraft.fresh("local-draft")
+        assertFalse(storage.saveDrafts(List(2) { draft }))
+        assertFalse(storage.saveDrafts(List(33) { ProfileDraft.fresh("draft$it") }))
+        assertFalse(storage.saveDrafts(listOf(draft.withField("display.name", "x".repeat(1025)))))
+        assertTrue(memory.values.isEmpty())
+        memory.commitResult = false
+        assertFalse(storage.saveDrafts(listOf(draft)))
+    }
+
+    @Test fun failedCommitCannotBecomeAConfirmedSelectionThroughLaterLoads() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val prior = instance()
+        assertTrue(store.save(prior))
+        memory.commitResult = false
+        assertFalse(store.save(prior.copy(displayName = "New selection", profileRevision = 3)))
+        assertEquals(prior, store.load())
+    }
+
 }

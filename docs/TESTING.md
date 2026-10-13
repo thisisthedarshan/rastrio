@@ -3560,3 +3560,31 @@ Required additional offline tasks: `:core:text:resourceHeapProbe`, `:core:raster
 Generate strict hardware QR archives with `:core:printer:generatePhase111213HardwareFixtures`. The producer self-checks archive equality/round-trip and synthetic preparation, not paper output. Fixture rationale/manual procedures are in `test-fixtures/hardware/PHASE_11_13_FIXTURES.md`. HW-014–019 remain separate physical acceptance gates. Successful Android assembly/native packaging and host tests must not be reported as emulator/device instrumentation.
 
 The device-only `androidApp` test APK uses `BundledTextRuntimeInstrumentation` without an added runner dependency. It checks actual packaged JNI/font availability, six real text samples (including combining/Indic/conjunct cases), repeatable odd-width raster output, unsupported input diagnostics, native ASCII retention, and identical prepared artifacts through preview/encoding with producer call counters. It opens no printer transport. Build it with `./gradlew :androidApp:assembleDebug :androidApp:assembleDebugAndroidTest --offline`, then use the connected-device procedure in `test-fixtures/hardware/PHASE_11_13_FIXTURES.md`. Building this APK is not instrumentation execution. A successful Android-host test does not close the actual Android-ABI reference-backend gate.
+
+
+## Phase 14 software verification and branding checks
+
+ProfileDraftTest covers incomplete worksheets, local length-framed persistence,
+strict Core validation, every v1 capability, synthetic-origin rejection, evidence
+invalidation, duplication/export and malformed/bounded input. CalibrationFixturesTest
+covers production preparation/encoding, candidate isolation, operation/resource
+bounds and native/raster requirements. ProfileCreationUiTest covers device selection
+before profiles, disabled BLE/invalid-profile controls, zero implicit connections,
+activity-style save/restore, effective chunk-policy display and failed-save retention.
+Existing QR/stale-plan suites remain required. Android unit tests cover Classic
+socket cancellation, failure states, metadata sanitization and private persistence.
+
+Run `python3 scripts/generate_android_branding.py --check` for reproducible canonical
+asset derivation and `python3 scripts/test_android_branding.py --apk
+androidApp/build/outputs/apk/debug/androidApp-debug.apk` for source/mask/theme/manifest
+and packaged-resource checks. These checks are included in `scripts/verify.sh`.
+They require Python 3, Pillow and ImageMagick 7 at development/verification time;
+the app has no dependency on those tools and startup is offline. The Android app
+uses Apache-2.0 AndroidX Core SplashScreen 1.2.0, resolved through the version catalog.
+API 24–25 use legacy icons; API 26+ use adaptive icons; API 33+ include monochrome
+artwork. Canonical SVG geometry and brand tokens remain authoritative.
+
+Automated resource checks do not establish OEM launcher rendering or actual Android
+cold/warm startup appearance. Run those on the device separately. The operator's
+supplied API 34/arm64-v8a renderer PASS is scoped to the renderer/artifact gate,
+not to the newly changed branding or Bluetooth workflow.

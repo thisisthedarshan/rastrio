@@ -33,8 +33,18 @@ internal class PrinterInstanceStore(private val preferences: SharedPreferences) 
 
     fun save(instance: PrinterInstance): Boolean {
         require(instance.transportKind == PrinterTransportKind.BLUETOOTH_CLASSIC)
-        return preferences.edit().putInt("version", 1).putString("id", instance.id).putString("name", instance.displayName)
+        val previous = load()
+        if (editor(instance).commit()) return true
+        // commit() updates Android's memory cache even on disk failure; restore the previously confirmed value.
+        editor(previous).commit()
+        return false
+    }
+
+    private fun editor(instance: PrinterInstance?): SharedPreferences.Editor {
+        val editor = preferences.edit().clear()
+        if (instance != null) editor.putInt("version", 1).putString("id", instance.id).putString("name", instance.displayName)
             .putString("locator", instance.transportLocator).putString("profile", instance.profileId)
-            .putInt("revision", instance.profileRevision).commit()
+            .putInt("revision", instance.profileRevision)
+        return editor
     }
 }

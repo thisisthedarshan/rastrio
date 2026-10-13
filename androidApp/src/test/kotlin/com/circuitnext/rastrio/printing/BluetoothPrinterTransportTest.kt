@@ -57,7 +57,7 @@ class BluetoothPrinterTransportTest {
         assertEquals("android.permission.BLUETOOTH_CONNECT", bluetoothPermission(37))
     }
     @Test fun metadataIsBoundedAndControlsRemoved() {
-        assertEquals("Printer", safeDeviceName("\u001bPrinter\u202e"))
+        assertEquals("Printer", safeDeviceName("\u001bPrinter\u202e\u2028\u2029"))
         assertEquals(80, safeDeviceName("x".repeat(500)).length)
         assertEquals("Paired Bluetooth device", safeDeviceName(null))
     }
@@ -122,4 +122,52 @@ class BluetoothPrinterTransportTest {
         assertEquals(256, socket.bytes.size)
         transport.close()
     }
+    @Test fun bleOnlyDevicesAreVisibleButNeverUseTheClassicSocketPath() {
+        val ble = PairedPrinterDevice("private", "BLE printer", bluetoothDeviceKind(2))
+        assertEquals(BluetoothDeviceKind.BLE_ONLY, ble.kind)
+        assertFalse(ble.supportsClassic)
+        assertEquals(TransportFailure.BLUETOOTH_BLE_INCOMPATIBLE,
+            assertFailsWith<PrinterTransportException> { requireClassicDevice(ble.kind) }.failure)
+        assertEquals(BluetoothDeviceKind.CLASSIC, bluetoothDeviceKind(1))
+        assertEquals(BluetoothDeviceKind.DUAL, bluetoothDeviceKind(3))
+        assertEquals(BluetoothDeviceKind.UNKNOWN, bluetoothDeviceKind(0))
+        requireClassicDevice(BluetoothDeviceKind.DUAL)
+        assertFalse(ble.toString().contains("private"))
+    }
+
+    @Test fun incompatiblePrinterTransportIsRejectedBeforeSocketCreation(): Unit = runBlocking {
+        var opened = false
+        val transport = BluetoothPrinterTransport({ opened = true; Socket() }, TransportConstraints(4))
+        val failure = assertFailsWith<PrinterTransportException> {
+            transport.connect(instance().copy(transportKind = PrinterTransportKind.DEVELOPMENT))
+        }
+        assertEquals(TransportFailure.TRANSPORT_INCOMPATIBLE, failure.failure)
+        assertFalse(opened)
+    }
+
+    @Test fun discoveryStatesHaveSeparateActionableDiagnostics() {
+        val diagnostics = TransportFailure.entries.map(::bluetoothDiagnostic)
+        assertEquals(TransportFailure.entries.size, diagnostics.distinct().size)
+        assertTrue(bluetoothDiagnostic(TransportFailure.BLUETOOTH_DISABLED).contains("Turn Bluetooth on"))
+        assertTrue(bluetoothDiagnostic(TransportFailure.BLUETOOTH_UNAVAILABLE).contains("adapter"))
+        assertTrue(bluetoothDiagnostic(TransportFailure.BLUETOOTH_BLE_INCOMPATIBLE).contains("verified GATT"))
+    }
+
+    @Test fun cancelledStalledConnectionClosesSocketWithoutWriting(): Unit = runBlocking {
+        val entered = CountDownLatch(1)
+        val released = CountDownLatch(1)
+        var writes = 0
+        val transport = BluetoothPrinterTransport({ object : PrinterSocket {
+            override fun connect() { entered.countDown(); released.await(); throw IOException("Closed") }
+            override fun write(bytes: ByteArray, offset: Int, length: Int) { writes++ }
+            override fun close() { released.countDown() }
+        } }, TransportConstraints(4))
+        val job = launch(kotlinx.coroutines.Dispatchers.Default) { transport.connect(instance()) }
+        assertTrue(entered.await(1, java.util.concurrent.TimeUnit.SECONDS))
+        job.cancel()
+        withTimeout(1000) { job.join() }
+        assertEquals(0L, released.count)
+        assertEquals(0, writes)
+    }
+
 }

@@ -159,6 +159,8 @@ class PrintSession(
             throw failure
         } catch (failure: PrintDeliveryFailure) {
             fail(failure.code)
+        } catch (failure: PrinterTransportException) {
+            fail(failure.failure.name)
         } catch (_: Exception) {
             fail("TRANSPORT_FAILURE")
         } finally {

@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -48,7 +49,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.job
 
-private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW, TEMPLATES, TEMPLATE_PREVIEW, TEMPLATE_LOGICAL_PREVIEW, PRINTER_MANAGEMENT, PRINTER_LAB }
+private enum class AuthoringRoute { HOME, MARKDOWN, PREVIEW, PRINTER_SETUP, PHYSICAL_PREVIEW, IMAGE, IMAGE_PREVIEW, TEMPLATES, TEMPLATE_PREVIEW, TEMPLATE_LOGICAL_PREVIEW, PRINTER_MANAGEMENT, PRINTER_LAB, PROFILE_EDITOR }
 
 @Stable
 internal class ObservablePhysicalPreview(private val session: PhysicalPreviewSession) {
@@ -120,10 +121,35 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
     val printing = remember(printingPlatform, printingSessions) { printingSessions ?: printingPlatform?.let { PrinterSessionStore(it::createTransport) } }
     var selectedLocator by remember(printingPlatform) { mutableStateOf<String?>(null) }
     val printers = printingPlatform?.printers?.collectAsState()?.value ?: emptyList()
+    val pairedDevices = printingPlatform?.pairedDevices?.collectAsState()?.value ?: emptyList()
+    val restoredPrinter = printingPlatform?.selectedPrinter?.collectAsState()?.value
+    var addingPrinter by remember { mutableStateOf(false) }
+    var pendingDevice by remember { mutableStateOf<PairedPrinterDevice?>(null) }
+    val localDraftStorage = remember(printingPlatform) { printingPlatform?.profileDraftStorage ?: MemoryProfileDraftStorage() }
+    var profileDrafts by remember(localDraftStorage) { mutableStateOf(localDraftStorage.loadDrafts()) }
+    var editingDraft by rememberSaveable(stateSaver = Saver<ProfileDraft?, String>(
+        save = { draft -> draft?.let { runCatching { it.encodeLocal() }.getOrNull() } },
+        restore = { ProfileDraft.decodeLocal(it) },
+    )) { mutableStateOf<ProfileDraft?>(null) }
+    var profileEditorStatus by remember { mutableStateOf("") }
+    val saveDraft: () -> Boolean = {
+        val draft = editingDraft
+        if (draft != null) {
+            val next = profileDrafts.filterNot { it.draftId == draft.draftId } + draft
+            val saved = runCatching { localDraftStorage.saveDrafts(next) }.getOrDefault(false)
+            if (saved) profileDrafts = next
+            profileEditorStatus = if (saved) "Local draft saved; no printer connection or output was started"
+                else "APP145: Draft could not be saved (maximum 32 bounded drafts)"
+            saved
+        } else false
+    }
+    val newDraftId = { "org.rastrio.local.p" + kotlin.random.Random.nextLong().toULong().toString(16) }
     val importedProfile = printingPlatform?.profile?.collectAsState()?.value
     val platformStatus = printingPlatform?.status?.collectAsState()?.value.orEmpty()
     val foreground = printingPlatform?.foreground?.collectAsState()?.value ?: true
-    val selected = printers.find { it.transportLocator == selectedLocator }
+    // Classic output waits for the platform's confirmed private association; development fakes have no durable selector.
+    val selected = printers.find { it.transportLocator == selectedLocator &&
+        (it.transportKind == PrinterTransportKind.DEVELOPMENT || it == restoredPrinter) }
     val printSession = selected?.let { printing?.session(it) }
     val printState = printSession?.state?.collectAsState()?.value ?: PrintSessionState()
     val scope = rememberCoroutineScope()
@@ -159,6 +185,17 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
     }
     DisposableEffect(printing) { onDispose { printing?.cancelAll(); preparationJob?.cancel() } }
     LaunchedEffect(route, foreground) { printing?.cancelAll(); cancelPreparation() }
+    LaunchedEffect(route, editingDraft == null) {
+        if (route == AuthoringRoute.PROFILE_EDITOR && editingDraft == null) route = AuthoringRoute.PRINTER_MANAGEMENT
+    }
+    LaunchedEffect(restoredPrinter) {
+        if (restoredPrinter != null) {
+            selectedLocator = restoredPrinter.transportLocator
+            if (pendingDevice?.locator == restoredPrinter.transportLocator) {
+                addingPrinter = false; pendingDevice = null
+            }
+        }
+    }
     LaunchedEffect(pickedImage) {
         if (image.state.input != pickedImage) {
             printing?.cancelAll(); cancelPreparation(); image.select(pickedImage); physical.invalidate()
@@ -240,12 +277,60 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
                     printingControls = printingControls,
                     onBack = { route = AuthoringRoute.HOME },
                     onLab = { route = AuthoringRoute.PRINTER_LAB },
+                    onCreate = {
+                        editingDraft = ProfileDraft.fresh(newDraftId()); profileEditorStatus = ""
+                        enterAuthoring(AuthoringRoute.PROFILE_EDITOR)
+                    },
+                    drafts = profileDrafts,
+                    onEdit = { editingDraft = it; profileEditorStatus = ""; enterAuthoring(AuthoringRoute.PROFILE_EDITOR) },
+                    onDuplicate = {
+                        editingDraft = ProfileDraft.fromProfile(importedProfile ?: physical.state.profile, newDraftId())
+                        profileEditorStatus = "Duplicated into a local draft; review identity and evidence"
+                        enterAuthoring(AuthoringRoute.PROFILE_EDITOR)
+                    },
+                    onDuplicateDraft = {
+                        val id = newDraftId()
+                        editingDraft = it.copy(draftId = id).withField("profileId", id)
+                        profileEditorStatus = "Duplicated local draft; synthetic origin and evidence are preserved"
+                        enterAuthoring(AuthoringRoute.PROFILE_EDITOR)
+                    },
+                    pairedDevices = pairedDevices, addingPrinter = addingPrinter, pendingDevice = pendingDevice,
+                    physicalProfile = importedProfile,
+                    onAdd = { addingPrinter = true; pendingDevice = null; printingPlatform?.refreshPairedPrinters() },
+                    onDevice = { pendingDevice = it },
+                    onSavePrinter = {
+                        val device = pendingDevice
+                        if (device != null && importedProfile != null) {
+                            printingPlatform?.savePrinter(device, importedProfile)
+                            selectedLocator = printingPlatform?.selectedPrinter?.value?.transportLocator
+                            if (selectedLocator == device.locator) { addingPrinter = false; pendingDevice = null }
+                        }
+                    },
                     onProfile = {
                         printing?.cancelAll(); cancelPreparation()
                         physical.configure(it, physical.state.options.copy(cutIntent = CutIntent.NONE))
                         image.configure(it)
                     })
+                AuthoringRoute.PROFILE_EDITOR -> editingDraft?.let { draft ->
+                    ProfileEditorScreen(draft, onDraft = { editingDraft = it; profileEditorStatus = "" },
+                        onSave = { saveDraft() },
+                        onActivate = { profile ->
+                            if (saveDraft()) {
+                            if (printingPlatform?.activateProfile(profile) == true) {
+                                physical.configure(profile, physical.state.options.copy(cutIntent = CutIntent.NONE))
+                                image.configure(profile)
+                                route = AuthoringRoute.PRINTER_MANAGEMENT
+                            } else profileEditorStatus = "APP144: This platform could not activate the validated profile"
+                            }
+                        },
+                        onBack = { route = AuthoringRoute.PRINTER_MANAGEMENT },
+                        onLab = { route = AuthoringRoute.PRINTER_LAB }, status = profileEditorStatus)
+                }
                 AuthoringRoute.PRINTER_LAB -> PrinterLabScreen(
+                    calibrationControls = { CalibrationControls(editingDraft, printingPlatform, onEdit = {
+                        if (editingDraft == null) editingDraft = ProfileDraft.fresh(newDraftId())
+                        enterAuthoring(AuthoringRoute.PROFILE_EDITOR)
+                    }) },
                     onBack = { route = AuthoringRoute.PRINTER_MANAGEMENT },
                     onQrFixture = {
                         enterAuthoring(AuthoringRoute.TEMPLATES)

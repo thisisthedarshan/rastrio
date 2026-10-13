@@ -3274,3 +3274,45 @@ recorded prerequisites, explicit bounded prints, physical-output accounting and
 no-automatic-retry rules. EAN13 host-command execution remains outside this minimal
 foundation: the semantic/prepared barcode operation is not implemented, so the
 firmware self-test observation cannot enable or demonstrate host support.
+
+
+## Phase 14 application calibration and Android runtime evidence (2026-10-13)
+
+Operator-supplied actual Android result: API 34, arm64-v8a,
+`BundledTextRuntimeInstrumentation.bundledReferenceBackendAndPreparedArtifacts`,
+`OK (1 test)` and `RastrIO Android reference backend and artifact gate PASS`.
+This establishes renderer/artifact runtime acceptance for that device configuration.
+No final instrumentation result code was supplied. Other ABIs and physical
+printer behavior remain unverified; this is not a paper-output HW-014–019 PASS.
+
+The shared Printer Lab now creates HW-037 geometry, HW-001/002/004 native-font,
+HW-036 CP437, HW-007 raster, HW-018/019 raster-QR, HW-017 native-QR and HW-029
+buffer/chunk semantic fixtures. All physical procedures remain **NOT RUN**.
+Candidate values require explicit strict Core validation, but never become an
+ordinary profile from an experiment. One experiment is capped at 1,024 columns,
+64 finalized pattern rows, 1,048,576 oversampled source pixels, 16 sample lines, 256 UTF-8 QR payload bytes, 256 prepared
+operations, 2,048 output rows, 48 KiB finalized graphics and 64 KiB encoded output.
+Preparation and encoder preflight run before any socket is opened. Every output
+attempt requires explicit experimental confirmation; partial-output state and
+user-confirmed retry apply. Native font/CP437 procedures reject raster fallback;
+native QR requires an actual native prepared operation.
+
+Transport requests are intersected with platform ceilings. Record the displayed
+effective maximum write size and pacing plus actual acknowledged writes, not only
+the requested setting. The current Android transport ceiling is 1,024 bytes; the
+Lab cannot prove larger writes merely by requesting them. This ceiling is
+application policy, not measured H50i buffer capacity.
+
+After independent paper measurements and captured-byte/scan evidence, update the
+worksheet evidence and this permanent run record deliberately. Neither a checkbox,
+a preview, local socket acknowledgement nor a completed software test marks a
+hardware procedure passed. Do not enable EAN13 from the firmware self-test: this
+change adds no prepared barcode operation.
+
+Known-dot geometry/raster patterns use a bounded oversampled semantic image to
+preserve target-dot intervals across unequal explicit candidate DPI axes while
+still using normal Core image preparation. Patterns wider than the candidate
+raster capability or exceeding the source-pixel budget are rejected before allocation.
+The eight-dot grid intervals are asserted against finalized packed artifacts;
+input-image pixels are not silently treated as printer dots. Measure each physical
+axis independently even when the candidate axes happen to be equal.

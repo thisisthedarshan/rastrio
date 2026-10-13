@@ -69,7 +69,7 @@ internal fun PrintingControls(
         Text(printSessionMessage(state), style = MaterialTheme.typography.bodySmall)
         if (state.outputMayExist && !active) Text("Locally acknowledged: ${state.bytesTransferred} bytes",
             style = MaterialTheme.typography.bodySmall)
-        if (state.diagnosticCode != null) Text("Print diagnostic: ${state.diagnosticCode}", color = LocalAuthoringColors.current.error)
+        if (state.diagnosticCode != null) Text(printDiagnosticMessage(state.diagnosticCode), color = LocalAuthoringColors.current.error)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AuthoringButton("Print prepared document", eligible && !active && !state.outputMayExist, onPrint)
             AuthoringButton("Cancel print", active, onClick = { session?.cancel() })
@@ -104,4 +104,17 @@ internal fun printSessionMessage(state: PrintSessionState): String = when (state
     PrintSessionPhase.DISCONNECTED -> "Printer disconnected"
     PrintSessionPhase.AWAITING_RETRY_CONFIRMATION -> "Confirm duplicate-print risk before another attempt"
     PrintSessionPhase.RETRY_REQUESTED -> "New attempt explicitly confirmed"
+}
+
+internal fun printDiagnosticMessage(code: String): String = when (code) {
+    "BLUETOOTH_PERMISSION_REQUIRED" -> "Allow Nearby devices permission, then refresh paired printers."
+    "BLUETOOTH_UNAVAILABLE" -> "This Android device has no available Bluetooth adapter."
+    "BLUETOOTH_DISABLED" -> "Enable Bluetooth in Android settings, then refresh."
+    "BLUETOOTH_DEVICE_ABSENT" -> "The selected printer is not paired or is no longer available. Pair it in Android settings."
+    "BLUETOOTH_BLE_INCOMPATIBLE" -> "This device is BLE-only. Printing requires Classic SPP; a verified GATT transport is not configured."
+    "BLUETOOTH_SPP_CONNECTION_FAILED" -> "Classic SPP socket connection failed. Check printer power, pairing and whether another app is connected. SPP compatibility is not confirmed."
+    "TRANSPORT_INCOMPATIBLE" -> "The selected printer transport cannot use this connection."
+    "PROFILE_MISMATCH" -> "The prepared profile differs from the printer assignment. Prepare again with the assigned profile."
+    "TRANSPORT_TIMEOUT" -> "Printer communication timed out. Inspect paper output before requesting another attempt."
+    else -> "Print diagnostic: $code"
 }
