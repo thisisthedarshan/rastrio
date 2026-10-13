@@ -17,10 +17,14 @@ fi
 
 echo -e "${BOLD}${BLUE}▶ Running RastrIO verification...${RESET}"
 
+python3 scripts/generate_android_branding.py --check
+python3 scripts/test_android_branding.py
+
 if ./gradlew check \
     :androidApp:assembleDebug \
     :desktopApp:compileKotlin
 then
+    python3 scripts/test_android_branding.py --apk androidApp/build/outputs/apk/debug/androidApp-debug.apk
     echo -e "${BOLD}${GREEN}✓ RastrIO verification passed.${RESET}"
 else
     echo -e "${BOLD}${RED}✗ RastrIO verification failed.${RESET}" >&2

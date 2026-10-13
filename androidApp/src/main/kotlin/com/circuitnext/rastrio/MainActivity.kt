@@ -16,6 +16,7 @@
 package com.circuitnext.rastrio
 
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.pm.PackageManager
 import androidx.activity.result.contract.ActivityResultContracts
 import com.circuitnext.rastrio.printing.AndroidPrintingPlatform
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
