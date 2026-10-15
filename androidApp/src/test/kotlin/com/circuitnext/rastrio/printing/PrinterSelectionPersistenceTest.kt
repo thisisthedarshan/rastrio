@@ -47,6 +47,17 @@ class PrinterSelectionPersistenceTest {
         assertFalse(store.isCurrent(firstRequest))
     }
 
+    @Test fun clearingSelectionSupersedesOldRequestsAndUsesSerializedPersistence() = runBlocking {
+        var persisted: PrinterInstance? = instance("a")
+        val store = PrinterSelectionPersistence { persisted = it; true }
+        val old = store.request()
+        val deletion = store.request()
+        assertTrue(store.clear(deletion) { persisted = null; true })
+        assertFalse(store.save(old, instance("a")))
+        assertNull(persisted)
+        assertFalse(store.clear(deletion) { false })
+    }
+
     @Test fun supersededQueuedRequestsAndFailedWritesCannotConfirmSelection() = runBlocking {
         var writes = 0
         val store = PrinterSelectionPersistence { writes++; false }

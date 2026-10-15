@@ -26,6 +26,12 @@ object PrinterProfileFiles {
     fun validate(profile: PrinterProfile): ProfileValidationResult<ValidatedPrinterProfile> =
         physical(validator.validate(profile))
 
+    fun resolve(profile: PrinterProfile, overrides: PrinterProfileOverride): ProfileValidationResult<EffectivePrinterProfile> =
+        when (val base = validate(profile)) {
+            is ProfileValidationResult.Failure -> base
+            is ProfileValidationResult.Success -> validator.resolve(base.value, overrides)
+        }
+
     fun decode(bytes: ByteArray): ProfileValidationResult<ValidatedPrinterProfile> = physical(codec.decode(bytes))
 
     fun encode(profile: PrinterProfile): ProfileValidationResult<ByteArray> = when (val result = validate(profile)) {

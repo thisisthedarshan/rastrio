@@ -3125,8 +3125,13 @@ Logical consumers use `LogicalTableBlock` columns, rows, cells, content bounds a
 finalized text lines/runs. Header/body identity is explicit; the logical v1 policy
 adds no implicit header style, cell border or gap. Column bounds span table height.
 Consumers must not resize columns, wrap cell text, infer row heights or realign content.
-TextLayoutPolicyV1's approved equal-column, 0.25-em padding and explicit block-spacing
+The approved weighted-column (default equal), 0.25-em padding and explicit block-spacing
 rules are specified in TEXT_RENDERING_SPEC's Phase 3C2 section.
+Headerless semantic tables have no synthetic header in logical or physical preview.
+Their weighted widths and first-line cell alignment are finalized by Core layout;
+preview consumes those positions and must not recalculate widths or wrap names.
+The prepared artifacts remain the authoritative source for physical preview/encoding.
+
 
 Logical image placeholders retain asset/sizing/alt-text intent and explicitly unresolved
 intrinsic dimensions. Their approved square geometry is a placeholder, not a decoded

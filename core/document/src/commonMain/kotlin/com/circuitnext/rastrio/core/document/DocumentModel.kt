@@ -69,7 +69,7 @@ data class Image(
     val altText: String? = null,
 ) : DocumentBlock
 
-data class TableColumn(val alignment: Alignment)
+data class TableColumn(val alignment: Alignment, val widthWeight: Int = 1)
 data class TableCell(val content: List<InlineContent>, val alignment: Alignment? = null)
 data class Table(
     val columns: List<TableColumn>,

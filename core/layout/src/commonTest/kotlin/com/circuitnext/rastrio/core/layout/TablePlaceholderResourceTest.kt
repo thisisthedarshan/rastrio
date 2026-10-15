@@ -41,7 +41,7 @@ class TablePlaceholderResourceTest {
 
     @Test fun malformedTablesFailBeforeAnyDocumentMeasurement() {
         noMeasurement(Table(emptyList(), emptyList(), emptyList()), code = "LAY105")
-        noMeasurement(Table(listOf(TableColumn(Alignment.LEFT)), emptyList(), emptyList()), code = "LAY105")
+        noMeasurement(Table(listOf(TableColumn(Alignment.LEFT)), listOf(cell(), cell()), emptyList()), code = "LAY105")
         noMeasurement(Table(listOf(TableColumn(Alignment.LEFT)), listOf(cell()), listOf(emptyList())), code = "LAY105")
         noMeasurement(Table(listOf(TableColumn(Alignment.LEFT)), listOf(cell()), listOf(listOf(cell(), cell()))), code = "LAY105")
     }

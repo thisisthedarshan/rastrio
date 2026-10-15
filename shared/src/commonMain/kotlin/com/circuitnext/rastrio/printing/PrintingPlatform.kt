@@ -21,8 +21,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 /** OS access is explicit; ordinary selection and job UI remain shared. */
 interface PrintingPlatform {
+    val discoveryState: StateFlow<DeviceDiscoveryState> get() = EmptyPrintingState.discovery
+    suspend fun inspectPrinter(device: PairedPrinterDevice): PrinterInspection = metadataInspection(device)
     val pairedDevices: StateFlow<List<PairedPrinterDevice>> get() = EmptyPrintingState.devices
     val selectedPrinter: StateFlow<PrinterInstance?> get() = EmptyPrintingState.selected
+    val selectedProfile: StateFlow<PrinterProfile?> get() = profile
+    val presence: StateFlow<PrinterPresence> get() = EmptyPrintingState.presence
+    fun refreshPresence() = Unit
+    fun cancelPresence() = Unit
+    fun updatePrinterDefaults(instance: PrinterInstance, defaults: PrinterPrintDefaults) = Unit
+    fun removePrinter(instance: PrinterInstance) = Unit
+    fun assignProfile(instance: PrinterInstance, profile: PrinterProfile) = Unit
     val profileDraftStorage: ProfileDraftStorage get() = EmptyPrintingState.drafts
     fun activateProfile(profile: PrinterProfile): Boolean = false
     fun savePrinter(device: PairedPrinterDevice, profile: PrinterProfile) = Unit
@@ -34,11 +43,15 @@ interface PrintingPlatform {
     fun importProfile()
     val supportsProfileExport: Boolean get() = false
     fun exportProfile() = Unit
+    val supportsProfileDeletion: Boolean get() = false
+    fun deleteProfile() = Unit
     fun selectPrinter(instance: PrinterInstance)
     fun createTransport(): PrinterTransport
 }
 
 private object EmptyPrintingState {
+    val presence: StateFlow<PrinterPresence> = MutableStateFlow(PrinterPresence.NOT_CHECKED)
+    val discovery: StateFlow<DeviceDiscoveryState> = MutableStateFlow(DeviceDiscoveryState())
     val devices: StateFlow<List<PairedPrinterDevice>> = MutableStateFlow(emptyList())
     val selected: StateFlow<PrinterInstance?> = MutableStateFlow(null)
     val drafts: ProfileDraftStorage = MemoryProfileDraftStorage()

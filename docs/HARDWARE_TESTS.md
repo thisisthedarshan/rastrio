@@ -3238,11 +3238,26 @@ profile evidence record deliberately; there is no automatic capability promotion
 
 ### HW-037 — Geometry calibration and development-profile gate
 
-**Prerequisites:** actual unit and measurement tools; trustworthy independent dot
-density evidence or a documented, externally controlled raster test path. Do not
-substitute an arbitrary DPI or full-width dot count to bootstrap RastrIO printing.
-If the command path is unknown, capture documentation/bytes first and record the
-procedure as blocked. A width measured in millimetres alone cannot pass.
+**Prerequisites:** actual unit and measurement tools, plus an identified registered
+raster command path supported by documentation, captured bytes or an explicit
+operator experiment. The Lab may use clearly labelled provisional geometry only
+inside an explicitly selected bounded experiment, after the operator acknowledges
+that command compatibility and geometry are hypotheses. This does not establish a
+production profile, printable head width or verified DPI. The known-dot sample is
+bounded independently of candidate full width; never infer full head width from a
+small sample. If the operator cannot identify or knowingly select a command path,
+record the procedure as blocked. A width measured in millimetres alone cannot pass.
+
+The experimental starter uses only the registered generic ESC/POS initialization
+and GS v 0 raster strategy, no native text/QR/barcode, cutter or status operations.
+Its provisional DPI and width are experiment inputs, never detected capabilities.
+Preparing a preview sends nothing. Each sample requires separate informed print
+consent and must preserve immutable preparation, encoder/resource limits and
+conservative handling of partial or ambiguous output. No automatic retries.
+Measured horizontal and vertical spans of known dot intervals can propose each
+axis as `dots × 25.4 / measuredMm`. Proposed values remain operator observations
+until reviewed with repeatability, clipping and unit identity evidence; applying a
+measurement does not automatically create a VERIFIED record or activate printing.
 
 **Procedure:** record horizontal and vertical dot counts independently over known
 physical spans; repeat measurements to reduce ruler error. Record uncertainties,
@@ -3316,3 +3331,73 @@ raster capability or exceeding the source-pixel budget are rejected before alloc
 The eight-dot grid intervals are asserted against finalized packed artifacts;
 input-image pixels are not silently treated as printer dots. Measure each physical
 axis independently even when the candidate axes happen to be equal.
+
+
+## HW-038 — Explicit non-printing Android service inspection
+
+This procedure observes paired metadata/advertised Classic SDP services; it does
+not establish printer capabilities or print completion.
+
+1. Open Add Printer and choose the intended paired device; verify the list
+   collapses and the selected name/type remain visible. Selection must not open a
+   printer socket or transmit printer bytes.
+2. Read Inspect Printer's consent dialog and explicitly approve the bounded SDP
+   service request. No ESC/POS queries, initialization/reset, feed, cut, settings
+   changes or diagnostic print jobs are allowed.
+3. Record API/ABI, OS-reported Bluetooth type, cached/unknown service status and
+   SPP advertisement classification. Do not expose MAC addresses, PINs or serials
+   in public reports. Android may return cached ACTION_UUID data after an error;
+   type/name or a cached SPP advertisement does not prove socket compatibility.
+4. Check timeout/cancellation and changed-device cases through bounded fakes;
+   actual OS SDP may finish after cancellation but the local receiver must be
+   removed and late results must not publish. Never retry automatically.
+5. Review the resulting profile proposals. Leave geometry, selectors and command
+   capabilities unknown until separate documented/physical procedures establish
+   them. Save an incomplete worksheet as needed.
+
+Actual run, 2026-10-14: Android API 34, arm64-v8a, model 22041216I. Operator
+explicitly approved one non-printing check. The paired BillQuick-Go metadata is
+**dual-mode** and Android returned a **cached SPP advertisement**. This is
+OS/device-reported service observation; freshness, RFCOMM connection, native host
+commands and paper output remain **NOT VERIFIED**. No print payload was sent.
+
+## HW-035 inventory corroboration — operator self-test photo (2026-10-14)
+
+The operator supplied a photograph of the printer's own self-test page. It reports
+BillQuick-Go, USB Printing Port, firmware `3.15.20260504`, font version `1.00.00`,
+Bluetooth version `3.15.1`, print width 48 mm, font 12×24, CP437, maximum speed
+60 mm/sec, density 5 and auto feed 0 mm. The photographed paper contains ASCII,
+QR and EAN13 samples. Serial, MAC and PIN are intentionally not copied here; the
+unredacted photograph remains in the original user attachment.
+
+These are photographed firmware self-test observations, not RastrIO host-command
+acceptance. The photograph does not report effective DPI or printable dots; the
+58 mm paper value remains a separate earlier operator report. ASCII samples do
+not verify the complete CP437 mapping or its selector. Firmware QR/EAN13 output
+does not establish GS ( k/native EAN13 command compatibility. No new RastrIO print
+procedure was executed from this photo, and no production capability is promoted.
+
+
+## HW-038 — Operator-report candidate QR then Markdown (2026-10-15)
+
+Source report procedures retain their original PRINT/BT IDs; these are distinct
+new application checks. User authorized QR first, Markdown second.
+
+1. Compare the exact 59-byte PRINT-025/BT-004 vector SHA256 against the report.
+2. Send once on the reported unit/channel, with timeout and no retry.
+3. Obtain independent paper/scan observation before the next job.
+4. Strict-decode the experimental candidate, compile fixed non-private Markdown,
+   prepare with the bundled renderer, project the same plan to preview and encode
+   with512-byte chunks/131072-byte job ceiling. No cuts/status/native text.
+5. Deliver once with partial-send failure handling; do not replay on ambiguity.
+6. Record operator completeness, formatting and measured dimensions separately.
+
+Executed: Linux Classic RFCOMM channel1. QR59/59 transmitted; operator confirmed
+complete printing and exact H50I-QR-025 scan. Markdown9027/9027 transmitted;
+operator said everything prints, but heading and bold look alike. Prepared plan
+384×330dots/31operations; physical height/precise gaps unmeasured. USB unavailable
+to the process without sudo password; no USB bytes sent. No automatic retry.
+
+PASS scoped to reported QR scan and Markdown content. Precise motion, native
+text geometry, native QR positioning under the RastrIO encoder and sustained
+transport/recovery remain pending. Candidate remains experimental.

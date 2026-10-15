@@ -129,6 +129,38 @@ class TableFlowTest {
         assertEquals(10.000001, table.bounds.widthMm)
     }
 
+    @Test fun weightedHeaderlessRowsWrapNamesAndKeepQuantityOnFirstLine() {
+        val semantic = Table(listOf(TableColumn(Alignment.LEFT, 1), TableColumn(Alignment.LEFT, 7), TableColumn(Alignment.RIGHT, 2)),
+            emptyList(), listOf(listOf(cell("[]"), cell("Milk for breakfast and baking"), cell("2 L"))))
+        val table = resolved(semantic)
+        assertEquals(listOf(4.8, 33.6, 9.6), table.columns.map { it.bounds.widthMm })
+        assertFalse(table.rows.single().isHeader)
+        val cells = table.rows.single().cells
+        assertEquals(listOf("Milk for breakfast and baking"), cells[1].text.lines.map { it.runs.joinToString("") { it.text } })
+        assertEquals(cells[1].text.lines.first().baselineMm, cells[2].text.lines.single().baselineMm)
+        val wrapped = resolved(semantic.copy(rows = listOf(listOf(cell("[]"), cell("Milk for breakfast and baking ".repeat(3)), cell("2 L")))))
+        assertTrue(wrapped.rows.single().cells[1].text.lines.size > 1)
+        assertEquals(wrapped.rows.single().cells[1].text.lines.first().baselineMm, wrapped.rows.single().cells[2].text.lines.single().baselineMm)
+        assertEquals(44.0, cells[2].text.lines.single().bounds.xMm)
+    }
+
+    @Test fun weightedRemaindersCoverCanvasAndRuntimeInvalidWeightsFail() {
+        val semantic = Table(listOf(TableColumn(Alignment.LEFT, 2), TableColumn(Alignment.LEFT, 3), TableColumn(Alignment.RIGHT, 2)),
+            emptyList(), listOf(List(3) { cell() }))
+        val table = resolved(semantic, input.copy(canvasWidth = Length(21.000001)))
+        assertEquals(listOf(6.000001, 9.0, 6.0), table.columns.map { it.bounds.widthMm })
+        assertEquals(21.000001, table.bounds.widthMm)
+        assertEquals(listOf(0.0, 6.000001, 15.000001), table.columns.map { it.bounds.xMm })
+        for (weight in listOf(0, -1, 1001, Int.MAX_VALUE)) {
+            val result = FoundationLayoutEngine(AsciiFixedCellMeasurer()).layout(ThermalDocument(blocks = listOf(
+                semantic.copy(columns = listOf(TableColumn(Alignment.LEFT, weight), TableColumn(Alignment.LEFT), TableColumn(Alignment.RIGHT))))), input)
+            assertEquals("LAY105", assertIs<LayoutResult.Failure>(result).diagnostics.single().code)
+        }
+        val empty = resolved(Table(listOf(TableColumn(Alignment.LEFT)), emptyList(), emptyList()))
+        assertTrue(empty.rows.isEmpty())
+        assertEquals(0.0, empty.bounds.heightMm)
+    }
+
     @Test fun explicitWidthChangesWrappingAndLandscapeDoesNotSupplyWidth() {
         val semantic = table(2, listOf(cell("A".repeat(50)), cell("B")))
         for ((width, lineCount) in listOf(48.0 to 3, 100.0 to 2, 180.0 to 1)) {

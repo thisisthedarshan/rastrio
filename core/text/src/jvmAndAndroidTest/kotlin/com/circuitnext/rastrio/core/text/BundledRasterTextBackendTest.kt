@@ -23,6 +23,63 @@ import kotlin.test.assertIs
 
 class BundledRasterTextBackendTest {
     private val backend = BundledRasterTextBackend.create()
+    @Test fun arrowsUseGenuineFallbackFacesWithoutChangingBodyTextOrSplittingClusters() {
+        for (style in listOf(TextStyle(), TextStyle(weight = TextWeight.BOLD),
+            TextStyle(emphasis = true), TextStyle(weight = TextWeight.BOLD, emphasis = true))) {
+            val body = backend.typography(style)
+            val code = backend.typography(style.copy(role = TextRole.CODE))
+            assertTrue(body.metrics.ascentMm >= code.metrics.ascentMm)
+            assertTrue(body.metrics.descentMm >= code.metrics.descentMm)
+            assertTrue(body.metrics.lineHeightMm >= code.metrics.lineHeightMm)
+            val variant = when {
+                style.weight == TextWeight.BOLD && style.emphasis -> "BoldItalic"
+                style.weight == TextWeight.BOLD -> "Bold"
+                style.emphasis -> "Italic"
+                else -> "Regular"
+            }
+            for (arrow in listOf("↑", "→", "↓", "↗", "↘")) {
+                fun measured(text: String, typography: ResolvedTypography) = assertIs<TextMeasureResult.Success>(
+                    backend.measure(TextMeasureRequest(text, typography))).measurement
+                val mixed = measured("AV${arrow}To", body)
+                assertEquals(LogicalGeometry.normalize(measured("AV", body).advanceMm +
+                    measured(arrow, code).advanceMm + measured("To", body).advanceMm), mixed.advanceMm)
+                val request = RasterTextRequest("AV${arrow}To", body, 577, 64, 40, 203, 203, originDots = 16)
+                val raster = assertIs<RasterTextResult.Success>(backend.rasterize(request))
+                assertTrue("NotoSans-$variant@" in raster.fontIdentity)
+                assertTrue("JetBrainsMono-$variant@" in raster.fontIdentity)
+                assertContentEquals(raster.bitmap.copyBytes(), assertIs<RasterTextResult.Success>(backend.rasterize(request)).bitmap.copyBytes())
+                val standalone = assertIs<RasterTextResult.Success>(backend.rasterize(request.copy(text = arrow)))
+                val expected = assertIs<RasterTextResult.Success>(backend.rasterize(request.copy(text = arrow, typography = code)))
+                assertContentEquals(expected.bitmap.copyBytes(), standalone.bitmap.copyBytes())
+                assertTrue(standalone.bitmap.copyBytes().any { it.toInt() != 0 })
+                val combining = measured(arrow + "\u0301", body)
+                assertEquals(1, combining.clusters.size)
+                assertEquals(2, combining.clusters.single().endOffset)
+            }
+        }
+    }
+    @Test fun unsupportedSymbolsIdentifyCodePointWithoutDisclosingSurroundingText() {
+        val typography = backend.typography()
+        for ((symbol, point) in listOf("🎵" to "U+1F3B5", "🎼" to "U+1F3BC", "↗\uFE0F" to "U+FE0F")) {
+            val text = "private text $symbol private suffix"
+            val diagnostic = assertIs<TextMeasureResult.Failure>(backend.measure(TextMeasureRequest(text, typography))).diagnostics.single()
+            assertEquals("TXT130", diagnostic.code)
+            assertTrue(point in diagnostic.message, diagnostic.message)
+            assertTrue("private" !in diagnostic.message)
+            val raster = assertIs<RasterTextResult.Failure>(backend.rasterize(RasterTextRequest(text, typography, 577, 64, 40, 203, 203)))
+            assertTrue(point in raster.diagnostics.single().message)
+        }
+    }
+    @Test fun arrowFallbackKeepsRunBoundsAndCancellation() {
+        val typography = backend.typography()
+        val exact = "A↑".repeat(128)
+        assertIs<TextMeasureResult.Success>(backend.measure(TextMeasureRequest(exact, typography)))
+        assertEquals("TXT120", assertIs<TextMeasureResult.Failure>(backend.measure(TextMeasureRequest(exact + "A", typography))).diagnostics.single().code)
+        assertEquals("TXT120", assertIs<RasterTextResult.Failure>(backend.rasterize(RasterTextRequest(exact + "A", typography, 8192, 64, 40, 203, 203))).diagnostics.single().code)
+        var polls = 0
+        assertIs<TextMeasureResult.Failure>(backend.measure(TextMeasureRequest(exact, typography)) { ++polls >= 8 })
+        assertEquals(8, polls)
+    }
     @Test fun genuineShapingAndDeterministicRaster() {
         val typography = backend.typography(sizeMm = 3.0)
         for (text in listOf("Hello", "a\u0301", "क्षि", "नमस्ते", "Latin हिन्दी", "Ελληνικά Привет", "iİıI")) {

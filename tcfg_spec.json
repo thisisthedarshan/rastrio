@@ -1,0 +1,1202 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "tcfg_spec.json",
+  "$comment": "Copyright 2026 Darshan <darshan@alchiemy.com>\n\nLicensed under the Apache License, Version 2.0 (the \"License\");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at\n    http://www.apache.org/licenses/LICENSE-2.0\n\nUnless required by applicable law or agreed to in writing, software\ndistributed under the License is distributed on an \"AS IS\" BASIS,\nWITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\nSee the License for the specific language governing permissions and\nlimitations under the License.",
+  "title": "RastrIO .tcfg v1 printer profile",
+  "type": "object",
+  "description": "Editor autocomplete and structural validation for docs/TCFG_SPEC.md v1.1. Associate externally: $schema is not a valid profile property. RastrIO still validates registry support, dialect compatibility, cross-field comparisons, local ID uniqueness, exact integer tokens, strict JSON syntax, Unicode, resource policy, and hardware evidence.",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "schemaVersion",
+    "profileId",
+    "profileRevision",
+    "display",
+    "geometry",
+    "nativeText",
+    "raster",
+    "nativeQr",
+    "nativeBarcode",
+    "cutter",
+    "statusQuery",
+    "protocol",
+    "quirks"
+  ],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "rastrio-tcfg",
+      "description": "Stable portable printer-profile format identifier."
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Portable .tcfg schema version, independent of profileRevision."
+    },
+    "profileId": {
+      "description": "Stable reusable profile identity; never a paired device ID.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "profileRevision": {
+      "description": "Revision of capability data for this profileId.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/positiveInteger"
+        }
+      ]
+    },
+    "display": {
+      "$ref": "#/definitions/display"
+    },
+    "geometry": {
+      "$ref": "#/definitions/geometry"
+    },
+    "nativeText": {
+      "$ref": "#/definitions/nativeText"
+    },
+    "raster": {
+      "$ref": "#/definitions/raster"
+    },
+    "nativeQr": {
+      "$ref": "#/definitions/nativeQr"
+    },
+    "nativeBarcode": {
+      "$ref": "#/definitions/nativeBarcode"
+    },
+    "cutter": {
+      "$ref": "#/definitions/cutter"
+    },
+    "printerBuffer": {
+      "$ref": "#/definitions/printerBuffer"
+    },
+    "statusQuery": {
+      "$ref": "#/definitions/statusQuery"
+    },
+    "protocol": {
+      "$ref": "#/definitions/protocol"
+    },
+    "quirks": {
+      "type": "array",
+      "description": "Registered, dialect-compatible quirk IDs only. The baseline registry has no quirks; the illustrative feed-after-band quirk is not registered.",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/identifier"
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "nativeText": {
+          "properties": {
+            "supported": {
+              "const": true
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    {
+      "properties": {
+        "raster": {
+          "properties": {
+            "supported": {
+              "const": true
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  ],
+  "definitions": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$",
+      "not": {
+        "pattern": "[^a-z0-9._-]"
+      },
+      "description": "Case-sensitive ASCII identity, not a path, URL, class name, or executable reference."
+    },
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647,
+      "description": "Positive 32-bit integer. Use a literal integer token, without decimals or exponents. Application resource policy may impose tighter limits."
+    },
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647,
+      "description": "Non-negative 32-bit integer. Use a literal integer token, without decimals or exponents."
+    },
+    "displayString": {
+      "type": "string",
+      "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f-\\u009f]*$",
+      "description": "Untrusted Unicode display text. Tab, newline, and carriage return are permitted; other C0/C1 controls are rejected. RastrIO enforces valid Unicode and UTF-8 byte limits."
+    },
+    "dialect": {
+      "description": "Registered ESC/POS dialect; determines strategy compatibility and any documented defaults. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.generic"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "initializationStrategy": {
+      "description": "Trusted printer initialization strategy. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.init.standard"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "fontStrategy": {
+      "description": "Trusted native-font selection strategy. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.font.esc-m"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "codePageStrategy": {
+      "description": "Trusted code-page selection strategy. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.code-page.esc-t"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "rasterStrategy": {
+      "description": "Trusted raster serialization strategy, not an imported byte template. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.raster.gs-v-0"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "qrStrategy": {
+      "description": "Trusted host-accessible native QR strategy. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.qr.model2"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "barcodeStrategy": {
+      "description": "Trusted host-accessible native barcode strategy. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.barcode.gs-k"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "cutStrategy": {
+      "description": "Trusted automatic cutter strategy. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.cut.gs-v"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "statusStrategy": {
+      "description": "Trusted status-query strategy. This alone does not prove physical paper output completed. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "escpos.status.dle-eot"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "repertoire": {
+      "description": "Registered native character repertoire; no byte-to-Unicode mapping tables are embedded here. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "cp437"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "qrModel": {
+      "description": "Registered native QR model. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "model2"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "barcodeSymbology": {
+      "description": "Registered native barcode symbology. Payload checks belong to preparation. Other identifiers require a trusted registry entry in the running application.",
+      "anyOf": [
+        {
+          "enum": [
+            "code128",
+            "ean13"
+          ]
+        },
+        {
+          "$ref": "#/definitions/identifier"
+        }
+      ]
+    },
+    "display": {
+      "type": "object",
+      "description": "Reusable printer-model metadata, not a paired-device identity.",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "description": "Human-facing profile name; does not select printer behavior.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/displayString"
+            }
+          ]
+        },
+        "manufacturer": {
+          "description": "Optional manufacturer label; not a device matching rule.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/displayString"
+            }
+          ]
+        },
+        "model": {
+          "description": "Optional model label; not a device matching rule.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/displayString"
+            }
+          ]
+        }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "description": "Physical printer geometry. Continuous paper has no fixed page height.",
+      "additionalProperties": false,
+      "required": [
+        "horizontalDpi",
+        "verticalDpi",
+        "printableWidthDots"
+      ],
+      "properties": {
+        "horizontalDpi": {
+          "description": "Validated horizontal printer dot density; independent of vertical DPI.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "verticalDpi": {
+          "description": "Validated vertical printer dot density.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "printableWidthDots": {
+          "description": "Reliable printable width in printer dots. Millimetres are derived from width and horizontal DPI.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        }
+      }
+    },
+    "fontSelector": {
+      "type": "object",
+      "description": "Typed selector for a trusted strategy; never raw printer command bytes.",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "parameter"
+      ],
+      "properties": {
+        "strategy": {
+          "$ref": "#/definitions/fontStrategy"
+        },
+        "parameter": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "Literal integer selector parameter. Its domain is owned by the registered strategy."
+        }
+      },
+      "if": {
+        "properties": {
+          "strategy": {
+            "const": "escpos.font.esc-m"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "parameter": {
+            "type": "integer",
+            "enum": [
+              0,
+              1
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    "codePageSelector": {
+      "type": "object",
+      "description": "Typed selector for a trusted strategy; never raw printer command bytes.",
+      "additionalProperties": false,
+      "required": [
+        "strategy",
+        "parameter"
+      ],
+      "properties": {
+        "strategy": {
+          "$ref": "#/definitions/codePageStrategy"
+        },
+        "parameter": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647,
+          "description": "Literal integer selector parameter. Its domain is owned by the registered strategy."
+        }
+      },
+      "if": {
+        "properties": {
+          "strategy": {
+            "const": "escpos.code-page.esc-t"
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "parameter": {
+            "minimum": 0,
+            "maximum": 255,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "font": {
+      "type": "object",
+      "description": "Validated printer-native font geometry and selection.",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "cellWidthDots",
+        "cellHeightDots"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable profile-local font ID; must be unique among fonts.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/identifier"
+            }
+          ]
+        },
+        "cellWidthDots": {
+          "description": "Native printer font cell width in dots.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "cellHeightDots": {
+          "description": "Native printer font cell height in dots.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "lineAdvanceDots": {
+          "description": "Native line advance in dots. Omission requires a documented trusted default; escpos.generic has none.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "selector": {
+          "description": "Omission requires an unambiguous registered protocol-default font; escpos.generic has none.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/fontSelector"
+            }
+          ]
+        }
+      }
+    },
+    "codePage": {
+      "type": "object",
+      "description": "Known native character repertoire and its validated selector.",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "repertoire"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable profile-local code-page ID; must be unique among codePages.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/identifier"
+            }
+          ]
+        },
+        "repertoire": {
+          "$ref": "#/definitions/repertoire"
+        },
+        "selector": {
+          "description": "Omission requires an unambiguous registered default repertoire; escpos.generic has none.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/codePageSelector"
+            }
+          ]
+        }
+      }
+    },
+    "styles": {
+      "type": "object",
+      "description": "Explicit native style capabilities; no support is inferred.",
+      "additionalProperties": false,
+      "required": [
+        "bold",
+        "underline",
+        "widthScales",
+        "heightScales"
+      ],
+      "properties": {
+        "bold": {
+          "type": "boolean",
+          "description": "Whether native bold is supported."
+        },
+        "underline": {
+          "type": "boolean",
+          "description": "Whether native underline is supported."
+        },
+        "widthScales": {
+          "type": "array",
+          "description": "Supported native width multipliers; non-empty when native text is enabled. Canonical writers sort ascending.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/positiveInteger"
+          }
+        },
+        "heightScales": {
+          "type": "array",
+          "description": "Supported native height multipliers; non-empty when native text is enabled. Canonical writers sort ascending.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/positiveInteger"
+          }
+        }
+      }
+    },
+    "nativeText": {
+      "type": "object",
+      "description": "Printer-resident text capability. Unsupported text requires raster fallback or a diagnostic.",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "fonts",
+        "styles",
+        "codePages"
+      ],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether native text is available as an output path."
+        },
+        "fonts": {
+          "type": "array",
+          "description": "Native fonts; IDs must be unique. Empty when native text is disabled.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/font"
+          }
+        },
+        "styles": {
+          "$ref": "#/definitions/styles"
+        },
+        "codePages": {
+          "type": "array",
+          "description": "Native repertoires; IDs must be unique. Empty when native text is disabled.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/codePage"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "supported": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "fonts": {
+            "minItems": 1,
+            "type": "array"
+          },
+          "codePages": {
+            "minItems": 1,
+            "type": "array"
+          },
+          "styles": {
+            "properties": {
+              "widthScales": {
+                "minItems": 1,
+                "type": "array"
+              },
+              "heightScales": {
+                "minItems": 1,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "fonts": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "codePages": {
+            "maxItems": 0,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "bandHeight": {
+      "type": "object",
+      "description": "Printer-side raster band heights in dots. RastrIO checks min <= preferred <= max and byte budgets. These are not transport write sizes.",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "preferred",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "description": "Minimum reliable raster band height.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "preferred": {
+          "description": "Recommended preparation band height.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "max": {
+          "description": "Maximum reliable raster band height.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        }
+      }
+    },
+    "raster": {
+      "type": "object",
+      "description": "Validated raster output path.",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "strategies"
+      ],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether this printer capability is validated and supported."
+        },
+        "strategies": {
+          "type": "array",
+          "description": "Registered supported strategies; empty when unsupported.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/rasterStrategy"
+          }
+        },
+        "preferredStrategy": {
+          "description": "Preferred strategy. Must also appear in strategies; RastrIO checks membership.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/rasterStrategy"
+            }
+          ]
+        },
+        "maxWidthDots": {
+          "description": "Maximum raster width. Must not exceed geometry.printableWidthDots; RastrIO checks this comparison.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "bandHeightDots": {
+          "$ref": "#/definitions/bandHeight"
+        }
+      },
+      "if": {
+        "properties": {
+          "supported": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "preferredStrategy",
+          "maxWidthDots",
+          "bandHeightDots"
+        ],
+        "properties": {
+          "strategies": {
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "strategies": {
+            "maxItems": 0,
+            "type": "array"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "preferredStrategy"
+              ],
+              "type": "object"
+            },
+            {
+              "required": [
+                "maxWidthDots"
+              ],
+              "type": "object"
+            },
+            {
+              "required": [
+                "bandHeightDots"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "type": "object"
+      }
+    },
+    "moduleSize": {
+      "type": "object",
+      "description": "Native QR module-size range; RastrIO checks min <= max and strategy/resource limits.",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max"
+      ],
+      "properties": {
+        "min": {
+          "description": "Smallest supported native QR module size in printer dots.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "max": {
+          "description": "Largest supported native QR module size in printer dots.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        }
+      }
+    },
+    "nativeQr": {
+      "type": "object",
+      "description": "Native QR command capability; a firmware self-test alone does not establish host-accessible support.",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "strategies"
+      ],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether this printer capability is validated and supported."
+        },
+        "strategies": {
+          "type": "array",
+          "description": "Registered supported strategies; empty when unsupported.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/qrStrategy"
+          }
+        },
+        "preferredStrategy": {
+          "description": "Preferred strategy. Must also appear in strategies; RastrIO checks membership.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/qrStrategy"
+            }
+          ]
+        },
+        "models": {
+          "type": "array",
+          "description": "Supported native QR models.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/qrModel"
+          }
+        },
+        "moduleSize": {
+          "$ref": "#/definitions/moduleSize"
+        },
+        "errorCorrection": {
+          "type": "array",
+          "description": "Supported QR error-correction levels; case-sensitive.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "L",
+              "M",
+              "Q",
+              "H"
+            ]
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "supported": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "preferredStrategy",
+          "models",
+          "moduleSize",
+          "errorCorrection"
+        ],
+        "properties": {
+          "strategies": {
+            "minItems": 1,
+            "type": "array"
+          },
+          "models": {
+            "minItems": 1,
+            "type": "array"
+          },
+          "errorCorrection": {
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "strategies": {
+            "maxItems": 0,
+            "type": "array"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "preferredStrategy"
+              ],
+              "type": "object"
+            },
+            {
+              "required": [
+                "models"
+              ],
+              "type": "object"
+            },
+            {
+              "required": [
+                "moduleSize"
+              ],
+              "type": "object"
+            },
+            {
+              "required": [
+                "errorCorrection"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "type": "object"
+      }
+    },
+    "nativeBarcode": {
+      "type": "object",
+      "description": "Validated native barcode command capability.",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "strategies"
+      ],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether this printer capability is validated and supported."
+        },
+        "strategies": {
+          "type": "array",
+          "description": "Registered supported strategies; empty when unsupported.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/barcodeStrategy"
+          }
+        },
+        "preferredStrategy": {
+          "description": "Preferred strategy. Must also appear in strategies; RastrIO checks membership.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/barcodeStrategy"
+            }
+          ]
+        },
+        "symbologies": {
+          "type": "array",
+          "description": "Supported native barcode symbologies.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/barcodeSymbology"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "supported": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "preferredStrategy",
+          "symbologies"
+        ],
+        "properties": {
+          "strategies": {
+            "minItems": 1,
+            "type": "array"
+          },
+          "symbologies": {
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "strategies": {
+            "maxItems": 0,
+            "type": "array"
+          },
+          "symbologies": {
+            "type": "array",
+            "maxItems": 0
+          }
+        },
+        "not": {
+          "type": "object",
+          "required": [
+            "preferredStrategy"
+          ]
+        },
+        "type": "object"
+      }
+    },
+    "cutter": {
+      "type": "object",
+      "description": "Automatic cutter capabilities; manual cut guides are print content.",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "modes"
+      ],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether the printer has a validated automatic cutter."
+        },
+        "modes": {
+          "type": "array",
+          "description": "Validated cut modes; empty when there is no automatic cutter.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "full",
+              "partial"
+            ]
+          }
+        },
+        "strategy": {
+          "$ref": "#/definitions/cutStrategy"
+        }
+      },
+      "if": {
+        "properties": {
+          "supported": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "strategy"
+        ],
+        "properties": {
+          "modes": {
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "modes": {
+            "maxItems": 0,
+            "type": "array"
+          }
+        },
+        "not": {
+          "required": [
+            "strategy"
+          ],
+          "type": "object"
+        },
+        "type": "object"
+      }
+    },
+    "printerBuffer": {
+      "type": "object",
+      "description": "Optional physical printer buffering/pacing guidance. Omission means unknown; do not infer defaults.",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "recommendedMaxBurstBytes": {
+          "description": "Validated printer-side maximum burst guidance in bytes; not a transport write chunk size.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/positiveInteger"
+            }
+          ]
+        },
+        "recommendedPauseAfterBurstMs": {
+          "description": "Validated printer-side pause after a burst, in milliseconds; not a transport timeout.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/nonNegativeInteger"
+            }
+          ]
+        }
+      }
+    },
+    "statusQuery": {
+      "type": "object",
+      "description": "Printer status-query capability; actual use also requires a transport capable of receiving responses.",
+      "additionalProperties": false,
+      "required": [
+        "supported",
+        "strategies"
+      ],
+      "properties": {
+        "supported": {
+          "type": "boolean",
+          "description": "Whether this printer capability is validated and supported."
+        },
+        "strategies": {
+          "type": "array",
+          "description": "Registered supported strategies; empty when unsupported.",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/statusStrategy"
+          }
+        },
+        "preferredStrategy": {
+          "description": "Preferred strategy. Must also appear in strategies; RastrIO checks membership.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/statusStrategy"
+            }
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "supported": {
+            "const": true
+          }
+        },
+        "type": "object"
+      },
+      "then": {
+        "required": [
+          "preferredStrategy"
+        ],
+        "properties": {
+          "strategies": {
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "else": {
+        "properties": {
+          "strategies": {
+            "maxItems": 0,
+            "type": "array"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "preferredStrategy"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "type": "object"
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "description": "Trusted protocol-family boundary. No executable code or byte programs can be supplied.",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "dialectId",
+        "initializationStrategy"
+      ],
+      "properties": {
+        "family": {
+          "type": "string",
+          "const": "escpos",
+          "description": "The only supported protocol family in .tcfg v1."
+        },
+        "dialectId": {
+          "$ref": "#/definitions/dialect"
+        },
+        "initializationStrategy": {
+          "$ref": "#/definitions/initializationStrategy"
+        }
+      }
+    }
+  }
+}

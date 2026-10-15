@@ -20,11 +20,11 @@ import com.circuitnext.rastrio.core.document.*
 sealed interface TemplateState
 data class TodoItem(val text: String = "", val checked: Boolean = false)
 data class TodoState(val title: String = "", val items: List<TodoItem> = emptyList()) : TemplateState
-data class ShoppingItem(val description: String = "", val quantity: String = "")
-data class ShoppingListState(val title: String = "", val items: List<ShoppingItem> = emptyList()) : TemplateState
+data class ShoppingItem(val description: String = "", val quantity: String = "", val unit: String = "", val checked: Boolean = false)
+data class ShoppingListState(val title: String = "", val items: List<ShoppingItem> = emptyList(), val date: String = "") : TemplateState
 data class QuickNoteState(val title: String = "", val body: String = "") : TemplateState
 data class MemoState(
-    val subject: String = "", val recipient: String = "", val body: String = "", val signature: String = "",
+    val subject: String = "", val recipient: String = "", val body: String = "", val signature: String = "", val date: String = "",
 ) : TemplateState
 data class QrMessageState(
     val payload: String = "", val caption: String = "",
@@ -61,15 +61,18 @@ object TemplateDocumentBuilder {
             }
             is ShoppingListState -> {
                 validation.field("title", state.title)
+                validation.field("date", state.date)
                 validation.items(state.items.size)
                 if (validation.diagnostic == null) state.items.forEachIndexed { index, item ->
                     validation.field("items[$index].description", item.description, required = true)
                     validation.field("items[$index].quantity", item.quantity)
+                    validation.field("items[$index].unit", item.unit)
                 }
             }
             is QuickNoteState -> { validation.field("title", state.title); validation.field("body", state.body, required = true) }
             is MemoState -> {
                 validation.field("subject", state.subject); validation.field("recipient", state.recipient)
+                validation.field("date", state.date)
                 validation.field("body", state.body, required = true); validation.field("signature", state.signature)
             }
             is QrMessageState -> {
@@ -90,20 +93,25 @@ object TemplateDocumentBuilder {
                 blocks += Checklist(state.items.map { ChecklistItem(it.checked, listOf(paragraph(it.text))) })
             }
             is ShoppingListState -> {
-                title(state.title)
-                blocks += UnorderedList(state.items.map {
-                    val content = mutableListOf<InlineContent>()
-                    if (it.quantity.isNotBlank()) { content += inline(it.quantity); content += Text(" × ") }
-                    content += inline(it.description)
-                    ListItem(listOf(Paragraph(Alignment.LEFT, content.toList())))
-                })
+                if (state.title.isNotBlank()) blocks += Heading(1, Alignment.CENTER, inline(state.title))
+                if (state.date.isNotBlank()) blocks += Paragraph(Alignment.CENTER, listOf(Text("Date: ")) + inline(state.date))
+                blocks += Separator
+                blocks += Table(
+                    listOf(TableColumn(Alignment.LEFT, 1), TableColumn(Alignment.LEFT, 7), TableColumn(Alignment.RIGHT, 2)),
+                    emptyList(), state.items.map {
+                        listOf(TableCell(listOf(InlineCode(if (it.checked) "⊠" else "□"))), TableCell(inline(it.description)),
+                            TableCell(inline(listOf(it.quantity, it.unit).filter { part -> part.isNotBlank() }.joinToString(" "))))
+                    },
+                )
             }
             is QuickNoteState -> { title(state.title); blocks += paragraph(state.body) }
             is MemoState -> {
                 title(state.subject)
                 if (state.recipient.isNotBlank()) blocks += Paragraph(Alignment.LEFT, listOf(Text("To: ")) + inline(state.recipient))
+                if (state.date.isNotBlank()) blocks += Paragraph(Alignment.LEFT, listOf(Text("Date: ")) + inline(state.date))
+                if (state.subject.isNotBlank() || state.recipient.isNotBlank() || state.date.isNotBlank()) blocks += Separator
                 blocks += paragraph(state.body)
-                if (state.signature.isNotBlank()) blocks += paragraph(state.signature)
+                if (state.signature.isNotBlank()) blocks += Paragraph(Alignment.RIGHT, listOf(LineBreak, LineBreak) + inline(state.signature))
             }
             is QrMessageState -> {
                 blocks += QrCode(state.payload, Alignment.CENTER, state.errorCorrection, state.requestedSize)

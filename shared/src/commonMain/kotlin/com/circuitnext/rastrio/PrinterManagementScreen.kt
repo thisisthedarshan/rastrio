@@ -17,9 +17,11 @@ package com.circuitnext.rastrio
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -32,47 +34,125 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
     onBack: () -> Unit, onLab: () -> Unit, onProfile: (PrinterProfile) -> Unit,
     onCreate: () -> Unit, drafts: List<ProfileDraft>, onEdit: (ProfileDraft) -> Unit,
     onDuplicate: () -> Unit, onDuplicateDraft: (ProfileDraft) -> Unit,
-    pairedDevices: List<PairedPrinterDevice>, addingPrinter: Boolean, pendingDevice: PairedPrinterDevice?,
-    physicalProfile: PrinterProfile?, onAdd: () -> Unit, onDevice: (PairedPrinterDevice) -> Unit, onSavePrinter: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize().testTag("printer-management-list").padding(16.dp).widthIn(max = 960.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    onAdd: () -> Unit, printers: List<PrinterInstance> = emptyList(),
+    onSelect: (PrinterInstance) -> Unit = {}, importedProfile: PrinterProfile? = null,
+    onImport: () -> Unit = {}, onExport: (() -> Unit)? = null,
+    onDeleteDraft: (ProfileDraft) -> Unit = {}, onDeleteProfile: (() -> Unit)? = null,
+    managementStatus: String = "", selectedPrinter: PrinterInstance? = null,
+    selectedProfile: PrinterProfile? = null,
+    onDefaults: (PrinterInstance, PrinterPrintDefaults) -> Unit = { _, _ -> },
+    onRemove: (PrinterInstance) -> Unit = {},
+    onAssignProfile: (PrinterInstance, PrinterProfile) -> Unit = { _, _ -> }) {
+    var tools by rememberSaveable { mutableStateOf(false) }
+    var previewTargets by rememberSaveable { mutableStateOf(false) }
+    var profileMenu by remember { mutableStateOf(false) }
+    var deletingDraft by remember { mutableStateOf<ProfileDraft?>(null) }
+    var deletingProfile by remember { mutableStateOf(false) }
+    var deletingPrinter by remember { mutableStateOf<PrinterInstance?>(null) }
+    if (deletingPrinter != null) AlertDialog(onDismissRequest = { deletingPrinter = null },
+        title = { Text("Remove printer?") }, text = { Text("Remove this saved connection and defaults? Bluetooth pairing and profile drafts are preserved.") },
+        confirmButton = { TextButton(onClick = { deletingPrinter?.let(onRemove); deletingPrinter = null }) { Text("Remove") } },
+        dismissButton = { TextButton(onClick = { deletingPrinter = null }) { Text("Cancel") } })
+    if (deletingDraft != null || deletingProfile) AlertDialog(
+        onDismissRequest = { deletingDraft = null; deletingProfile = false },
+        title = { Text("Delete profile?") },
+        text = { Text(if (deletingProfile) "Delete the saved profile and remove printer assignments using this profile? Other printers, drafts and Bluetooth pairing are preserved."
+            else "Delete this local draft? This cannot be undone.") },
+        confirmButton = { TextButton(onClick = {
+            val draft = deletingDraft
+            deletingDraft = null
+            val active = deletingProfile
+            deletingProfile = false
+            if (draft != null) onDeleteDraft(draft) else if (active) onDeleteProfile?.invoke()
+        }) { Text("Delete") } },
+        dismissButton = { TextButton(onClick = { deletingDraft = null; deletingProfile = false }) { Text("Cancel") } })
+    LazyColumn(Modifier.fillMaxSize().testTag("printer-management-list").padding(horizontal = 24.dp).widthIn(max = 960.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
         item {
-            Text("Printers and profiles", style = MaterialTheme.typography.headlineMedium)
-            AuthoringButton("Back to Home", onClick = onBack)
-            Text("Selected preview profile: ${profile.display.name}", style = MaterialTheme.typography.titleMedium)
-            Text("${profile.profileId} · revision ${profile.profileRevision}")
-            Text("${profile.geometry.printableWidthDots} dots · ${profile.geometry.horizontalDpi} × ${profile.geometry.verticalDpi} dpi")
-            Text(if (isSyntheticProfile(profile)) "Synthetic preview only · no physical capability verification"
-                else "Imported configuration · physical capabilities unverified")
-            Text("Preparation validates this configuration and creates the effective physical plan. A printer connection is only needed to transmit it.")
+            TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp)) { Text("Back to Home") }
+            Text("Printers and profiles", style = MaterialTheme.typography.headlineSmall)
+            if (managementStatus.isNotBlank()) Text(managementStatus, style = MaterialTheme.typography.bodySmall)
         }
         item {
-            AuthoringButton("Add Printer", onClick = onAdd)
-            if (addingPrinter) {
-                Text("1. Select Device → 2. Create/Select Profile → 3. Validate/Calibrate → 4. Save Printer")
-                Text("Pair in Android settings first. Selection does not connect or print. Bluetooth Classic SPP is required; a BLE-only device needs a separately verified GATT transport.")
-                if (pairedDevices.isEmpty()) Text("No paired devices available. Check Nearby devices permission, enable Bluetooth and refresh.")
-                for (device in pairedDevices) {
-                    AuthoringButton("Select ${device.displayName}", device.supportsClassic) { onDevice(device) }
-                    if (!device.supportsClassic) Text("BLUETOOTH_BLE_INCOMPATIBLE: BLE-only device; Classic SPP is unavailable")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Printers", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
+                AuthoringButton("Add Printer", onClick = onAdd)
+            }
+            if (printers.isEmpty()) {
+                Text("No printers added", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+                Text("Pair a printer, then add its connection and profile.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        for (printer in printers) item(key = "printer-${printer.id}") {
+            ListItem(headlineContent = { Text(printer.displayName) },
+                supportingContent = { Text("${printer.transportKind.name.lowercase().replace('_', ' ')} connection") },
+                modifier = Modifier.clickable(role = Role.Button, onClick = { onSelect(printer) }).authoringFocus(),
+                trailingContent = { TextButton(onClick = { deletingPrinter = printer }) { Text("Remove") } })
+            if (selectedPrinter == printer && importedProfile != null) TextButton(onClick = { onAssignProfile(printer, importedProfile) }) {
+                Text("Assign imported profile")
+            }
+            if (selectedPrinter == printer && selectedProfile != null) {
+                var editingDefaults by remember(printer) { mutableStateOf(false) }
+                var options by remember(printer) { mutableStateOf(printer.defaults.toPrintOptions()) }
+                TextButton(onClick = { editingDefaults = !editingDefaults }) { Text("Printer defaults") }
+                if (editingDefaults) {
+                    PrintOptionsControls(selectedProfile, options, true, { options = it })
+                    TextButton(enabled = options != printer.defaults.toPrintOptions(), onClick = {
+                        onDefaults(printer, PrinterPrintDefaults(options.cutIntent, options.cutMode, options.finalFeedDots))
+                    }) { Text("Save printer defaults") }
                 }
-                if (pendingDevice != null) Text("Selected device: ${pendingDevice.displayName}")
-                Text(if (physicalProfile == null) "Create or import a valid profile before saving this printer" else "Selected profile: ${physicalProfile.display.name}")
-                AuthoringButton("Save Printer", pendingDevice?.supportsClassic == true && physicalProfile != null, onSavePrinter)
-            }
-            AuthoringButton("Create Printer Profile", onClick = onCreate)
-            AuthoringButton("Duplicate selected profile", onClick = onDuplicate)
-            for (draft in drafts) {
-                AuthoringButton("Edit ${draft["display.name"].ifBlank { draft.draftId }}") { onEdit(draft) }
-                AuthoringButton("Duplicate draft ${draft["display.name"].ifBlank { draft.draftId }}") { onDuplicateDraft(draft) }
             }
         }
-        item { printingControls() }
         item {
-            Text("Software preview targets", style = MaterialTheme.typography.titleMedium)
-            for (candidate in SyntheticReferenceProfiles.all) AuthoringButton(candidate.display.name) { onProfile(candidate) }
-            Text("Synthetic values belong to test fixtures. They are not Helett H50i specifications and cannot authorize physical printing.")
-            AuthoringButton("Open Printer Lab", onClick = onLab)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Profiles", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
+                Box {
+                    TextButton(onClick = { profileMenu = true }) { Text("Manage profiles") }
+                    DropdownMenu(profileMenu, onDismissRequest = { profileMenu = false }) {
+                        DropdownMenuItem(text = { Text("Import printer profile") }, onClick = { profileMenu = false; onImport() })
+                        DropdownMenuItem(text = { Text("Duplicate selected profile") }, onClick = { profileMenu = false; onDuplicate() })
+                        if (onExport != null) DropdownMenuItem(text = { Text("Export printer profile") }, enabled = importedProfile != null,
+                            onClick = { profileMenu = false; onExport() })
+                        if (onDeleteProfile != null) DropdownMenuItem(text = { Text("Delete saved profile") }, enabled = importedProfile != null,
+                            onClick = { profileMenu = false; deletingProfile = true })
+                    }
+                }
+            }
+            TextButton(onClick = onCreate) { Text("Create Printer Profile") }
+            if (importedProfile == null) Text("No validated physical printer profile selected.", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            else Text("Selected: ${importedProfile.display.name}", style = MaterialTheme.typography.bodyMedium)
+        }
+        for (draft in drafts) item(key = "draft-${draft.draftId}") {
+            var menu by remember { mutableStateOf(false) }
+            val name = draft["display.name"].ifBlank { "Untitled profile" }
+            ListItem(headlineContent = { Text("Edit $name") }, supportingContent = { Text("Local draft") },
+                modifier = Modifier.clickable(role = Role.Button, onClick = { onEdit(draft) }).authoringFocus(),
+                trailingContent = {
+                    Box {
+                        TextButton(onClick = { menu = true }) { Text("More") }
+                        DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(text = { Text("Duplicate draft $name") }, onClick = { menu = false; onDuplicateDraft(draft) })
+                            DropdownMenuItem(text = { Text("Delete draft $name") }, onClick = { menu = false; deletingDraft = draft })
+                        }
+                    }
+                })
+        }
+        item {
+            HorizontalDivider()
+            ListItem(headlineContent = { Text("Open Printer Lab") }, supportingContent = { Text("Print test samples and record measurements") },
+                trailingContent = { Text("›", style = MaterialTheme.typography.titleLarge) },
+                modifier = Modifier.clickable(role = Role.Button, onClick = onLab).authoringFocus())
+        }
+        item {
+            TextButton(onClick = { previewTargets = !previewTargets }) { Text(if (previewTargets) "Hide software preview targets" else "Software preview targets") }
+            if (previewTargets) {
+                Text("Selected: ${profile.display.name}", style = MaterialTheme.typography.bodyMedium)
+                Text("Test fixtures support software preview. They do not establish printer compatibility.", style = MaterialTheme.typography.bodySmall)
+                for (candidate in SyntheticReferenceProfiles.all) TextButton(onClick = { onProfile(candidate) }) { Text(candidate.display.name) }
+            }
+            TextButton(onClick = { tools = !tools }) { Text(if (tools) "Hide connection details" else "Connection details") }
+            if (tools) printingControls()
         }
     }
 }
@@ -80,32 +160,26 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
 /** Evidence and bounded test drafts only; this screen never opens a transport or prints. */
 @Composable
 internal fun PrinterLabScreen(onBack: () -> Unit, onQrFixture: () -> Unit, calibrationControls: @Composable () -> Unit = {}) {
+    var details by rememberSaveable { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize().padding(16.dp).widthIn(max = 960.dp).testTag("printer-lab-list"),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text("Printer Lab", style = MaterialTheme.typography.headlineMedium)
             AuthoringButton("Back to printers", onClick = onBack)
-            Text("Helett H50i BillQuick Go", style = MaterialTheme.typography.titleLarge)
-            Text("Provisional draft · APP141: Mandatory geometry and reliable host-command evidence are missing.",
-                color = LocalAuthoringColors.current.warning)
-            Text("Operator-supplied physical self-test, 2026-10-13; corroborates the 2026-10-02 inventory. No RastrIO hardware run is claimed.")
-            Text("Reported: 2 inches / 58 mm paper; 48 mm print width; default font 12×24; CP437; USB and Bluetooth; QR and EAN13 firmware capabilities.")
-            Text("Unknown: horizontal DPI, vertical DPI, printable dot width, font/code-page selectors, raster strategy and band limits, native QR/barcode host commands, transport chunk size and pacing.")
-            Text("Density 5 is not DPI. The draft enables no cutter and cannot be selected as a usable physical profile or exported as .tcfg.")
+            Text("Establish one unknown printer property at a time. Preparing a preview is software-only; printing a calibration sample needs separate approval and physical measurement.")
+            Text("Drafts stay editable and never activate themselves after an experiment.", style = MaterialTheme.typography.bodyMedium)
         }
-        item {
-            Text("Calibration prerequisites", style = MaterialTheme.typography.titleMedium)
-            Text("HW-035: capture self-test inventory. HW-037 / HW-012: independently establish both DPI axes and reliable printable dot width. Millimetres alone cannot supply dot geometry.")
-            Text("HW-001/002/004: verify native font cells, advance and styles. HW-036: verify the documented CP437 selector and a bounded character grid.")
-            Text("HW-007: verify raster packing and command compatibility. HW-018/019: print raster QR once and scan externally. HW-017: native QR requires independently verified host parameters.")
-            Text("HW-029: measure Bluetooth write chunks and pacing separately from printer raster bands. EAN13 host-command testing waits for a prepared barcode implementation.")
-            Text("Record the actual unit, profile/revision/overrides, transport, captured bytes and observed paper. Bytes transmitted do not prove physical output. Inspect ambiguous output before any explicitly confirmed new attempt. Never promote capabilities automatically.")
-            Text("Detailed procedures and evidence are maintained in docs/HARDWARE_TESTS.md and docs/ESC_POS_NOTES.md.")
+        item { TextButton(onClick = { details = !details }) { Text(if (details) "Hide reference and procedure details" else "Reference and procedure details") } }
+        if (details) item {
+            Text("Printer evidence", style = MaterialTheme.typography.titleMedium)
+            Text("A self-test can report paper width, fonts and charsets. It does not establish DPI, dot width or host command compatibility.")
+            Text("Geometry: HW-037 / HW-012; fonts: HW-001/002/004; CP437: HW-036; raster: HW-007; QR: HW-017/018/019; buffers/pacing: HW-029. EAN13 host-command testing waits for a prepared barcode implementation.")
+            Text("Record unit identity, procedure, captured bytes and observed paper in the draft and permanent hardware-test record. Local transmission does not prove paper output. Inspect ambiguous output before any new user-confirmed attempt.")
         }
         item { calibrationControls() }
         item {
             Text("Bounded QR test draft", style = MaterialTheme.typography.titleMedium)
-            Text("Create the maintained HW-018 30 mm High-EC raster QR draft. Its example.invalid URL is opaque test data and is never opened. Prepare, inspect the exact-dot preview and explicitly print once using an evidence-backed associated profile. Synthetic preview requires no connected printer.")
+            Text("Create a software raster QR test draft. Prepare and inspect the preview before any explicitly approved print. Its example.invalid URL is opaque test data and is never opened.")
             AuthoringButton("Create raster QR test draft", onClick = onQrFixture)
         }
     }

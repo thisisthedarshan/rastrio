@@ -79,6 +79,30 @@ class BundledTextRuntimeInstrumentation : Instrumentation() {
         }
         for (text in listOf("🙂", "שלום", "A\u200fB", CharArray(1) { 0xd800.toChar() }.concatToString()))
             check(actual.measure(TextMeasureRequest(text, typography)) is TextMeasureResult.Failure)
+        for (weight in TextWeight.entries) {
+            val body = actual.typography(TextStyle(weight = weight))
+            val code = actual.typography(TextStyle(weight = weight, role = TextRole.CODE))
+            val variant = if (weight == TextWeight.BOLD) "Bold" else "Regular"
+            for (arrow in listOf("↑", "→", "↓", "↗", "↘")) {
+                check(actual.measure(TextMeasureRequest("AV${arrow}To", body)) is TextMeasureResult.Success)
+                val request = RasterTextRequest(arrow, body, 577, 64, 40, 203, 203)
+                val glyph = actual.rasterize(request)
+                val expected = actual.rasterize(request.copy(typography = code))
+                check(glyph is RasterTextResult.Success && expected is RasterTextResult.Success)
+                check(glyph.fontIdentity.startsWith("JetBrainsMono-$variant@"))
+                check(glyph.bitmap.copyBytes().any { it.toInt() != 0 })
+                check(glyph.bitmap.copyBytes().contentEquals(expected.bitmap.copyBytes()))
+                val mixed = actual.rasterize(request.copy(text = "AV${arrow}To"))
+                check(mixed is RasterTextResult.Success && "NotoSans-$variant@" in mixed.fontIdentity &&
+                    "JetBrainsMono-$variant@" in mixed.fontIdentity)
+            }
+        }
+        for ((symbol, code) in listOf("🎵" to "U+1F3B5", "🎼" to "U+1F3BC")) {
+            val measured = actual.measure(TextMeasureRequest(symbol, typography))
+            check(measured is TextMeasureResult.Failure && code in measured.diagnostics.single().message)
+            val raster = actual.rasterize(RasterTextRequest(symbol, typography, 577, 64, 40, 203, 203))
+            check(raster is RasterTextResult.Failure && code in raster.diagnostics.single().message)
+        }
 
         var measurements = 0
         var rasters = 0
@@ -95,6 +119,11 @@ class BundledTextRuntimeInstrumentation : Instrumentation() {
         val document = ThermalDocument(blocks = listOf(
             Paragraph(Alignment.LEFT, listOf(Text("ASCII"))),
             Paragraph(Alignment.LEFT, listOf(Text("हिन्दी e\u0301"))),
+            Heading(2, Alignment.CENTER, listOf(Text("AV↑To → ↓ ↗ ↘"))),
+            Paragraph(Alignment.RIGHT, listOf(Text("Arrows ↑ → ↓ ↗ ↘ "), Strong(listOf(Text("Bold ↑ → ↓ ↗ ↘"))))),
+            Table(listOf(TableColumn(Alignment.LEFT), TableColumn(Alignment.RIGHT)), emptyList(),
+                listOf(listOf(TableCell(listOf(Text("AV↑To → ↓ ↗ ↘ ".repeat(3)))),
+                    TableCell(listOf(Strong(listOf(Text("Bold ↑ → ↓ ↗ ↘ ".repeat(3))))))))),
         ))
         val result = BasicPreparationEngine(rasterTextBackend = observed).prepare(document, SyntheticReferenceProfiles.narrow)
         check(result is PreparationResult.Success)

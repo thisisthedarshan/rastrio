@@ -65,10 +65,10 @@ class PhysicalPreviewSession(
         state = state.copy(result = PhysicalPreviewResult.NotPrepared)
     }
 
-    /** Keep target choices without preparing content from another authoring workspace. */
+    /** Target changes retain explicit source bindings; source invalidation releases them. */
     fun configure(profile: PrinterProfile, options: PrintOptions = state.options) {
-        invalidate()
-        state = state.copy(profile = profile, options = options)
+        preparedDocument = null
+        state = PhysicalPreviewState(profile, options)
     }
 
     /** Explicit binding to the current picked pixels; changing the source releases older bindings. */

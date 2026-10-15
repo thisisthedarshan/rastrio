@@ -94,9 +94,30 @@ class AndroidPrintingPlatform(
     private var chooseProfile: () -> Unit,
 ) : PrintingPlatform, ImagePlatform {
     private val instances = PrinterInstanceStore(context)
-    private val selectionPersistence = PrinterSelectionPersistence(instances::save)
+    private var configurations = emptyList<ConfiguredPrinter>()
+    private val configurationLoaded = CompletableDeferred<Unit>()
+    private val mutableSelectedProfile = MutableStateFlow<PrinterProfile?>(null)
+    override val selectedProfile: StateFlow<PrinterProfile?> = mutableSelectedProfile
+    private val mutablePresence = MutableStateFlow(PrinterPresence.NOT_CHECKED)
+    override val presence: StateFlow<PrinterPresence> = mutablePresence
+    private var presenceJob: Job? = null
+    private val presenceChecks = Mutex()
+    private var requestPresencePermission: () -> Unit = {}
     private val profileFileLock = Any()
     override val profileDraftStorage: ProfileDraftStorage = AndroidProfileDraftStorage(context)
+    private val mutableDiscovery = MutableStateFlow(DeviceDiscoveryState())
+    override val discoveryState: StateFlow<DeviceDiscoveryState> = mutableDiscovery
+    private val inspectionMutex = Mutex()
+    override suspend fun inspectPrinter(device: PairedPrinterDevice): PrinterInspection = inspectionMutex.withLock {
+        if (device !in mutablePairedDevices.value) return@withLock metadataInspection(device, ServiceDiscoveryStatus.UNAVAILABLE)
+        try {
+            val remote = requireBluetooth(context).bondedDevices.firstOrNull { it.address == device.locator }
+                ?: return@withLock metadataInspection(device, ServiceDiscoveryStatus.UNAVAILABLE)
+            withContext(Dispatchers.Main.immediate) { inspectBluetoothServices(device, AndroidSdpAccess(context, remote)) }
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: SecurityException) { metadataInspection(device, ServiceDiscoveryStatus.UNAVAILABLE)
+        } catch (_: Exception) { metadataInspection(device, ServiceDiscoveryStatus.UNAVAILABLE) }
+    }
     private val mutablePairedDevices = MutableStateFlow<List<PairedPrinterDevice>>(emptyList())
     override val pairedDevices: StateFlow<List<PairedPrinterDevice>> = mutablePairedDevices
     private val mutableSelectedPrinter = MutableStateFlow<PrinterInstance?>(null)
@@ -108,7 +129,7 @@ class AndroidPrintingPlatform(
     private val profileExportMutex = Mutex()
     private val mutablePrinters = MutableStateFlow<List<PrinterInstance>>(emptyList())
     private val mutableProfile = MutableStateFlow<PrinterProfile?>(null)
-    private var profileGeneration = 0L
+    @Volatile private var profileGeneration = 0L
     private var profileJob: Job? = null
     private val profileMutex = Mutex()
     private val mutableStatus = MutableStateFlow("Add a paired device, then create or select a validated profile")
@@ -155,31 +176,67 @@ class AndroidPrintingPlatform(
     }
     fun setForeground(value: Boolean) {
         mutableForeground.value = value
-        if (!value) { connection.close(); imageJob?.cancel() }
+        if (!value) { cancelPresence(); connection.close(); imageJob?.cancel() }
     }
 
     init {
         scope.launch {
-            val loaded = withContext(Dispatchers.IO) {
-                try { synchronized(profileFileLock) { savedProfile.openRead().use { decode(readProfileBytes(it)) } } }
-                catch (cancelled: CancellationException) { throw cancelled }
-                catch (_: Exception) { null }
-            }
-            val selected = if (loaded == null) null else withContext(Dispatchers.IO) { instances.load() }
-                ?.takeIf { it.profileId == loaded.profileId && it.profileRevision == loaded.profileRevision }
-            if (profileGeneration != 0L) return@launch
-            mutableProfile.value = loaded
-            mutableSelectedPrinter.value = selected
-            if (loaded != null) mutableStatus.value = "Saved profile loaded; refresh paired printers"
+            try {
+                val configuration = withContext(Dispatchers.IO) {
+                    instances.loadConfiguration() ?: run {
+                        val legacy = try { synchronized(profileFileLock) { savedProfile.openRead().use { decode(readProfileBytes(it)) } } }
+                            catch (_: Exception) { null }
+                        legacy?.let(instances::migrate)
+                    }
+                }
+                if (profileGeneration == 0L) mutableProfile.value = configuration?.importedProfile
+                if (configuration != null) {
+                    if (configurationGeneration == 0L) publishConfiguration(configuration)
+                    else { configurations = configuration.printers; confirmedSelectedId = configuration.selectedId }
+                }
+                if (profileGeneration == 0L && configurationGeneration == 0L) mutableStatus.value = when {
+                    configuration != null -> "Saved printer configuration loaded"
+                    withContext(Dispatchers.IO) { instances.hasStoredState() || savedProfile.baseFile.exists() } -> "Saved printer configuration is unavailable; review it before replacing it"
+                    else -> "Add a paired device, then create or select a validated profile"
+                }
+            } finally { configurationLoaded.complete(Unit) }
         }
     }
 
     fun bindActions(permission: () -> Unit, profile: () -> Unit) {
         requestPermission = permission; chooseProfile = profile
     }
-    override fun refreshPairedPrinters() = requestPermission()
+    override fun refreshPairedPrinters() {
+        mutableDiscovery.value = DeviceDiscoveryState(DeviceDiscoveryStatus.LOADING)
+        requestPermission()
+    }
     override fun importProfile() = chooseProfile()
     override val supportsProfileExport: Boolean get() = true
+    override val supportsProfileDeletion: Boolean get() = true
+    override fun deleteProfile() {
+        val generation = ++profileGeneration
+        profileJob?.cancel()
+        profileExportSnapshot = null
+        val configurationRequest = ++configurationGeneration
+        mutableSelectedProfile.value = null
+        cancelPresence()
+        connection.close()
+        profileJob = scope.launch {
+            configurationLoaded.await()
+            configurationWrites.withLock {
+                val deleted = withContext(Dispatchers.IO) { instances.deleteImportedProfile { generation == profileGeneration } }
+                if (deleted != null) {
+                    configurations = deleted.printers; confirmedSelectedId = deleted.selectedId
+                    if (generation == profileGeneration) mutableProfile.value = deleted.importedProfile
+                    if (configurationRequest == configurationGeneration) publishConfiguration(deleted)
+                    if (generation == profileGeneration) mutableStatus.value = "Saved profile and matching printer assignments deleted; Bluetooth pairing preserved"
+                } else {
+                    if (configurationRequest == configurationGeneration) publishConfiguration(PrinterConfiguration(configurations, confirmedSelectedId))
+                    if (generation == profileGeneration) mutableStatus.value = "APP146: Profile retained because its printer assignments could not be saved"
+                }
+            }
+        }
+    }
     fun bindProfileExport(action: () -> Unit) { chooseProfileExport = action }
     override fun exportProfile() {
         val profile = mutableProfile.value ?: run {
@@ -220,19 +277,19 @@ class AndroidPrintingPlatform(
     fun permissionResult(granted: Boolean) {
         discoveryJob?.cancel()
         if (!granted) {
+            mutableDiscovery.value = DeviceDiscoveryState(DeviceDiscoveryStatus.PERMISSION_REQUIRED)
             mutablePairedDevices.value = emptyList()
-            mutablePrinters.value = emptyList()
             mutableStatus.value = "BLUETOOTH_PERMISSION_REQUIRED: Allow Nearby devices to list paired printers"
             return
         }
+        mutableDiscovery.value = DeviceDiscoveryState(DeviceDiscoveryStatus.LOADING)
         discoveryJob = scope.launch {
             try {
-                val paired = withContext(Dispatchers.IO) { pairedPrinters(context) }
+                val paired = withContext(Dispatchers.IO) { boundedPairedInventory(pairedPrinters(context)) }
                 // Preferences expose pending writes in memory before commit confirms disk persistence.
                 // Discovery must retain only the association already confirmed by selection persistence.
-                val previous = mutableSelectedPrinter.value
                 mutablePairedDevices.value = paired
-                updateInstances(previous)
+                mutableDiscovery.value = DeviceDiscoveryState(DeviceDiscoveryStatus.READY)
                 mutableStatus.value = when {
                     paired.isEmpty() -> "BLUETOOTH_DEVICE_ABSENT: No paired devices; pair the printer in Android settings"
                     paired.none { it.supportsClassic } -> "BLUETOOTH_BLE_INCOMPATIBLE: Paired devices are BLE-only; Classic SPP is required"
@@ -240,53 +297,33 @@ class AndroidPrintingPlatform(
                     else -> "Choose a paired Classic device and save its profile association"
                 }
             } catch (failure: PrinterTransportException) {
-                mutablePairedDevices.value = emptyList(); mutablePrinters.value = emptyList()
+                mutableDiscovery.value = DeviceDiscoveryState(discoveryStatus(failure.failure))
+                mutablePairedDevices.value = emptyList()
                 mutableStatus.value = bluetoothDiagnostic(failure.failure)
             } catch (_: SecurityException) {
-                mutablePairedDevices.value = emptyList(); mutablePrinters.value = emptyList()
+                mutableDiscovery.value = DeviceDiscoveryState(DeviceDiscoveryStatus.PERMISSION_REQUIRED)
+                mutablePairedDevices.value = emptyList()
                 mutableStatus.value = bluetoothDiagnostic(TransportFailure.BLUETOOTH_PERMISSION_REQUIRED)
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (_: Exception) {
-                mutablePairedDevices.value = emptyList(); mutablePrinters.value = emptyList()
+                mutablePairedDevices.value = emptyList()
+                mutableDiscovery.value = DeviceDiscoveryState(DeviceDiscoveryStatus.FAILED)
                 mutableStatus.value = "BLUETOOTH_DISCOVERY_FAILED: Paired device list could not be read"
             }
         }
     }
 
-    private fun updateInstances(previous: PrinterInstance? = mutableSelectedPrinter.value) {
-        val profile = mutableProfile.value
-        mutablePrinters.value = if (profile == null) emptyList() else mutablePairedDevices.value
-            .filter { it.supportsClassic }.map { device ->
-                PrinterInstance(previous?.takeIf { it.transportLocator == device.locator }?.id ?: UUID.randomUUID().toString(),
-                    device.displayName, PrinterTransportKind.BLUETOOTH_CLASSIC, device.locator,
-                    profile.profileId, profile.profileRevision)
-            }
-        mutableSelectedPrinter.value = previous?.takeIf { it in mutablePrinters.value }
-    }
-
     override fun activateProfile(profile: PrinterProfile): Boolean {
-        val bytes = when (val result = PrinterProfileFiles.encode(profile)) {
-            is ProfileValidationResult.Failure -> {
-                mutableStatus.value = result.diagnostics.joinToString("\n") { "${it.code}: ${it.message}" }
-                return false
-            }
-            is ProfileValidationResult.Success -> result.value
+        if (PrinterProfileFiles.validate(profile) !is ProfileValidationResult.Success) {
+            mutableStatus.value = "Profile failed strict validation"; return false
         }
         ++profileGeneration
         profileJob?.cancel()
-        try {
-            synchronized(profileFileLock) {
-                val output = savedProfile.startWrite()
-                try { output.write(bytes); savedProfile.finishWrite(output) }
-                catch (failure: Exception) { savedProfile.failWrite(output); throw failure }
-            }
-        } catch (_: Exception) {
-            mutableStatus.value = "APP144: Validated profile could not be saved privately"
-            return false
-        }
+        val saved = instances.saveImportedProfile(profile)
+        if (!saved) { mutableStatus.value = "APP144: Validated profile could not be saved privately"; return false }
         mutableProfile.value = profile
-        updateInstances()
-        mutableStatus.value = "Validated profile saved; save the chosen printer association. Hardware capabilities remain operator supplied."
+        instances.loadConfiguration()?.let(::publishConfiguration)
+        mutableStatus.value = "Validated profile saved; assign it to a configured printer. Hardware capabilities remain operator supplied."
         return true
     }
 
@@ -297,9 +334,30 @@ class AndroidPrintingPlatform(
         if (!device.supportsClassic) {
             mutableStatus.value = bluetoothDiagnostic(TransportFailure.BLUETOOTH_BLE_INCOMPATIBLE); return
         }
-        if (profile != mutableProfile.value && !activateProfile(profile)) return
-        val instance = mutablePrinters.value.firstOrNull { it.transportLocator == device.locator } ?: return
-        selectPrinter(instance)
+        if (PrinterProfileFiles.validate(profile) !is ProfileValidationResult.Success) {
+            mutableStatus.value = "Profile is not a validated physical target"; return
+        }
+        changeConfiguration { current ->
+            val old = current.printers.firstOrNull { it.instance.transportLocator == device.locator }
+            val instance = old?.instance?.copy(displayName = device.displayName,
+                profileId = profile.profileId, profileRevision = profile.profileRevision, overrides = null,
+                defaults = old.instance.defaults.takeIf { it.supports(profile) } ?: PrinterPrintDefaults())
+                ?: PrinterInstance(UUID.randomUUID().toString(), device.displayName,
+                    PrinterTransportKind.BLUETOOTH_CLASSIC, device.locator, profile.profileId, profile.profileRevision)
+            val next = ConfiguredPrinter(instance, profile)
+            PrinterConfiguration(current.printers.filterNot { it.instance.id == instance.id } + next, instance.id)
+        }
+    }
+
+    override fun assignProfile(instance: PrinterInstance, profile: PrinterProfile) {
+        if (instance !in mutablePrinters.value || PrinterProfileFiles.validate(profile) !is ProfileValidationResult.Success) return
+        changeConfiguration { current ->
+            PrinterConfiguration(current.printers.map { configured ->
+                if (configured.instance.id != instance.id) configured else ConfiguredPrinter(
+                    configured.instance.copy(profileId = profile.profileId, profileRevision = profile.profileRevision,
+                        overrides = null, defaults = configured.instance.defaults.takeIf { it.supports(profile) } ?: PrinterPrintDefaults()), profile)
+            }, current.selectedId)
+        }
     }
 
     fun profileResult(uri: Uri?) {
@@ -307,6 +365,7 @@ class AndroidPrintingPlatform(
         val generation = ++profileGeneration
         profileJob?.cancel()
         profileJob = scope.launch {
+            configurationLoaded.await()
             profileMutex.withLock {
             try {
                 val bytes = withContext(Dispatchers.IO) {
@@ -321,24 +380,19 @@ class AndroidPrintingPlatform(
                     }
                 }
                 if (generation != profileGeneration) return@launch
-                withContext(Dispatchers.IO) {
-                    synchronized(profileFileLock) {
-                        if (generation == profileGeneration) {
-                            val output = savedProfile.startWrite()
-                            try { output.write(bytes); savedProfile.finishWrite(output) }
-                            catch (failure: Exception) { savedProfile.failWrite(output); throw failure }
-                        }
-                    }
+                val saved = withContext(Dispatchers.IO) { instances.saveImportedProfile(validated) { generation == profileGeneration } }
+                if (!saved) {
+                    if (generation == profileGeneration) mutableStatus.value = "APP144: Validated profile could not be saved privately"
+                    return@launch
                 }
                 if (generation != profileGeneration) return@launch
                 mutableProfile.value = validated
-                updateInstances()
                 mutableStatus.value = "Validated profile imported; choose a device and save its association"
             } catch (_: TimeoutCancellationException) {
-                mutableStatus.value = "Profile import timed out"
+                if (generation == profileGeneration) mutableStatus.value = "Profile import timed out"
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (_: Exception) {
-                mutableStatus.value = "Profile import failed strict validation or resource checks"
+                if (generation == profileGeneration) mutableStatus.value = "Profile import failed strict validation or resource checks"
             }
             }
         }
@@ -349,41 +403,126 @@ class AndroidPrintingPlatform(
         is ProfileValidationResult.Failure -> null
     }
 
+    private var confirmedSelectedId: String? = null
+    private var configurationGeneration = 0L
+    private val configurationWrites = Mutex()
+    private fun publishConfiguration(configuration: PrinterConfiguration) {
+        configurations = configuration.printers
+        confirmedSelectedId = configuration.selectedId
+        mutablePrinters.value = configurations.map { it.instance }
+        val selected = configurations.firstOrNull { it.instance.id == configuration.selectedId }
+        mutableSelectedProfile.value = selected?.effectiveProfile()
+        mutableSelectedPrinter.value = selected?.instance
+    }
+
+    private fun changeConfiguration(change: (PrinterConfiguration) -> PrinterConfiguration) {
+        val generation = ++configurationGeneration
+        mutableSelectedProfile.value = null
+        cancelPresence()
+        connection.close()
+        scope.launch {
+            configurationLoaded.await()
+            configurationWrites.withLock {
+                // Every write derives from the latest confirmed state, including writes superseded while in flight.
+                val current = withContext(Dispatchers.IO) { instances.loadConfiguration() } ?: PrinterConfiguration(configurations, confirmedSelectedId)
+                val proposed = change(current)
+                val saved = withContext(Dispatchers.IO) { instances.saveConfiguration(proposed.printers, proposed.selectedId) }
+                if (saved) { configurations = proposed.printers; confirmedSelectedId = proposed.selectedId }
+                if (generation == configurationGeneration) publishConfiguration(PrinterConfiguration(configurations, confirmedSelectedId))
+                if (generation == configurationGeneration) mutableStatus.value = if (saved)
+                    "Printer configuration saved privately; no bytes transmitted" else "Printer configuration could not be saved; previous selection retained"
+            }
+        }
+    }
     override fun selectPrinter(instance: PrinterInstance) {
         if (instance !in mutablePrinters.value) return
-        val request = selectionPersistence.request()
-        scope.launch {
-            val saved = selectionPersistence.save(request, instance)
-            if (!selectionPersistence.isCurrent(request)) return@launch
-            if (saved && instance in mutablePrinters.value) mutableSelectedPrinter.value = instance
-            mutableStatus.value = if (saved) "Printer association saved privately; no bytes transmitted" else "Printer association could not be saved"
+        changeConfiguration { current -> current.copy(selectedId = instance.id.takeIf { id -> current.printers.any { it.instance.id == id } }) }
+    }
+    override fun removePrinter(instance: PrinterInstance) {
+        if (instance !in mutablePrinters.value) return
+        changeConfiguration { current -> PrinterConfiguration(current.printers.filterNot { it.instance.id == instance.id },
+            current.selectedId.takeUnless { it == instance.id }) }
+    }
+    override fun updatePrinterDefaults(instance: PrinterInstance, defaults: PrinterPrintDefaults) {
+        if (instance !in mutablePrinters.value) return
+        changeConfiguration { current -> current.copy(printers = current.printers.map { configured ->
+            if (configured.instance.id != instance.id) configured else configured.copy(instance = configured.instance.copy(defaults = defaults))
+        }) }
+    }
+    fun bindPresencePermission(action: () -> Unit) { requestPresencePermission = action }
+    override fun refreshPresence() {
+        if (mutableSelectedPrinter.value == null || !mutableForeground.value || connection.isActive) return
+        cancelPresence()
+        requestPresencePermission()
+    }
+    fun presencePermissionResult(granted: Boolean) {
+        cancelPresence()
+        if (!granted) { mutablePresence.value = PrinterPresence.PERMISSION_NEEDED; return }
+        val selected = mutableSelectedPrinter.value ?: return
+        if (!mutableForeground.value || connection.isActive) return
+        mutablePresence.value = PrinterPresence.CHECKING
+        presenceJob = scope.launch {
+            presenceChecks.withLock {
+            try {
+                val adapter = requireBluetooth(context)
+                val result = checkBluetoothPresence(selected.transportLocator, AndroidBluetoothPresenceAccess(context, adapter))
+                if (selected == mutableSelectedPrinter.value) mutablePresence.value = result
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (failure: PrinterTransportException) {
+                mutablePresence.value = when (failure.failure) {
+                    TransportFailure.BLUETOOTH_DISABLED -> PrinterPresence.BLUETOOTH_DISABLED
+                    TransportFailure.BLUETOOTH_PERMISSION_REQUIRED -> PrinterPresence.PERMISSION_NEEDED
+                    else -> PrinterPresence.UNABLE_TO_CHECK
+                }
+            } catch (_: SecurityException) { mutablePresence.value = PrinterPresence.PERMISSION_NEEDED
+            } catch (_: Exception) { mutablePresence.value = PrinterPresence.UNABLE_TO_CHECK }
+            }
+        }
+    }
+    override fun cancelPresence() {
+        presenceJob?.cancel()
+        mutablePresence.value = PrinterPresence.NOT_CHECKED
+    }
+    override fun createTransport(): PrinterTransport {
+        val delegate = connection.wrap(BluetoothPrinterTransport(context, TransportConstraints(1024)))
+        return object : PrinterTransport by delegate {
+            override suspend fun connect(instance: PrinterInstance) {
+                val checking = presenceJob
+                cancelPresence()
+                checking?.join()
+                presenceChecks.withLock { }
+                try { requireBluetooth(context).cancelDiscovery() } catch (_: SecurityException) { }
+                check(instance == mutableSelectedPrinter.value && mutableSelectedProfile.value != null) { "Printer configuration changed before connection" }
+                delegate.connect(instance)
+            }
         }
     }
 
-    override fun createTransport(): PrinterTransport =
-        connection.wrap(BluetoothPrinterTransport(context, TransportConstraints(1024)))
 }
 
 /** Cached sessions reactivate their own socket; foreground loss closes the current connection. */
 internal class ForegroundPrintConnection(private val foreground: () -> Boolean) {
-    private var active: PrinterTransport? = null
+    private val active = AtomicReference<PrinterTransport?>()
+    val isActive: Boolean get() = active.get() != null
 
     fun wrap(transport: PrinterTransport): PrinterTransport = object : PrinterTransport {
             override val constraints = transport.constraints
             override suspend fun connect(instance: PrinterInstance) {
                 check(foreground()) { "Printing requires a foreground application" }
-                if (active !== this) active?.close()
-                active = this
+                active.getAndSet(this)?.takeIf { it !== this }?.close()
                 transport.connect(instance)
             }
             override suspend fun write(bytes: ByteArray, offset: Int, length: Int): Int {
                 check(foreground()) { "Printing requires a foreground application" }
                 return transport.write(bytes, offset, length)
             }
-            override fun close() = transport.close()
+            override fun close() {
+                active.compareAndSet(this, null)
+                transport.close()
+            }
         }
 
-    fun close() { active?.close() }
+    fun close() { active.getAndSet(null)?.close() }
 }
 
 internal fun bluetoothDiagnostic(failure: TransportFailure): String = "${failure.name}: " + when (failure) {

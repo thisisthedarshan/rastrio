@@ -38,5 +38,12 @@ object TextResourceHeapProbe {
         val raster = backend.rasterize(RasterTextRequest(exact + "Ж", typography, 8192, 64, 40, 203, 203))
         check(raster is RasterTextResult.Failure && raster.diagnostics.single().code == "TXT120")
         println("over-limit raster work: TXT120 before native rendering")
+        val arrows = "A↑".repeat(128)
+        check(backend.measure(TextMeasureRequest(arrows, typography)) is TextMeasureResult.Success)
+        for (text in listOf(arrows + "A", "A↑".repeat(32768))) {
+            val rejected = backend.measure(TextMeasureRequest(text, typography))
+            check(rejected is TextMeasureResult.Failure && rejected.diagnostics.single().code == "TXT120")
+        }
+        println("arrow fallback: exact 256 runs accepted; 257 and 65536 runs rejected")
     }
 }

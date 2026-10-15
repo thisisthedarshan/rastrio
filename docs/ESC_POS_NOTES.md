@@ -2035,3 +2035,53 @@ Hardware Observed inventory rather than host-command acceptance. All printer
 procedures remain NOT RUN. The 1,024-byte Android transport write ceiling is policy,
 not a hardware-tested buffer limit. Unknown DPI, printable dot width, CP437/font
 selectors, raster strategy/bands and native command compatibility remain unknown.
+
+
+## Phase 14 UX inspection evidence (2026-10-14)
+
+The revised Add Printer workflow performs explicit, approved Classic SDP service
+inspection only. Its portable observation model never carries raw printer
+commands. Ten-second timeout, 64-UUID cap, selected-device filtering and receiver
+cleanup apply. Android service replies remain cached evidence because freshness
+cannot be established from ACTION_UUID; missing cache records are unknown, not
+proof of unsupported SPP. Unsupported printer identification queries are reported
+rather than probed. USB descriptors and BLE GATT remain separate unsupported
+transport scopes in this workflow.
+
+One approved actual Android API 34/arm64-v8a check observed the paired BillQuick-Go
+as dual-mode and found a cached SPP advertisement (HW-038). This supersedes the
+prior lack of OS service observations, but does not verify a socket or host print
+path. The supplied self-test photograph corroborates 48 mm physical width,
+reported 12×24/CP437 and firmware-generated QR/EAN13 samples (HW-035 inventory
+corroboration). DPI, printable dots, selector values, raster/native command
+behavior and physical output from RastrIO remain unverified. No profile capability
+is enabled from these observations alone.
+
+
+## Operator Linux characterization received 2026-10-15
+
+The operator supplied a manual October 2026 study with USB-001–004, PRINT-001–039
+and BT-001–004. This is supplied physical/measured/host evidence, not a new agent
+execution of those procedures. It supersedes earlier unknown values only within
+the tested scope: GS v 0 width384 with392-dot clipping; ruler-derived203.2 DPI
+both axes; CP437 ESC t0/CP850 ESC t2 for listed characters; ESC M0/1 with A32/B42
+column capacities; native QR GS(k model2 requests with4/6 modules and scanner
+checks; native EAN13 GS k67 with scanner checks; USB writes through9228 bytes
+and Classic RFCOMM channel1 ASCII/raster/QR writes through524 bytes. These are
+tested operating points, not buffer, throughput or maximum-height limits.
+
+Font heights/exact line advances, full repertoire coverage, precise ESC J/LF
+spacing, RastrIO GS P/GS L/GS W/ESC $/reset behavior, QR quiet-zone positioning,
+absolute paper origin, status and interruption recovery remain incomplete.
+PRINT-038/039 produced equal2mm gaps for different ESC J arguments; do not mark
+proportional feeding verified. Native EAN13 is not enabled by the application
+until its prepared operation/encoder implementation exists.
+
+See [experimental profile and exact scope](../test-fixtures/hardware/HELETT-OCT2026-candidate.md).
+The candidate is outside maintained production profiles. On2026-10-15 the agent
+sent one report-identical59-byte QR over Linux Bluetooth, and the operator
+confirmed complete paper output and exact scan. Then one9027-byte RastrIO
+Markdown raster job was sent in512-byte bounded sends; operator confirmed all
+content printed, with heading/bold alike. No retry/cut/status commands were sent.
+Current heading typography uses body metrics and bold weight, explaining that
+observation without attributing it to unknown native printer font behavior.

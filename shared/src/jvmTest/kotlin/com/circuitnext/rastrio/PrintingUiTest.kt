@@ -32,12 +32,13 @@ class PrintingUiTest {
         val printer = PrinterInstance("ui-fixture", "Fixture printer", PrinterTransportKind.DEVELOPMENT,
             "ui-opaque-locator", profile.value!!.profileId, profile.value!!.profileRevision)
         override val printers = MutableStateFlow(listOf(printer))
+        override val selectedPrinter = MutableStateFlow<PrinterInstance?>(printer)
         override val status = MutableStateFlow("Development fixture; hardware unverified")
         override val foreground = MutableStateFlow(true)
         var selections = 0
         override fun refreshPairedPrinters() = Unit
         override fun importProfile() = Unit
-        override fun selectPrinter(instance: PrinterInstance) { selections++ }
+        override fun selectPrinter(instance: PrinterInstance) { selections++; selectedPrinter.value = instance }
         override fun createTransport(): PrinterTransport = transport
     }
 
@@ -49,16 +50,14 @@ class PrintingUiTest {
         setContent { RastrIOApp(input, platform) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
-        onNodeWithText("Use Fixture printer").performScrollTo().performClick()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsEnabled()
-        onNodeWithText("Open physical preview").performScrollTo().performClick()
-        onNodeWithText("Selected printer target", substring = true).assertExists()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
+        onNodeWithText("Fixture printer").assertExists()
         onNodeWithTag("physical-canvas").assertExists()
-        onNodeWithText("Print prepared document").performClick()
+        onNodeWithTag("confirm-print").performClick()
         waitUntil { platform.transport.byteCount > 0 && !platform.transport.connected }
         onNodeWithText("Local transmission completed · physical printing is not confirmed").assertExists()
-        assertEquals(1, platform.selections)
+        assertEquals(0, platform.selections)
         assertEquals(1, platform.transport.connections)
     }
 
@@ -68,14 +67,14 @@ class PrintingUiTest {
         setContent { RastrIOApp(input, platform) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Use Fixture printer").performScrollTo().performClick()
-        onNodeWithText("Print prepared document").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").performClick()
         waitUntil { platform.transport.byteCount == 4 && !platform.transport.connected }
         onNodeWithText("Print failed · earlier paper output may exist").assertExists()
-        onNodeWithText("Print prepared document").assertIsNotEnabled()
-        onNodeWithText("Back to Markdown").performScrollTo().performClick()
+        onNodeWithTag("confirm-print").assertIsNotEnabled()
+        onNodeWithText("Back").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Prepare selected printer").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
         onNodeWithText("Request another print").performScrollTo().performClick()
         onNodeWithText("Earlier paper output may exist").assertExists()
         assertEquals(1, platform.transport.connections)
@@ -92,14 +91,15 @@ class PrintingUiTest {
         setContent { RastrIOApp(input, platform) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Use Fixture printer").performScrollTo().performClick()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsEnabled()
-        onNodeWithText("Back to Markdown").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
+        onNodeWithText("Back").performClick()
         onNodeWithTag("markdown-source").performTextReplacement("Changed")
         onNodeWithText("Printer preview").assertIsNotEnabled()
         onNodeWithText("Compile").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsEnabled()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
         assertEquals(0, platform.transport.connections)
     }
 
@@ -109,13 +109,13 @@ class PrintingUiTest {
         setContent { RastrIOApp(input, platform) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Use Fixture printer").performScrollTo().performClick()
-        onNodeWithText("Print prepared document").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").performClick()
         waitUntil { platform.transport.writes == 1 }
         runOnIdle { platform.foreground.value = false }
         waitUntil { !platform.transport.connected }
         onNodeWithText("Print cancelled · earlier paper output may exist").assertExists()
-        onNodeWithText("Print prepared document").assertIsNotEnabled()
+        onNodeWithTag("confirm-print").assertIsNotEnabled()
         assertEquals(1, platform.transport.connections)
         assertEquals(0, platform.transport.byteCount)
     }

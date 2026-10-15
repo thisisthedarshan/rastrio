@@ -3588,3 +3588,50 @@ Automated resource checks do not establish OEM launcher rendering or actual Andr
 cold/warm startup appearance. Run those on the device separately. The operator's
 supplied API 34/arm64-v8a renderer PASS is scoped to the renderer/artifact gate,
 not to the newly changed branding or Bluetooth workflow.
+
+
+### Phase 14 guided-setup regression and visual gates
+
+DeviceCandidatesTest covers bounded/deduplicated sorting, case-insensitive search,
+Classic/dual/unknown/BLE metadata and explicit unverified self-test suggestions.
+AddPrinterUiTest covers collapse/change retention, BLE disclosure, consent and
+cancellation, actual saved-state reconstruction with metadata refresh only,
+keyboard/radio semantics and a 360×640 dp viewport at 200% text scale. Profile
+editor tests cover basic/Advanced disclosure, inline summary/technical details,
+explicit conflict acceptance and storage-failure retention. ProfileDraftTest adds
+v1→v2 compatibility, bounded provenance/verification records and identity/snapshot
+invalidation; Core portable-format validation remains unchanged.
+
+AndroidPrinterInspectionTest covers bounded SDP replies, cached/unavailable,
+foreign identity, malformed/over-limit/empty replies, cancellation and discovery
+states. Its fake interface exposes no socket or printer-command methods. Live
+inspection requires separate user approval and does not count as a print test.
+
+The existing image stale-plan test starts with a nine-dot raster to keep browser
+work bounded while asserting every algorithm/adjustment/profile/options/source
+transition. Production image behavior and resource limits are unchanged.
+
+Inspect actual Android screenshots in both themes and with enlarged text/smaller
+viewports; automated Compose semantics alone are not a visual PASS. Restore all
+temporary display/font/theme overrides. Record live TalkBack speech as a separate
+manual check rather than inferring it from a semantic tree. No screenshot, preview
+or software test establishes H50i host-command/paper-output compatibility.
+
+### Approved Android utility redesign
+
+AppBackNavigationTest exercises bounded route restoration and hardware-handler
+navigation. TemplateUiTest, TemplateWorkspaceNavigationTest and
+TemplateLogicalNavigationTest cover the gallery, independent editors, item-sheet
+editing, retained forms, explicit preview and return paths. PhysicalPreviewUiTest
+checks fitted paper and expandable diagnostics without changing prepared pixels.
+ProfileEditorRemediationUiTest covers registered dropdown choices and custom
+reported values. CalibrationMeasurementsTest covers exact plan/draft/device
+staleness, finite/ranged independent-axis measurements, bounded persistence and
+non-promotion of experimental capabilities.
+
+Private template form snapshots write version 2 and read version 1. Migration
+retains literal old quantities and initializes optional dates, units and checked
+states without guessing their contents. Snapshots retain the 128-item/32,768-char
+limits; TemplateFormsTest covers compatibility and malformed/bounded state.
+Portable table weights/headerless rows follow the explicit extension documented
+in TD_SPEC; default-weight legacy documents retain their previous serialization.

@@ -47,7 +47,12 @@ class SemanticGraphicPreparationTest {
     }
 
     @Test fun qrPayloadCapacityUnicodeAndOpaqueFramingAreValidatedBeforePublication() {
-        for (payload in listOf("", "x\uD800", "x\uDC00", "é".repeat(1500))) failure(prepare(qr(payload)), "PRN140")
+        // JS tooling can replace lone-surrogate literals before runtime; construct the hostile input explicitly.
+        val high = charArrayOf('x', 0xD800.toChar()).concatToString()
+        val low = charArrayOf('x', 0xDC00.toChar()).concatToString()
+        assertEquals(0xD800, high[1].code)
+        assertEquals(0xDC00, low[1].code)
+        for (payload in listOf("", high, low, "é".repeat(1500))) failure(prepare(qr(payload)), "PRN140")
         failure(prepare(qr("a".repeat(1274), QrErrorCorrection.HIGH)), "PRN140")
         for (payload in listOf("é", "a".repeat(15))) {
             assertTrue(assertIs<PreparationResult.Success>(prepare(qr(payload))).print.operations.any { it is RasterQr })

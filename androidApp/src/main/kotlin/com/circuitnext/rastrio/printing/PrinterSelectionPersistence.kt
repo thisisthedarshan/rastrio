@@ -27,6 +27,11 @@ internal class PrinterSelectionPersistence(private val write: (PrinterInstance) 
     private val writes = Mutex()
     fun request(): Long = generation.incrementAndGet()
     fun isCurrent(request: Long): Boolean = generation.get() == request
+    suspend fun clear(request: Long, clear: () -> Boolean): Boolean = writes.withLock {
+        if (!isCurrent(request)) return@withLock false
+        val cleared = withContext(Dispatchers.IO) { clear() }
+        cleared && isCurrent(request)
+    }
     suspend fun save(request: Long, instance: PrinterInstance): Boolean = writes.withLock {
         if (!isCurrent(request)) return@withLock false
         val saved = withContext(Dispatchers.IO) { write(instance) }

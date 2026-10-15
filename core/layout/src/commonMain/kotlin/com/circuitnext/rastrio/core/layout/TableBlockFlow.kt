@@ -29,11 +29,13 @@ internal data class TableShape(val rows: Long, val cells: Long, val geometryCost
 internal fun tableShape(table: Table, policy: LayoutResourcePolicy, index: Int): TableShape {
     val columns = table.columns.size
     val bodyRows = table.rows.size
-    if (columns <= 0 || bodyRows < 0 || table.header.size != columns)
+    if (columns <= 0 || bodyRows < 0 || (table.header.isNotEmpty() && table.header.size != columns))
         abort("LAY105", "Table has an invalid column or header count", index)
     if (columns > policy.maxTableColumns || bodyRows > policy.maxTableRows)
         abort("LAY120", "Table dimensions exceed layout policy", index)
-    val rows = boundedCount(bodyRows.toLong(), 1, Long.MAX_VALUE, index)
+    for (column in table.columns) if (column.widthWeight !in 1..1000)
+        abort("LAY105", "Table has an invalid column width weight", index)
+    val rows = boundedCount(bodyRows.toLong(), if (table.header.isEmpty()) 0 else 1, Long.MAX_VALUE, index)
     if (rows > policy.maxTableCells.toLong() / columns)
         abort("LAY120", "Table cell count exceeds layout policy", index)
     for (row in table.rows) if (row.size != columns)
@@ -44,7 +46,7 @@ internal fun tableShape(table: Table, policy: LayoutResourcePolicy, index: Int):
     return TableShape(rows, cells, boundedCount(geometry, 2L * cells, Long.MAX_VALUE, index))
 }
 
-/** Equal columns and finalized rows; cell text uses the ordinary shared flow exactly once. */
+/** Weighted columns and finalized rows; cell text uses the ordinary shared flow exactly once. */
 internal class TableBlockFlow(private val constraints: LayoutConstraints, private val textFlow: TextBlockFlow,
     private val charge: (Int, Int) -> Unit) {
     fun layout(table: Table, index: Int, originX: Double, width: Double, initialY: Double): Pair<LogicalTableBlock, Double> {
@@ -61,15 +63,20 @@ internal class TableBlockFlow(private val constraints: LayoutConstraints, privat
         var y = startY
         val count = table.columns.size
         val ticks = LogicalGeometry.ticks(width)
-        val quotient = ticks / count
-        val remainder = ticks % count
-        // Slots were reserved above. No data-dependent sizing pass or rectangular scratch matrix.
-        val widths = List(count) { position -> LogicalGeometry.millimetres(quotient + if (position < remainder) 1 else 0) }
+        var totalWeight = 0L
+        for (column in table.columns) totalWeight = boundedCount(totalWeight, column.widthWeight.toLong(), 256_000L, index)
+        // Quotient/remainder products are bounded by ticks and 256,000 * 1,000 respectively.
+        val widthTicks = table.columns.map { column ->
+            ticks / totalWeight * column.widthWeight + ticks % totalWeight * column.widthWeight / totalWeight
+        }
+        val remainder = ticks - widthTicks.sum()
+        val widths = List(count) { position -> LogicalGeometry.millimetres(widthTicks[position] + if (position < remainder) 1 else 0) }
         for (columnWidth in widths) if (LogicalGeometry.fits(columnWidth, twicePadding))
             abort("LAY107", "Table padding exhausts cell content width", index)
         val rows = mutableListOf<LogicalTableRow>()
         for (rowIndex in 0 until shape.rows.toInt()) {
-            val semantic = if (rowIndex == 0) table.header else table.rows[rowIndex - 1]
+            val isHeader = table.header.isNotEmpty() && rowIndex == 0
+            val semantic = if (isHeader) table.header else table.rows[rowIndex - if (table.header.isEmpty()) 0 else 1]
             val text = mutableListOf<LogicalTextBlock>()
             val contentY = LogicalGeometry.add(y, padding)
             var columnX = originX
@@ -95,7 +102,7 @@ internal class TableBlockFlow(private val constraints: LayoutConstraints, privat
                 columnX = LogicalGeometry.add(columnX, cellWidth)
                 cell
             }
-            rows.add(LogicalTableRow(LogicalBounds(originX, y, width, height), rowIndex == 0, SnapshotList(cells)))
+            rows.add(LogicalTableRow(LogicalBounds(originX, y, width, height), isHeader, SnapshotList(cells)))
             y = LogicalGeometry.add(y, height)
         }
         val height = LogicalGeometry.subtract(y, startY)

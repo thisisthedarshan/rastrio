@@ -20,10 +20,10 @@ import kotlin.test.*
 
 class ProfileDraftTest {
     private val fixture = SyntheticReferenceProfiles.wide80mm.copy(profileId = "org.rastrio.fixture.editor")
-    private fun verified(draft: ProfileDraft): ProfileDraft = draft.copy(
-        evidence = ProfileDraftFields.evidenceAreas.associateWith { ProfileEvidence.VERIFIED },
-        evidenceNotes = "Automated fixture only; no physical printer claim",
-    )
+    private fun verified(draft: ProfileDraft): ProfileDraft = ProfileDraftFields.evidenceAreas.fold(
+        draft.copy(evidenceNotes = "Automated fixture only; no physical printer claim")) { value, area ->
+        value.recordVerification(area, "Automated regression fixture", "Expected fixture bytes; no real printer claim", "test-device")
+    }
 
     @Test fun incompleteUnknownGeometrySurvivesSaveAndLoadWithoutActivation() {
         val draft = ProfileDraft.fresh("user.unknown").withField("display.name", "Helett H50i")
@@ -101,7 +101,7 @@ class ProfileDraftTest {
 
     @Test fun malformedLocalRecordsAreRejectedBeforeRestoringDrafts() {
         val encoded = ProfileDraft.fresh("user.local").encodeLocal()
-        for (record in listOf(encoded + "extra", encoded.dropLast(1), encoded.replace("local-draft-1", "local-draft-2"),
+        for (record in listOf(encoded + "extra", encoded.dropLast(1), encoded.replace("local-draft-2", "local-draft-3"),
             "RastrIO-local-draft-1:99999:x", "RastrIO-local-draft-1:-1:x", "x".repeat(65537))) {
             assertNull(ProfileDraft.decodeLocal(record))
         }
@@ -122,8 +122,8 @@ class ProfileDraftTest {
     }
 
     @Test fun verifiedValuesRequireARecordedProcedureAndResult() {
-        val draft = verified(ProfileDraft.fromProfile(fixture)).copy(evidenceNotes = "")
-        assertTrue(assertIs<ProfileValidationResult.Failure>(draft.validate()).diagnostics.any { it.path == "$.evidenceNotes" })
+        val draft = verified(ProfileDraft.fromProfile(fixture)).copy(verifications = emptyList())
+        assertTrue(assertIs<ProfileValidationResult.Failure>(draft.validate()).diagnostics.any { it.path == "$.geometry" })
     }
     @Test fun framedStorageLimitAndDanglingSelectorCannotLoseInput() {
         val fields = ProfileDraftFields.all.take(48).associate { it.path to "x".repeat(1024) }
@@ -136,6 +136,56 @@ class ProfileDraftTest {
         val dangling = ProfileDraft.fromProfile(fixture).withField("nativeText.codePages[0].selector.strategy", "")
         val result = assertIs<ProfileValidationResult.Failure>(dangling.validateCandidate())
         assertTrue(result.diagnostics.any { it.path == "$.nativeText.codePages[0].selector.parameter" })
+    }
+
+    @Test fun labelAloneCannotVerifyEvenWithFreeformNotes() {
+        val draft = ProfileDraft.fromProfile(fixture).copy(
+            evidence = ProfileDraftFields.evidenceAreas.associateWith { ProfileEvidence.VERIFIED },
+            evidenceNotes = "Someone chose verified")
+        assertIs<ProfileValidationResult.Failure>(draft.validate())
+        assertIs<ProfileValidationResult.Success<ValidatedPrinterProfile>>(draft.validateCandidate())
+    }
+
+    @Test fun emptyNumbersHaveOneWorksheetErrorPerPathWithoutCoreZeroCascades() {
+        val draft = ProfileDraft.fresh("user.empty")
+        assertTrue(MemoryProfileDraftStorage().saveDrafts(listOf(draft)))
+        val errors = assertIs<ProfileValidationResult.Failure>(draft.validateCandidate()).diagnostics
+        assertEquals(1, errors.count { it.path == "$.geometry.horizontalDpi" })
+        assertTrue(errors.none { it.code == "PRF103" })
+        assertEquals("", draft["geometry.horizontalDpi"])
+    }
+
+    @Test fun suggestionsPreserveProvenanceConflictsAndUserChoice() {
+        val suggestion = ProfileSuggestion("display.name", "Reported name", InspectionEvidence.DEVICE_REPORTED, "Paired metadata", "one-device")
+        val draft = ProfileDraft.fresh("user.suggestion").withField("display.name", "My name").withSuggestions(listOf(suggestion))
+        assertEquals("My name", draft["display.name"])
+        assertEquals(draft, ProfileDraft.decodeLocal(draft.encodeLocal()))
+        val accepted = draft.acceptSuggestion(suggestion)
+        assertEquals("Reported name", accepted["display.name"])
+        assertEquals(suggestion, accepted.suggestions.single())
+        assertTrue(accepted.verifications.isEmpty())
+        assertFailsWith<IllegalArgumentException> { draft.withSuggestions(List(33) { suggestion }) }
+    }
+
+    @Test fun verifiedRecordsAreBoundToFieldsAndPrinterIdentity() {
+        val draft = verified(ProfileDraft.fromProfile(fixture))
+        assertIs<ProfileValidationResult.Success<ValidatedPrinterProfile>>(draft.validate("test-device"))
+        assertIs<ProfileValidationResult.Failure>(draft.validate("other-device"))
+        assertTrue(draft.withField("quirks", "changed").verifications.isEmpty())
+        assertIs<ProfileValidationResult.Failure>(draft.copy(fields = draft.fields + ("quirks" to "changed")).validate())
+        assertFalse(draft.withField("geometry.printableWidthDots", "400").verifications.any { it.area == "geometry" })
+        assertIs<ProfileValidationResult.Failure>(draft.copy(fields = draft.fields + ("geometry.printableWidthDots" to "400")).validate())
+        assertFailsWith<IllegalArgumentException> { draft.recordVerification("geometry", "", "Observed", "test-device") }
+    }
+
+    @Test fun versionOneLocalDraftMigratesWithoutInventingVerification() {
+        val parts = listOf("user.old", "Legacy notes", "false", "1", "display.name", "Old name", "1", "geometry", "VERIFIED")
+        val legacy = "RastrIO-local-draft-1:" + parts.joinToString("") { "${it.length}:$it" }
+        val draft = assertNotNull(ProfileDraft.decodeLocal(legacy))
+        assertEquals("Old name", draft["display.name"])
+        assertTrue(draft.verifications.isEmpty())
+        assertIs<ProfileValidationResult.Failure>(draft.validate())
+        assertEquals(draft, ProfileDraft.decodeLocal(draft.encodeLocal()))
     }
 
 }

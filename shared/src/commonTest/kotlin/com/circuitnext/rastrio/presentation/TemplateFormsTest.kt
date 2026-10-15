@@ -37,6 +37,22 @@ class TemplateFormsTest {
         }
     }
 
+    @Test fun datedShoppingAndMemoDraftsRoundTripAndOldSnapshotMigrates() {
+        val forms = TemplateForms(shopping = ShoppingListState("Food", listOf(ShoppingItem("Milk", "2", "L", true)), "Today"),
+            memo = MemoState(body = "Memo", date = "Tomorrow"))
+        assertEquals(forms, TemplateForms.restore(forms.snapshot()))
+        assertNull(TemplateForms.restore(forms.snapshot().toMutableList().apply { this[lastIndex] = "invalid-check" }))
+        val legacy = listOf("1", "SHOPPING", "", "0", "Food", "1", "Milk", "2 L", "", "", "", "", "Memo", "Name", "", "", "AUTO", "")
+        val restored = assertNotNull(TemplateForms.restore(legacy))
+        assertEquals("2 L", restored.shopping.items.single().quantity)
+        assertEquals("", restored.shopping.date)
+        assertEquals("", restored.shopping.items.single().unit)
+        assertFalse(restored.shopping.items.single().checked)
+        assertEquals("", restored.memo.date)
+        assertEquals(restored, TemplateForms.restore(restored.snapshot()))
+        assertFalse(forms.copy(shopping = forms.shopping.copy(date = "x".repeat(32768))).withinSaveLimit())
+    }
+
     @Test fun reorderedItemsPreserveChecksAndQuantityWithoutMutatingOriginal() {
         val todo = listOf(TodoItem("one", true), TodoItem("two"), TodoItem("three"))
         assertEquals(listOf(todo[1], todo[0], todo[2]), todo.moveTemplateItem(1, -1))
@@ -51,7 +67,7 @@ class TemplateFormsTest {
         val snapshot = TemplateForms().snapshot()
         assertNull(TemplateForms.restore(emptyList()))
         assertNull(TemplateForms.restore(snapshot + "extra"))
-        assertNull(TemplateForms.restore(snapshot.toMutableList().apply { this[0] = "2" }))
+        assertNull(TemplateForms.restore(snapshot.toMutableList().apply { this[0] = "999" }))
         assertNull(TemplateForms.restore(snapshot.toMutableList().apply { this[3] = Int.MAX_VALUE.toString() }))
         assertNull(TemplateForms.restore(listOf("x".repeat(TemplateForms.MAX_SAVED_CHARACTERS + 1))))
         assertFalse(TemplateForms(note = QuickNoteState(body = "a".repeat(TemplateForms.MAX_SAVED_CHARACTERS))).withinSaveLimit())

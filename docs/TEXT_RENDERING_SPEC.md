@@ -2760,6 +2760,7 @@ Noto Sans
 
 JetBrains Mono
     code/monospace role
+    controlled five-arrow fallback (U+2191, U+2192, U+2193, U+2197, U+2198)
 
 pinned Noto Sans script-specific fallbacks
     only as required for claimed script coverage
@@ -3125,12 +3126,21 @@ centralized in `TextLayoutPolicyV1`.
 
 ### Table geometry and text
 
-A table spans its enclosing available logical content width. Divide that width's
-integer LogicalGeometry ticks equally by the column count, giving one remaining tick
-per column from left to right. This requires no intrinsic text sizing or sampling.
+A table spans its enclosing available logical content width. Each column has a
+relative integer `widthWeight` from 1 through 1000 (default 1). Divide the enclosing
+integer LogicalGeometry ticks proportionally: floor ticks × weight / total weight,
+then give one remaining tick per column from left to right until the width is exhausted.
+Validate column count and weights before content traversal; bound/check the weight
+sum and use quotient/remainder arithmetic so multiplication cannot overflow.
+Default weights reproduce the original equal-column allocation exactly.
+This requires no intrinsic text sizing or sampling.
 Column widths and origins are finalized before cell text flow. There are no column
 gaps, borders, decorative rules, automatic header bold or header typography changes.
-Header identity remains explicit in the logical rows. Author-supplied inline styles apply.
+Header identity remains explicit in the logical rows. An empty semantic `header`
+produces only body rows, all with `isHeader=false`; an entirely empty table has zero
+row height and the ordinary before/after spacing. Author-supplied inline styles apply.
+The weighted/headerless contract is the deliberate 2026-10-14 v1 extension described
+in TD_SPEC Section 51.1; it does not move layout into template builders or preview.
 
 All cell sides have 0.25 body em padding, where body em is body ascent plus descent.
 Padding is normalized on the logical grid; zero canonical padding fails with LAY122.
@@ -3299,6 +3309,26 @@ Devanagari italic is offered: a request for that missing face fails. Unsupported
 strong bidi content, missing glyphs, malformed UTF-16, unsupported controls and
 unrepresentable final raster geometry produce content-free diagnostics. Color
 emoji and arbitrary OS/user fonts are outside this controlled adapter.
+
+The `arrows-v2` backend identity adds the five confirmed arrows U+2191, U+2192,
+U+2193, U+2197 and U+2198 through the existing pinned JetBrains Mono faces.
+Ordinary body graphemes retain Noto Sans; a complete arrow-containing grapheme
+uses JetBrains Mono Regular, Bold, Italic or BoldItalic according to the genuine
+requested face. Script-specific Devanagari selection remains earlier in the
+controlled chain. Adjacent selected-font graphemes are shaped as one run, retaining
+contextual kerning/ligatures within that run. Typography ascent, descent and line
+height enclose the real primary, script and symbol metrics before layout; fallback
+advances come from actual shaping. Existing contextual wrapping and physical-row
+composition remain authoritative. No font binary, `.td` or `.tcfg` schema changes.
+Existing raster goldens for supported content remain unchanged.
+
+Unsupported glyph failures identify the failing grapheme's Unicode code points
+(at most eight, with an explicit ellipsis for a longer cluster), without quoting
+surrounding content. Layout/preparation retain the source block index for display.
+Missing glyphs fail atomically with TXT130 during measurement or TXT131 during
+rasterization. Emoji-presentation selector U+FE0F is rejected explicitly; musical
+symbols U+1F3B5 and U+1F3BC remain unsupported. No remote/OS fallback or silent
+missing-glyph substitution is introduced.
 
 Input shaping requests are bounded to 65,536 UTF-16 units, 131,072 output glyphs
 and one MiB per trusted font. Each request has a trusted hard ceiling of 256

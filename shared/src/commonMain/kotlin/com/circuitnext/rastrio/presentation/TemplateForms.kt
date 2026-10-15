@@ -51,7 +51,7 @@ internal data class TemplateForms(
 
     /** A bounded private saveable-state snapshot, not a portable document format. */
     fun snapshot(): List<String> = buildList {
-        add("1"); add(selected.name)
+        add("2"); add(selected.name)
         add(todo.title); add(todo.items.size.toString())
         todo.items.forEach { add(it.text); add(if (it.checked) "1" else "0") }
         add(shopping.title); add(shopping.items.size.toString())
@@ -59,6 +59,8 @@ internal data class TemplateForms(
         add(note.title); add(note.body)
         add(memo.subject); add(memo.recipient); add(memo.body); add(memo.signature)
         add(qr.payload); add(qr.caption); add(qr.errorCorrection.name); add(qrSizeMm)
+        add(shopping.date); add(memo.date)
+        shopping.items.forEach { add(it.unit); add(if (it.checked) "1" else "0") }
     }
 
     fun withinSaveLimit(): Boolean = todo.items.size <= MAX_FORM_ITEMS && shopping.items.size <= MAX_FORM_ITEMS &&
@@ -70,13 +72,14 @@ internal data class TemplateForms(
         const val MAX_SAVED_CHARACTERS = 32_768
 
         fun restore(values: List<String>): TemplateForms? {
-            if (values.size > 2 * MAX_FORM_ITEMS * 2 + 20 ||
+            if (values.size > 6 * MAX_FORM_ITEMS + 20 ||
                 values.sumOf { it.length.toLong() } > MAX_SAVED_CHARACTERS) return null
             var index = 0
             fun next(): String = values.getOrNull(index++) ?: throw IllegalArgumentException()
             fun count(): Int = next().toIntOrNull()?.takeIf { it in 0..MAX_FORM_ITEMS } ?: throw IllegalArgumentException()
             return try {
-                require(next() == "1")
+                val version = next()
+                require(version == "1" || version == "2")
                 val selected = TemplateKind.valueOf(next())
                 val todoTitle = next()
                 val todoItems = List(count()) {
@@ -85,13 +88,22 @@ internal data class TemplateForms(
                     TodoItem(text, checked)
                 }
                 val shoppingTitle = next()
-                val shoppingItems = List(count()) { ShoppingItem(next(), next()) }
+                var shoppingItems = List(count()) { ShoppingItem(next(), next()) }
                 val note = QuickNoteState(next(), next())
-                val memo = MemoState(next(), next(), next(), next())
+                var memo = MemoState(next(), next(), next(), next())
                 val qr = QrMessageState(next(), next(), QrErrorCorrection.valueOf(next()))
                 val size = next()
+                val shoppingDate = if (version == "2") next() else ""
+                if (version == "2") {
+                    memo = memo.copy(date = next())
+                    shoppingItems = shoppingItems.map { item ->
+                        val unit = next()
+                        val checked = next().also { require(it == "0" || it == "1") } == "1"
+                        item.copy(unit = unit, checked = checked)
+                    }
+                }
                 require(index == values.size)
-                TemplateForms(selected, TodoState(todoTitle, todoItems), ShoppingListState(shoppingTitle, shoppingItems),
+                TemplateForms(selected, TodoState(todoTitle, todoItems), ShoppingListState(shoppingTitle, shoppingItems, shoppingDate),
                     note, memo, qr, size)
             } catch (_: IllegalArgumentException) { null }
         }

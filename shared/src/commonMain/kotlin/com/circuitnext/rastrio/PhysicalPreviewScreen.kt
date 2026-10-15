@@ -23,8 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,31 +61,47 @@ internal fun physicalPreviewUsesMono(character: Char): Boolean =
 
 @Composable
 internal fun PhysicalPreviewScreen(preview: PrintPreview, syntheticTarget: Boolean = true,
-    printingControls: @Composable () -> Unit = {}, backLabel: String = "Back to printer setup", onBack: () -> Unit) {
+    printingControls: @Composable () -> Unit = {}, backLabel: String = "Back to printer setup", compact: Boolean = false, onBack: () -> Unit) {
     var zoom by remember(preview) { mutableStateOf(1f) }
+    var details by remember(preview) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Physical preview", style = MaterialTheme.typography.headlineMedium)
-        AuthoringButton(backLabel, onClick = onBack)
-        Text("${if (syntheticTarget) "Synthetic test target" else "Selected printer target"} · ${preview.target.profileId}",
+        if (compact) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Physical preview", style = MaterialTheme.typography.titleLarge)
+            TextButton(onClick = onBack) { Text(backLabel) }
+        } else {
+            Text("Physical preview", style = MaterialTheme.typography.headlineMedium)
+            AuthoringButton(backLabel, onClick = onBack)
+        }
+        Text(if (compact) { if (syntheticTarget) "Software preview" else "Selected printer target" }
+            else "${if (syntheticTarget) "Synthetic test target" else "Selected printer target"} · ${preview.target.profileId}",
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.semantics {
                 contentDescription = "Selected ${if (syntheticTarget) "synthetic " else ""}printer profile ${preview.target.profileId}"
             })
-        Text("${preview.widthDots} dots wide · ${preview.target.horizontalDpi} × ${preview.target.verticalDpi} dpi",
-            style = MaterialTheme.typography.bodySmall)
-        Text("Exact raster dots · representative native glyphs and QR matrix", style = MaterialTheme.typography.bodySmall)
-        Box(Modifier.heightIn(max = 180.dp).verticalScroll(rememberScrollState())) { printingControls() }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AuthoringButton("Zoom out", enabled = zoom > 0.5f, onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.5f) })
-            AuthoringButton("Zoom in", enabled = zoom < 3f, onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) })
+        if (compact) TextButton(onClick = { details = !details }) { Text(if (details) "Hide preview details" else "Preview details") }
+        if (!compact || details) {
+            Text("${preview.widthDots} dots wide · ${preview.target.horizontalDpi} × ${preview.target.verticalDpi} dpi", style = MaterialTheme.typography.bodySmall)
+            Text("Exact raster dots; native glyphs are representative", style = MaterialTheme.typography.bodySmall)
+            if (compact) preview.diagnostics.forEach { Text("${it.code}: ${it.message}", style = MaterialTheme.typography.bodySmall) }
         }
-        PhysicalPreviewCanvas(preview, zoom, Modifier.weight(1f).fillMaxWidth())
+        if (compact && !details && preview.diagnostics.isNotEmpty()) Text(preview.diagnostics.first().message,
+            style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.heightIn(max = if (compact) 144.dp else 180.dp).verticalScroll(rememberScrollState())) { printingControls() }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(enabled = zoom > 0.5f, onClick = { zoom = (zoom / 1.25f).coerceAtLeast(0.5f) }) { Text("Zoom out") }
+            TextButton(enabled = zoom < 3f, onClick = { zoom = (zoom * 1.25f).coerceAtMost(3f) }) { Text("Zoom in") }
+        }
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val fit = if (compact) minOf(1f, maxWidth.value / preview.widthDots) else 1f
+            PhysicalPreviewCanvas(preview, zoom * fit, Modifier.fillMaxSize(), showDiagnostics = !compact)
+        }
     }
 }
 
 /** Viewport zoom/density change painting only; tiles retain their finalized dot coordinates. */
 @Composable
-internal fun PhysicalPreviewCanvas(preview: PrintPreview, zoom: Float = 1f, modifier: Modifier = Modifier) {
+internal fun PhysicalPreviewCanvas(preview: PrintPreview, zoom: Float = 1f, modifier: Modifier = Modifier, showDiagnostics: Boolean = true) {
     val font = FontFamily(Font(Res.font.noto_sans_regular, FontWeight.Normal), Font(Res.font.noto_sans_bold, FontWeight.Bold))
     val symbols = FontFamily(Font(Res.font.noto_sans_mono_regular, FontWeight.Normal), Font(Res.font.noto_sans_mono_bold, FontWeight.Bold))
     val density = LocalDensity.current
@@ -104,7 +119,7 @@ internal fun PhysicalPreviewCanvas(preview: PrintPreview, zoom: Float = 1f, modi
     Box(modifier.horizontalScroll(rememberScrollState()).testTag("physical-canvas")
         .semantics { contentDescription = "Physical preview, ${preview.widthDots} prepared dots wide" }) {
         LazyColumn(Modifier.width(paperWidth + 180.dp).fillMaxHeight().testTag("physical-tiles")) {
-            items(preview.diagnostics.size) { index ->
+            items(if (showDiagnostics) preview.diagnostics.size else 0) { index ->
                 val diagnostic = preview.diagnostics[index]
                 Text("${diagnostic.code} · ${diagnostic.message}", color = LocalAuthoringColors.current.warning,
                     modifier = Modifier.padding(vertical = 4.dp).testTag("physical-diagnostic"))
@@ -130,7 +145,7 @@ internal fun PhysicalPreviewCanvas(preview: PrintPreview, zoom: Float = 1f, modi
                         val tileHeight = with(density) { (endPx - topPx).toDp() }
                         Box(Modifier.width(paperWidth + 180.dp).height(if (tile.bounds.height == 0) 24.dp else tileHeight)
                             .testTag("physical-tile-$index")) {
-                            Box(Modifier.width(paperWidth).height(tileHeight).background(Color.White).clipToBounds()) {
+                            Box(Modifier.width(paperWidth).height(tileHeight).background(Color.White).clipToBounds().testTag("physical-paper-$index")) {
                                 Canvas(Modifier.fillMaxSize()) {
                                     for (primitive in tile.primitives) when (primitive) {
                                         is MonochromePrimitive -> {

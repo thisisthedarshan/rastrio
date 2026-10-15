@@ -107,7 +107,7 @@ class TdContractCoverageTest {
             minimalDocument.replace("\"orientation\":\"portrait\"", "\"orientation\":12"),
             minimalDocument.replace("\"blocks\":[]", "\"blocks\":[{\"type\":\"quote\",\"blocks\":[]}]"),
             minimalDocument.replace("\"blocks\":[]", "\"blocks\":[{\"type\":\"paragraph\",\"alignment\":\"diagonal\",\"content\":[]}]"),
-            minimalDocument.replace("\"blocks\":[]", "\"blocks\":[{\"type\":\"table\",\"columns\":[{\"alignment\":\"left\"}],\"header\":[],\"rows\":[]}]"),
+            minimalDocument.replace("\"blocks\":[]", "\"blocks\":[{\"type\":\"table\",\"columns\":[{\"alignment\":\"left\"}],\"header\":[{\"content\":[]},{\"content\":[]}],\"rows\":[]}]"),
             minimalDocument.replace("\"layout\":{\"orientation\":\"portrait\"}", "\"layout\":{\"orientation\":\"portrait\",\"maxWidth\":{\"value\":0,\"unit\":\"mm\"}}"),
             minimalDocument.replace("\"blocks\":[]", "\"blocks\":[{\"type\":\"qrCode\",\"payload\":\"x\",\"alignment\":\"left\",\"errorCorrection\":\"future\"}]"),
             minimalDocument.replace("\"blocks\":[]", "\"blocks\":[{\"type\":\"image\",\"asset\":{\"kind\":\"external\",\"uri\":\"x\"},\"alignment\":\"left\",\"sizing\":{\"mode\":\"future\"}}]"),

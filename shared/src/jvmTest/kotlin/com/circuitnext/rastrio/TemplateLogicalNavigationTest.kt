@@ -27,15 +27,21 @@ class TemplateLogicalNavigationTest {
         onNodeWithText("Quick Note").performClick()
         onNodeWithTag("template-Title").performTextInput("Note title")
         onNodeWithTag("template-Note").performTextInput("First note line\nSecond note line")
+        onNodeWithText("Open logical preview").assertDoesNotExist()
+        onNodeWithText("Preview", substring = false).performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
         onNodeWithText("Open logical preview").performScrollTo().performClick()
         onNodeWithText("Logical preview").assertExists()
         onNodeWithTag("logical-canvas").assertContentDescriptionEquals("Assembled logical canvas, 120.0 mm wide")
         onNodeWithText("Note title").assertExists()
         onNodeWithText("First note line").assertExists()
         onNodeWithText("Second note line").assertExists()
+        onNodeWithText("Back to preview").performClick()
+        onNodeWithTag("physical-canvas").assertExists()
         onNodeWithText("Back to templates").performClick()
         onNodeWithTag("template-Title").assertTextContains("Note title")
         onNodeWithTag("template-Note").assertTextContains("First note line\nSecond note line")
-        onNodeWithText("Open logical preview").performScrollTo().assertIsEnabled()
+        onNodeWithText("Open logical preview").assertDoesNotExist()
+        onNodeWithText("Preview", substring = false).performScrollTo().assertIsEnabled()
     }
 }

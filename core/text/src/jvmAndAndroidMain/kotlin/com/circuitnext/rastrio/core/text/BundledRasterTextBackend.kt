@@ -40,11 +40,27 @@ internal object NativeTextBridge {
 
 /** Identical checked-in fonts and pinned native libraries on JVM and Android. */
 class BundledRasterTextBackend private constructor() : RasterTextBackend {
-    override val identity = "harfbuzz-14.6.0/freetype-2.14.3/language-und/ltr/no-hinting/gray-threshold128/v1"
+    override val identity = "harfbuzz-14.6.0/freetype-2.14.3/language-und/ltr/no-hinting/gray-threshold128/arrows-v2"
     private val fonts = HashMap<String, ByteArray>()
     private data class Run(val start: Int, val end: Int, val font: String)
     private class FontRunLimitExceeded : IllegalArgumentException()
     private class TextCancelled : IllegalArgumentException()
+    private class UnsupportedCluster(message: String) : IllegalArgumentException(message)
+    private fun unsupported(text: String, offset: Int): UnsupportedCluster {
+        val boundaries = UnicodeSegmentation.graphemeBoundaries(text)
+        val start = boundaries.last { it <= offset }
+        val end = boundaries.first { it > offset }
+        val points = UnicodeSegmentation.points(text.substring(start, end))
+        val identifiers = points.take(8).joinToString(" ") { "U+" + it.code.toString(16).uppercase().padStart(4, '0') }
+        return UnsupportedCluster("Cannot prepare grapheme $identifiers${if (points.size > 8) " …" else ""} with the available printing fonts")
+    }
+    private inline fun <T> nativeRun(text: String, run: Run, action: () -> T): T = try {
+        action()
+    } catch (e: IllegalArgumentException) {
+        val offset = e.message?.removePrefix("Missing glyph at ")?.toIntOrNull()
+        if (offset != null && offset in 0 until run.end - run.start) throw unsupported(text, run.start + offset)
+        throw e
+    }
     private fun checkCancellation(isCancelled: () -> Boolean) { if (isCancelled()) throw TextCancelled() }
     companion object {
         const val MAX_FONT_RUNS = 256
@@ -111,7 +127,9 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
         require(sizeMm.isFinite() && sizeMm in 0.1..50.0)
         val main = NativeTextBridge.metrics(font(face(style)))
         val fallback = NativeTextBridge.metrics(font("NotoSansDevanagari-${if (style.weight == TextWeight.BOLD) "Bold" else "Regular"}"))
-        fun metric(index: Int) = max(main[index].toDouble() / main[0], fallback[index].toDouble() / fallback[0]) * sizeMm
+        val symbols = NativeTextBridge.metrics(font(face(style.copy(role = TextRole.CODE))))
+        fun metric(index: Int) = maxOf(main[index].toDouble() / main[0],
+            fallback[index].toDouble() / fallback[0], symbols[index].toDouble() / symbols[0]) * sizeMm
         val ascent = metric(1)
         val descent = metric(2)
         val height = max(metric(3), ascent + descent)
@@ -132,6 +150,7 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
         val points = UnicodeSegmentation.points(text)
         require(points.none { it.code in 0x590..0x8ff || it.code in 0xfb1d..0xfdff || it.code in 0xfe70..0xfeff || it.code in 0x200e..0x200f || it.code in 0x202a..0x202e || it.code in 0x2066..0x206f }) { "Unsupported bidirectional content" }
         require(points.none { it.code < 0x20 || it.code in 0x7f..0x9f }) { "Control requires semantic layout" }
+        points.firstOrNull { it.code == 0xfe0f }?.let { throw unsupported(text, it.start) }
         val boundaries = UnicodeSegmentation.graphemeBoundaries(text)
         val result = ArrayList<Run>()
         var pointIndex = 0
@@ -140,12 +159,18 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
             val start = boundaries[i]
             val end = boundaries[i + 1]
             var devanagari = false
+            var arrow = false
             while (pointIndex < points.size && points[pointIndex].start < end) {
                 val code = points[pointIndex++].code
+                arrow = arrow || code in 0x2191..0x2193 || code == 0x2197 || code == 0x2198
                 devanagari = devanagari || code in 0x900..0x97f || code in 0xa8e0..0xa8ff
             }
             require(!devanagari || !style.emphasis) { "Requested Devanagari italic face unavailable" }
-            val selected = if (devanagari) "NotoSansDevanagari-${if (style.weight == TextWeight.BOLD) "Bold" else "Regular"}" else face(style)
+            val selected = when {
+                devanagari -> "NotoSansDevanagari-${if (style.weight == TextWeight.BOLD) "Bold" else "Regular"}"
+                arrow -> face(style.copy(role = TextRole.CODE))
+                else -> face(style)
+            }
             val previous = result.lastOrNull()
             if (previous?.font == selected) result[result.lastIndex] = previous.copy(end = end)
             else {
@@ -166,7 +191,9 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
         shapingStarts[0] = true
         for (run in selected) {
             checkCancellation(isCancelled)
-            val values = NativeTextBridge.shape(font(run.font), request.text.substring(run.start, run.end), sizeMm, 2540, 2540)
+            val values = nativeRun(request.text, run) {
+                NativeTextBridge.shape(font(run.font), request.text.substring(run.start, run.end), sizeMm, 2540, 2540)
+            }
             var i = 0
             while (i < values.size) {
                 val cluster = run.start + values[i].toInt()
@@ -192,6 +219,8 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
         checkCancellation(isCancelled)
         TextMeasureResult.Success(TextMeasurement(request.text.length, LogicalGeometry.millimetres(total),
             request.typography.metrics, SnapshotList(clusters), SnapshotList(breaks)))
+    } catch (e: UnsupportedCluster) {
+        TextMeasureResult.Failure(SnapshotList(listOf(TextDiagnostic("TXT130", e.message!!))))
     } catch (_: FontRunLimitExceeded) {
         TextMeasureResult.Failure(SnapshotList(listOf(TextDiagnostic("TXT120", "Controlled text exceeds font-run work limit"))))
     } catch (_: TextCancelled) {
@@ -213,8 +242,10 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
         for (run in selected) {
             checkCancellation(request.isCancelled)
             val text = request.text.substring(run.start, run.end)
-            val bitmap = NativeTextBridge.raster(font(run.font), text, sizeMm, request.dpiX, request.dpiY,
-                request.widthDots, request.heightDots, request.baselineDots, (advance / 64.0).roundToInt(), request.isCancelled)
+            val bitmap = nativeRun(request.text, run) {
+                NativeTextBridge.raster(font(run.font), text, sizeMm, request.dpiX, request.dpiY,
+                    request.widthDots, request.heightDots, request.baselineDots, (advance / 64.0).roundToInt(), request.isCancelled)
+            }
             for (i in bytes.indices) bytes[i] = (bytes[i].toInt() or bitmap[i].toInt()).toByte()
             checkCancellation(request.isCancelled)
             val shaped = NativeTextBridge.shape(font(run.font), text, sizeMm, request.dpiX, request.dpiY)
@@ -231,6 +262,8 @@ class BundledRasterTextBackend private constructor() : RasterTextBackend {
         if (request.typography.style.strike) rule(request.baselineDots - max(1, (sizeMm * request.dpiY / 25.4 * 0.3).roundToInt()))
         val fontIdentity = selected.map { it.font }.distinct().joinToString("+") { "$it@${hashes[it]}" }
         RasterTextResult.Success(TextBitmap(request.widthDots, request.heightDots, bytes), identity, fontIdentity)
+    } catch (e: UnsupportedCluster) {
+        RasterTextResult.Failure(SnapshotList(listOf(TextDiagnostic("TXT131", e.message!!))))
     } catch (_: FontRunLimitExceeded) {
         RasterTextResult.Failure(SnapshotList(listOf(TextDiagnostic("TXT120", "Controlled text exceeds font-run work limit"))))
     } catch (_: TextCancelled) {

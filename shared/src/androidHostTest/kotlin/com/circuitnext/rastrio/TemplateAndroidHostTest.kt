@@ -24,8 +24,8 @@ class TemplateAndroidHostTest {
     @Test fun saverUsesOnlyBoundedAndroidSaveableValuesAndRestoresDrafts() {
         val draft = TemplateForms(selected = TemplateKind.MEMO,
             todo = TodoState("Todo", listOf(TodoItem("done", true))),
-            shopping = ShoppingListState(items = listOf(ShoppingItem("Milk", "2 L"))),
-            memo = MemoState("Subject", "Team", "Body", "Signature"))
+            shopping = ShoppingListState(items = listOf(ShoppingItem("Milk", "2", "L", true)), date = "Oct 14"),
+            memo = MemoState("Subject", "Team", "Body", "Signature", "Oct 15"))
         val scope = object : SaverScope { override fun canBeSaved(value: Any): Boolean = value is String || value is List<*> }
         val saved = with(TemplateFormsSaver) { scope.save(draft) }
         assertNotNull(saved)

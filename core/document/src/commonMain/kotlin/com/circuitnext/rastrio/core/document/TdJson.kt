@@ -137,7 +137,10 @@ internal object TdJson {
                 }
                 is Table -> {
                     field("type", "table")
-                    field("columns") { arr(block.columns) { column -> obj { field("alignment", (column as TableColumn).alignment.wire()) } } }
+                    field("columns") { arr(block.columns) { column ->
+                        val value = column as TableColumn
+                        obj { field("alignment", value.alignment.wire()); if (value.widthWeight != 1) field("widthWeight", value.widthWeight) }
+                    } }
                     field("header") { arr(block.header) { writeCell(it as TableCell) } }
                     field("rows") { arr(block.rows) { row -> arr(row as List<TableCell>) { writeCell(it as TableCell) } } }
                 }
@@ -215,9 +218,16 @@ internal object TdJson {
             }
             "table" -> {
                 val f = objectOf(value, type, setOf("type", "columns", "header", "rows"))
-                val columns = f.getValue("columns").asArray("columns").map { c -> val cf = objectOf(c, "table column", setOf("alignment")); TableColumn(parseEnum(cf.getValue("alignment").asString("alignment"), mapOf("left" to Alignment.LEFT, "center" to Alignment.CENTER, "right" to Alignment.RIGHT), "alignment")) }
-                if (columns.isEmpty()) throw TdException.Invalid("Table must have columns")
-                if (columns.size > policy.maxTableColumns) throw TdException.Limit("Table column count exceeds policy", "TD125")
+                val columns = f.getValue("columns").asArray("columns").also {
+                    if (it.isEmpty()) throw TdException.Invalid("Table must have columns")
+                    if (it.size > policy.maxTableColumns) throw TdException.Limit("Table column count exceeds policy", "TD125")
+                }.map { c ->
+                    val cf = objectOf(c, "table column", setOf("alignment"), setOf("widthWeight"))
+                    val weight = cf["widthWeight"]?.asLong("widthWeight") ?: 1L
+                    if (weight !in 1L..1000L) throw TdException.Invalid("Invalid table column width weight")
+                    TableColumn(parseEnum(cf.getValue("alignment").asString("alignment"),
+                        mapOf("left" to Alignment.LEFT, "center" to Alignment.CENTER, "right" to Alignment.RIGHT), "alignment"), weight.toInt())
+                }
                 fun cell(v: JsonValue): TableCell { val cf = objectOf(v, "table cell", setOf("content"), setOf("alignment")); return TableCell(cf.getValue("content").asArray("content").map { readInline(it, policy, counter, depth + 1) }, cf["alignment"]?.let { parseEnum(it.asString("alignment"), mapOf("left" to Alignment.LEFT, "center" to Alignment.CENTER, "right" to Alignment.RIGHT), "alignment") }) }
                 val header = f.getValue("header").asArray("header").map(::cell)
                 val rows = f.getValue("rows").asArray("rows").also { if (it.size > policy.maxTableRows) throw TdException.Limit("Table row count exceeds policy", "TD125") }.map { it.asArray("row").map(::cell) }
@@ -258,8 +268,9 @@ internal object TdJson {
                 Separator -> Unit
                 is Image -> { block.altText?.validateText(policy); when (block.asset) { is EmbeddedAssetReference -> (block.asset as EmbeddedAssetReference).assetId.validateText(policy); is ExternalAssetReference -> (block.asset as ExternalAssetReference).uri.validateText(policy) }; if (block.sizing is RequestedWidthSizing) validateLength((block.sizing as RequestedWidthSizing).width, policy) }
                 is Table -> {
-                    if (block.columns.isEmpty() || block.header.size != block.columns.size || block.rows.any { it.size != block.columns.size }) throw TdException.Invalid("Invalid table dimensions")
+                    if (block.columns.isEmpty() || (block.header.isNotEmpty() && block.header.size != block.columns.size) || block.rows.any { it.size != block.columns.size }) throw TdException.Invalid("Invalid table dimensions")
                     if (block.columns.size > policy.maxTableColumns || block.rows.size > policy.maxTableRows || (block.rows.sumOf { it.size.toLong() } + block.header.size) > policy.maxTableCells) throw TdException.Limit("Table exceeds policy", "TD125")
+                    if (block.columns.any { it.widthWeight !in 1..1000 }) throw TdException.Invalid("Invalid table column width weight")
                     (block.header + block.rows.flatten()).forEach { visitInline(it.content, depth + 1) }
                 }
                 is QrCode -> { block.payload.validateText(policy); block.requestedSize?.let { validateLength(it, policy) } }

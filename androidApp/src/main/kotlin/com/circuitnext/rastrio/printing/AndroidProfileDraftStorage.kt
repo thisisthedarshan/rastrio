@@ -39,8 +39,17 @@ internal class AndroidProfileDraftStorage(private val preferences: SharedPrefere
     override fun saveDrafts(drafts: List<ProfileDraft>): Boolean = try {
         require(drafts.size <= 32 && drafts.map { it.draftId }.distinct().size == drafts.size)
         val encoded = drafts.map { it.encodeLocal().also { source -> require(source.length <= 65536) } }
+        val previous = loadDrafts().map { it.encodeLocal() }
+        if (write(encoded)) true else {
+            // A failed commit still changes the preference cache; retain the confirmed worksheet list.
+            write(previous)
+            false
+        }
+    } catch (_: IllegalArgumentException) { false }
+
+    private fun write(encoded: List<String>): Boolean {
         val editor = preferences.edit().clear().putInt("version", 1).putInt("count", encoded.size)
         encoded.forEachIndexed { index, source -> editor.putString("draft$index", source) }
-        editor.commit()
-    } catch (_: IllegalArgumentException) { false }
+        return editor.commit()
+    }
 }

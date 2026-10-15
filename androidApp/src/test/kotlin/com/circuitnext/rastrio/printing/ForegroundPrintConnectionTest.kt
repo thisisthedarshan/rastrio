@@ -37,10 +37,13 @@ class ForegroundPrintConnectionTest {
         val owner = ForegroundPrintConnection { foreground }
         val first = Transport(); val second = Transport()
         val a = owner.wrap(first); val b = owner.wrap(second)
+        assertFalse(owner.isActive)
         a.connect(instance()); b.connect(instance()); a.connect(instance())
+        assertTrue(owner.isActive)
         assertEquals(1, first.closes); assertEquals(1, second.closes)
         foreground = false
         owner.close()
+        assertFalse(owner.isActive)
         assertEquals(2, first.closes); assertEquals(1, second.closes)
         assertFailsWith<IllegalStateException> { a.write(ByteArray(1), 0, 1) }
         assertFailsWith<IllegalStateException> { b.connect(instance()) }

@@ -20,6 +20,7 @@
 #include <hb-ft.h>
 #include <vector>
 #include <stdexcept>
+#include <string>
 #include <cmath>
 #include <algorithm>
 
@@ -98,7 +99,7 @@ Java_com_circuitnext_rastrio_core_text_NativeTextBridge_shape(JNIEnv* env, jobje
         auto pos = hb_buffer_get_glyph_positions(s.buffer, &count);
         std::vector<jlong> values(count * 2);
         for (unsigned int i = 0; i < count; ++i) {
-            if (info[i].codepoint == 0) throw std::runtime_error("Missing glyph");
+            if (info[i].codepoint == 0) throw std::runtime_error("Missing glyph at " + std::to_string(info[i].cluster));
             values[i * 2] = info[i].cluster;
             values[i * 2 + 1] = pos[i].x_advance;
         }
@@ -128,7 +129,7 @@ Java_com_circuitnext_rastrio_core_text_NativeTextBridge_raster(JNIEnv* env, jobj
         auto booleanValue = env->GetMethodID(boolClass, "booleanValue", "()Z");
         if (env->ExceptionCheck()) throw std::runtime_error("Invalid cancellation callback");
         for (unsigned int i = 0; i < count; ++i) {
-            if (info[i].codepoint == 0) throw std::runtime_error("Missing glyph");
+            if (info[i].codepoint == 0) throw std::runtime_error("Missing glyph at " + std::to_string(info[i].cluster));
             if (i % 64 == 0) {
                 auto flag = env->CallObjectMethod(cancelled, invoke);
                 if (env->ExceptionCheck()) throw std::runtime_error("Cancellation callback failed");

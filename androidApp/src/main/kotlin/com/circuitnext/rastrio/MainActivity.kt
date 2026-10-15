@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import androidx.activity.result.contract.ActivityResultContracts
 import com.circuitnext.rastrio.printing.AndroidPrintingPlatform
 import com.circuitnext.rastrio.printing.bluetoothPermission
+import com.circuitnext.rastrio.printing.bluetoothPresencePermissions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.circuitnext.rastrio.printing.PrinterSessionStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +41,11 @@ class MainActivity : ComponentActivity() {
     private lateinit var printing: AndroidPrintingPlatform
     private val bluetoothPermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         printing.permissionResult(it)
+    }
+    private val presencePermissionRequest = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        printing.presencePermissionResult(bluetoothPresencePermissions(android.os.Build.VERSION.SDK_INT).all { permission ->
+            checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+        })
     }
     private val profilePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
         printing.profileResult(it)
@@ -54,7 +61,7 @@ class MainActivity : ComponentActivity() {
     override fun onStart() { super.onStart(); if (::printing.isInitialized) printing.setForeground(true) }
     override fun onStop() { if (::printing.isInitialized) printing.setForeground(false); super.onStop() }
     override fun onDestroy() {
-        if (::printing.isInitialized) { printing.bindActions({}, {}); printing.bindImageAction({}); printing.bindProfileExport({}) }
+        if (::printing.isInitialized) { printing.bindActions({}, {}); printing.bindImageAction({}); printing.bindProfileExport({}); printing.bindPresencePermission({}) }
         super.onDestroy()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,6 +82,11 @@ class MainActivity : ComponentActivity() {
                 printing.permissionResult(true)
             else bluetoothPermissionRequest.launch(permission)
         }, profile = { profilePicker.launch(arrayOf("application/json", "application/octet-stream", "*/*")) })
+        printing.bindPresencePermission {
+            val permissions = bluetoothPresencePermissions(android.os.Build.VERSION.SDK_INT)
+            if (permissions.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) printing.presencePermissionResult(true)
+            else presencePermissionRequest.launch(permissions)
+        }
         printing.bindProfileExport { profileExporter.launch("printer-profile.tcfg") }
         printing.bindImageAction {
             imagePicker.launch(android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -85,7 +97,8 @@ class MainActivity : ComponentActivity() {
             })
         }
         setContent {
-            RastrIOApp(printingPlatform = printing, printingSessions = printingOwner.sessions)
+            RastrIOApp(printingPlatform = printing, printingSessions = printingOwner.sessions,
+                backHandler = { enabled, onBack -> BackHandler(enabled = enabled, onBack = onBack) })
         }
     }
 }

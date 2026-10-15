@@ -1,9 +1,15 @@
 # Helett H50i BillQuick Go development draft
 
-Status: **provisional evidence inventory; not an executable printer profile**.
-This draft is deliberately not `.tcfg`: mandatory physical geometry and reliable
-host-command facts are missing. It cannot authorize preparation for this physical
-printer or transmission. The portable schema and strict validator are unchanged.
+Status: **experimental configuration available; production verification incomplete**.
+The October Linux report now supplies measured raster geometry and host-command
+observations. See the 2026-10-15 update below and its experimental candidate link.
+Precise motion/positioning and native font geometry remain incomplete; the
+portable schema and strict validator are unchanged.
+
+## Historical self-test inventory — 2026-10-13
+
+The initial inventory below was not executable `.tcfg`: dot geometry and reliable
+host-command facts were missing at that time. It did not authorize transmission.
 
 The user supplied the following physical self-test transcription on 2026-10-13.
 It corroborates the earlier `H50I-SELFTEST-2026-10-02` inventory in
@@ -26,7 +32,7 @@ Temperature 33 is transient telemetry and is not part of this draft configuratio
 No cutter capability is enabled. Existing observations describe the reference
 unit as lacking an automatic cutter; no cut test or new observation is claimed.
 
-Required before a usable profile can be created:
+Missing at the initial self-test stage (historical; see the later update):
 
 - independently established horizontal DPI, vertical DPI, and reliable printable
   dot width; 384 dots and 203 DPI are not assumed;
@@ -49,3 +55,32 @@ Software preview may use a clearly labeled synthetic profile without any device
 connection. Such a preview proves software behavior only and supplies none of
 the missing H50i facts. Import a profile only after its values have evidence;
 strict format validation alone does not verify physical capabilities.
+
+
+## Operator Linux characterization received 2026-10-15
+
+The operator supplied a manual October 2026 study with USB-001–004, PRINT-001–039
+and BT-001–004. This is supplied physical/measured/host evidence, not a new agent
+execution of those procedures. It supersedes earlier unknown values only within
+the tested scope: GS v 0 width384 with392-dot clipping; ruler-derived203.2 DPI
+both axes; CP437 ESC t0/CP850 ESC t2 for listed characters; ESC M0/1 with A32/B42
+column capacities; native QR GS(k model2 requests with4/6 modules and scanner
+checks; native EAN13 GS k67 with scanner checks; USB writes through9228 bytes
+and Classic RFCOMM channel1 ASCII/raster/QR writes through524 bytes. These are
+tested operating points, not buffer, throughput or maximum-height limits.
+
+Font heights/exact line advances, full repertoire coverage, precise ESC J/LF
+spacing, RastrIO GS P/GS L/GS W/ESC $/reset behavior, QR quiet-zone positioning,
+absolute paper origin, status and interruption recovery remain incomplete.
+PRINT-038/039 produced equal2mm gaps for different ESC J arguments; do not mark
+proportional feeding verified. Native EAN13 is not enabled by the application
+until its prepared operation/encoder implementation exists.
+
+See [experimental profile and exact scope](../test-fixtures/hardware/HELETT-OCT2026-candidate.md).
+The candidate is outside maintained production profiles. On2026-10-15 the agent
+sent one report-identical59-byte QR over Linux Bluetooth, and the operator
+confirmed complete paper output and exact scan. Then one9027-byte RastrIO
+Markdown raster job was sent in512-byte bounded sends; operator confirmed all
+content printed, with heading/bold alike. No retry/cut/status commands were sent.
+Current heading typography uses body metrics and bold weight, explaining that
+observation without attributing it to unknown native printer font behavior.

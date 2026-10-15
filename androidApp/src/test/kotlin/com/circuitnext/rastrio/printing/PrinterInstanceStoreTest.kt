@@ -38,6 +38,7 @@ class PrinterInstanceStoreTest {
         val preferences = Proxy.newProxyInstance(SharedPreferences::class.java.classLoader,
             arrayOf(SharedPreferences::class.java)) { _, method, args ->
             when (method.name) {
+                "getAll" -> values.toMap()
                 "edit" -> editor
                 "getInt" -> (values[args[0] as String] ?: args[1]) as Int
                 "getString" -> (values[args[0] as String] ?: args[1]) as String?
@@ -54,6 +55,19 @@ class PrinterInstanceStoreTest {
         assertEquals(instance(), PrinterInstanceStore(memory.preferences).load())
         assertEquals(setOf("version", "id", "name", "locator", "profile", "revision"), memory.values.keys)
         assertFalse(instance().toString().contains("private-"))
+    }
+
+    @Test fun deletionPersistsAndFailedDeletionRestoresPriorSelection() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        assertTrue(store.save(instance()))
+        memory.commitResult = false
+        assertFalse(store.clear())
+        assertEquals(instance(), store.load())
+        memory.commitResult = true
+        assertTrue(store.clear())
+        assertNull(PrinterInstanceStore(memory.preferences).load())
+        assertTrue(memory.values.isEmpty())
     }
 
     @Test fun unknownVersionAndCorruptPersistedMetadataFailClosed() {
@@ -95,6 +109,16 @@ class PrinterInstanceStoreTest {
         assertTrue(storage.loadDrafts().isEmpty())
     }
 
+    @Test fun failedDraftDeletionRetainsPreviouslyPersistedDrafts() {
+        val memory = Preferences()
+        val storage = AndroidProfileDraftStorage(memory.preferences)
+        val draft = ProfileDraft.fresh("keep")
+        assertTrue(storage.saveDrafts(listOf(draft)))
+        memory.commitResult = false
+        assertFalse(storage.saveDrafts(emptyList()))
+        assertEquals(listOf(draft), AndroidProfileDraftStorage(memory.preferences).loadDrafts())
+    }
+
     @Test fun profileDraftStorageLimitsAndCommitFailureDoNotActivateAnything() {
         val memory = Preferences()
         val storage = AndroidProfileDraftStorage(memory.preferences)
@@ -115,6 +139,137 @@ class PrinterInstanceStoreTest {
         memory.commitResult = false
         assertFalse(store.save(prior.copy(displayName = "New selection", profileRevision = 3)))
         assertEquals(prior, store.load())
+    }
+
+    @Test fun configuredPrintersKeepExactProfilesAndDefaultsAcrossRestart() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = (PrinterProfileFiles.decode(java.io.File("../test-fixtures/hardware/HELETT-OCT2026-candidate.tcfg").readBytes())
+            as com.circuitnext.rastrio.core.profile.ProfileValidationResult.Success).value.profile
+        val first = ConfiguredPrinter(instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision), profile)
+        val second = ConfiguredPrinter(first.instance.copy(id = "second", transportLocator = "second-locator",
+            defaults = PrinterPrintDefaults(finalFeedDots = 25)), profile.copy(geometry = profile.geometry.copy(printableWidthDots = 384)))
+        assertTrue(store.saveConfiguration(listOf(first, second), second.instance.id))
+        val restarted = PrinterInstanceStore(memory.preferences).loadConfiguration()
+        assertEquals(listOf(first, second), restarted!!.printers)
+        assertEquals(second.instance.id, restarted.selectedId)
+        memory.commitResult = false
+        assertFalse(store.saveConfiguration(listOf(first), first.instance.id))
+        assertEquals(restarted, store.loadConfiguration())
+        memory.commitResult = true
+        assertTrue(store.saveConfiguration(listOf(first), null))
+        assertEquals(listOf(first), store.loadConfiguration()!!.printers)
+    }
+
+    @Test fun migrationRequiresExactLegacyProfileAndPreservesFailedOrCorruptState() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = (PrinterProfileFiles.decode(java.io.File("../test-fixtures/hardware/HELETT-OCT2026-candidate.tcfg").readBytes())
+            as com.circuitnext.rastrio.core.profile.ProfileValidationResult.Success).value.profile
+        val legacy = instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision)
+        assertTrue(store.save(legacy))
+        assertNull(store.migrate(profile.copy(profileRevision = profile.profileRevision + 1)))
+        assertEquals(legacy, store.load())
+        memory.commitResult = false
+        assertNull(store.migrate(profile))
+        assertEquals(legacy, store.load())
+        memory.commitResult = true
+        assertEquals(legacy, store.migrate(profile)!!.printers.single().instance)
+        val confirmed = memory.values.toMap()
+        assertFalse(store.saveConfiguration(List(33) { ConfiguredPrinter(legacy.copy(id = "p$it"), profile) }, null))
+        assertEquals(confirmed, memory.values)
+        memory.values["count"] = 33
+        assertNull(store.loadConfiguration())
+    }
+
+    private fun physicalProfile() = (PrinterProfileFiles.decode(java.io.File("../test-fixtures/hardware/HELETT-OCT2026-candidate.tcfg").readBytes())
+        as com.circuitnext.rastrio.core.profile.ProfileValidationResult.Success).value.profile
+
+    @Test fun overridesRoundTripIncludingExplicitClearedBufferAndPersistedValidation() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = physicalProfile()
+        val overrides = com.circuitnext.rastrio.core.profile.PrinterProfileOverride(
+            geometry = profile.geometry.copy(printableWidthDots = 384),
+            printerBuffer = com.circuitnext.rastrio.core.profile.PrinterBufferOverride.Replace(null))
+        val printer = ConfiguredPrinter(instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision,
+            overrides = overrides, defaults = PrinterPrintDefaults(finalFeedDots = 10)), profile)
+        assertTrue(store.saveConfiguration(listOf(printer), printer.instance.id))
+        assertEquals(printer, PrinterInstanceStore(memory.preferences).loadConfiguration()!!.printers.single())
+        memory.values["p0.feed"] = PrinterPrintDefaults.MAX_FINAL_FEED_DOTS + 1
+        assertNull(store.loadConfiguration())
+        val corrupt = memory.values.toMap()
+        assertFalse(store.saveConfiguration(emptyList(), null))
+        assertEquals(corrupt, memory.values)
+    }
+
+    @Test fun duplicateIdentityInvalidSelectionUnsupportedCutAndRevisionMismatchCannotReplaceState() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = physicalProfile()
+        val printer = ConfiguredPrinter(instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision), profile)
+        assertTrue(store.saveConfiguration(listOf(printer), printer.instance.id))
+        val confirmed = memory.values.toMap()
+        assertFalse(store.saveConfiguration(listOf(printer, printer), null))
+        assertFalse(store.saveConfiguration(listOf(printer), "missing"))
+        assertFalse(store.saveConfiguration(listOf(printer.copy(instance = printer.instance.copy(profileRevision = profile.profileRevision + 1))), null))
+        assertFalse(store.saveConfiguration(listOf(printer.copy(instance = printer.instance.copy(
+            defaults = PrinterPrintDefaults(cutIntent = com.circuitnext.rastrio.core.printer.CutIntent.AUTOMATIC)))), null))
+        assertEquals(confirmed, memory.values)
+    }
+
+    @Test fun deletionAndEmptyRestartDoNotResurrectLegacySelection() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = physicalProfile()
+        val legacy = instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision)
+        assertTrue(store.save(legacy))
+        assertNotNull(store.migrate(profile))
+        assertTrue(store.saveConfiguration(emptyList(), null))
+        assertEquals(emptyList(), PrinterInstanceStore(memory.preferences).loadConfiguration()!!.printers)
+        assertEquals(emptyList(), store.migrate(profile)!!.printers)
+        assertNull(store.load())
+    }
+
+    @Test fun profileDeletionRemovesMatchingBindingsAtomicallyAndFailurePreservesEverything() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = physicalProfile()
+        val first = ConfiguredPrinter(instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision), profile)
+        val otherProfile = profile.copy(profileId = "other.physical")
+        val other = ConfiguredPrinter(first.instance.copy(id = "other", transportLocator = "other",
+            profileId = otherProfile.profileId), otherProfile)
+        assertTrue(store.saveConfiguration(listOf(first, other), first.instance.id))
+        assertTrue(store.saveImportedProfile(profile))
+        val before = store.loadConfiguration()
+        memory.commitResult = false
+        assertNull(store.deleteImportedProfile())
+        assertEquals(before, store.loadConfiguration())
+        memory.commitResult = true
+        val after = store.deleteImportedProfile()!!
+        assertEquals(listOf(other), after.printers)
+        assertNull(after.selectedId)
+        assertNull(after.importedProfile)
+        assertEquals(after, PrinterInstanceStore(memory.preferences).loadConfiguration())
+        assertEquals(after, store.migrate(profile))
+    }
+
+    @Test fun importingNewRevisionDoesNotRetargetExistingPrinterAndCorruptVersionCannotMigrate() {
+        val memory = Preferences()
+        val store = PrinterInstanceStore(memory.preferences)
+        val profile = physicalProfile()
+        val printer = ConfiguredPrinter(instance().copy(profileId = profile.profileId, profileRevision = profile.profileRevision), profile)
+        assertTrue(store.saveConfiguration(listOf(printer), printer.instance.id))
+        val imported = profile.copy(profileRevision = profile.profileRevision + 1)
+        assertTrue(store.saveImportedProfile(imported))
+        assertEquals(listOf(printer), store.loadConfiguration()!!.printers)
+        assertEquals(imported, store.loadConfiguration()!!.importedProfile)
+        assertTrue(store.saveImportedProfile(imported))
+        assertEquals(1, store.loadConfiguration()!!.printers.size)
+        memory.values["count"] = 33
+        val corrupt = memory.values.toMap()
+        assertNull(store.migrate(profile))
+        assertEquals(corrupt, memory.values)
     }
 
 }

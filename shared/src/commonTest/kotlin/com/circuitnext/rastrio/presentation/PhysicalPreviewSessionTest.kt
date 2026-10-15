@@ -30,6 +30,20 @@ class PhysicalPreviewSessionTest {
     }
     private fun ready(session: PhysicalPreviewSession) = assertIs<PhysicalPreviewResult.Ready>(session.state.result)
 
+    @Test fun changingPrintTargetRetainsExplicitImageBindingsUntilSourceInvalidation() {
+        val authoring = authoring("![fixture](https://invalid.example/image.png)")
+        val session = PhysicalPreviewSession()
+        val reference = markdownImageReferences(authoring.state.result.semanticDocument()!!).single()
+        val pixels = com.circuitnext.rastrio.core.raster.DecodedImage(2, 2, intArrayOf(-1, 0xff000000.toInt(), -1, -1))
+        assertTrue(session.resolveImage(reference, ResolvedRasterImage(pixels)))
+        session.configure(SyntheticReferenceProfiles.wide80mm, PrintOptions(finalFeedDots = 12))
+        session.prepare(authoring.state.result)
+        assertEquals(576, ready(session).print.target.printableWidthDots)
+        session.invalidate()
+        session.prepare(authoring.state.result)
+        assertIs<PhysicalPreviewResult.PreparationFailed>(session.state.result)
+    }
+
     @Test fun unchangedInputsReuseTheExactPlanAndPreview() {
         var calls = 0
         val session = PhysicalPreviewSession(preparePrint = { document, profile, options, isCancelled ->

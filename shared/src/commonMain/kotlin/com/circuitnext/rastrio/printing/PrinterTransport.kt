@@ -43,6 +43,8 @@ data class PrinterInstance(
     val transportLocator: String,
     val profileId: String,
     val profileRevision: Int,
+    val defaults: PrinterPrintDefaults = PrinterPrintDefaults(),
+    val overrides: com.circuitnext.rastrio.core.profile.PrinterProfileOverride? = null,
 ) {
     init {
         require(validMetadata(id, 128) && validMetadata(displayName, 256))

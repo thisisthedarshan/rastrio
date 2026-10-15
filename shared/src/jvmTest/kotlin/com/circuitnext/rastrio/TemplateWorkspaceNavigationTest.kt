@@ -15,7 +15,6 @@
 
 package com.circuitnext.rastrio
 
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.v2.runComposeUiTest
 import com.circuitnext.rastrio.core.profile.PrinterProfile
@@ -32,13 +31,15 @@ class TemplateWorkspaceNavigationTest {
             profileId = "org.rastrio.fixture.workspace"))
         val printer = PrinterInstance("workspace-fixture", "Workspace printer", PrinterTransportKind.DEVELOPMENT,
             "workspace-locator", profile.value!!.profileId, profile.value!!.profileRevision)
+        override val selectedPrinter = MutableStateFlow<PrinterInstance?>(printer)
+        override val selectedProfile = MutableStateFlow<PrinterProfile?>(profile.value)
         override val printers = MutableStateFlow(listOf(printer))
         override val status = MutableStateFlow("Development fixture; hardware unverified")
         override val foreground = MutableStateFlow(true)
         val transport = FakePrinterTransport()
         override fun refreshPairedPrinters() = Unit
         override fun importProfile() = Unit
-        override fun selectPrinter(instance: PrinterInstance) = Unit
+        override fun selectPrinter(instance: PrinterInstance) { selectedPrinter.value = instance }
         override fun createTransport(): PrinterTransport = transport
     }
 
@@ -48,24 +49,39 @@ class TemplateWorkspaceNavigationTest {
         setContent { RastrIOApp(input, platform) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Use Workspace printer").performScrollTo().performClick()
-        waitUntil { onAllNodesWithText("Print prepared document").fetchSemanticsNodes().any {
-            !it.config.contains(SemanticsProperties.Disabled)
-        } }
-        onNodeWithText("Print prepared document").performScrollTo().assertIsEnabled()
-        onNodeWithText("Back to Markdown").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
+        onNodeWithText("Back", substring = false).performClick()
         onNodeWithText("Back to Home").performClick()
         onNodeWithText("Open Templates").performClick()
-        onNodeWithText("Open physical preview").performScrollTo().assertIsNotEnabled()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
+        onNodeWithText("Quick Note").performClick()
+        onNodeWithTag("physical-canvas").assertDoesNotExist()
+        onNodeWithText("Open physical preview").assertDoesNotExist()
+        onNodeWithText("Print prepared document").assertDoesNotExist()
+        onNodeWithText("Wide preview").assertDoesNotExist()
+        onNodeWithText("QR raster").assertDoesNotExist()
+        onNodeWithText("Prepare selected printer").assertDoesNotExist()
+        onNodeWithTag("template-Note").performTextInput("Fresh template")
+        onNodeWithText("Preview", substring = false).performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithText("Fresh template").assertExists()
+        onNodeWithText("Markdown receipt").assertDoesNotExist()
+        onNodeWithText("Preview settings").performScrollTo().performClick()
         onNodeWithText("Wide preview").performScrollTo().performClick()
+        waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
         onNodeWithText("QR raster").performScrollTo().performClick()
-        onNodeWithText("Open physical preview").assertIsNotEnabled()
-        onNodeWithText("Preview template to prepare its current content").assertExists()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
+        waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithText("Print prepared document").assertDoesNotExist()
         onNodeWithText("Prepare selected printer").performScrollTo().performClick()
-        onNodeWithText("Open physical preview").performScrollTo().assertIsNotEnabled()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
+        waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithText("Back to preview").performScrollTo().performClick()
+        onNodeWithText("Fresh template").assertExists()
+        onNodeWithText("Markdown receipt").assertDoesNotExist()
+        onNodeWithText("Print", substring = false).performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
+        onNodeWithText("Fresh template").assertExists()
+        onNodeWithText("Markdown receipt").assertDoesNotExist()
         assertEquals(0, platform.transport.connections)
     }
 
@@ -76,53 +92,66 @@ class TemplateWorkspaceNavigationTest {
         onNodeWithText("Open Templates").performClick()
         onNodeWithText("Quick Note").performClick()
         onNodeWithTag("template-Note").performTextInput("Template receipt")
-        onNodeWithText("Use Workspace printer").performScrollTo().performClick()
-        onNodeWithText("Preview template").performScrollTo().performClick()
+        onNodeWithText("Preview", substring = false).performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithText("Preview settings").performScrollTo().performClick()
+        onNodeWithText("Prepare selected printer").performScrollTo().performClick()
         waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
-        onNodeWithText("Open physical preview").performScrollTo().performClick()
+        onNodeWithText("Back to preview").performScrollTo().performClick()
         onNodeWithText("Template receipt").assertExists()
         onNodeWithText("Markdown receipt").assertDoesNotExist()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsEnabled()
+        onNodeWithText("Print", substring = false).performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
+        onNodeWithText("Template receipt").assertExists()
+        onNodeWithText("Markdown receipt").assertDoesNotExist()
+        onNodeWithText("Back", substring = false).performClick()
         onNodeWithText("Back to templates").performClick()
-        onNodeWithText("Back to Home").performScrollTo().performClick()
+        onNodeWithContentDescription("Back to Templates").performClick()
+        onNodeWithContentDescription("Back to Home").performClick()
         onNodeWithText("Open Markdown").performClick()
         onNodeWithTag("markdown-source").assertTextContains("Markdown receipt")
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Open physical preview").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
         onNodeWithText("Markdown receipt").assertExists()
         onNodeWithText("Template receipt").assertDoesNotExist()
-        onNodeWithText("Back to printer setup").performClick()
-        onNodeWithText("Back to Markdown").performScrollTo().performClick()
+        onNodeWithText("Back", substring = false).performClick()
         onNodeWithText("Back to Home").performClick()
         onNodeWithText("Open Templates").performClick()
+        onNodeWithText("Quick Note").performClick()
         onNodeWithTag("template-Note").assertTextContains("Template receipt")
-        onNodeWithText("Open physical preview").performScrollTo().assertIsNotEnabled()
-        onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
-        onNodeWithText("Preview template").performScrollTo().performClick()
-        waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
-        onNodeWithText("Open physical preview").performScrollTo().performClick()
+        onNodeWithTag("physical-canvas").assertDoesNotExist()
+        onNodeWithText("Print prepared document").assertDoesNotExist()
+        onNodeWithText("Preview", substring = false).performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
         onNodeWithText("Template receipt").assertExists()
         onNodeWithText("Markdown receipt").assertDoesNotExist()
         assertEquals(0, platform.transport.connections)
     }
 
-    @Test fun prebuildProfileAndQrChoicesAreRetainedWithoutPreparingMarkdown() = runComposeUiTest {
+    @Test fun profileAndQrChoicesPrepareOnlyTheCurrentTemplate() = runComposeUiTest {
         val input = createAuthoringSession().also { it.edit("Markdown receipt"); it.compile() }
         setContent { RastrIOApp(input) }
         onNodeWithText("Open Templates").performClick()
-        onNodeWithText("Wide preview").performScrollTo().performClick()
-        onNodeWithText("QR native").performScrollTo().performClick()
-        onNodeWithText("Open physical preview").assertIsNotEnabled()
-        onNodeWithText("Preview target: ${SyntheticReferenceProfiles.wide80mm.display.name}").assertExists()
-        onNodeWithTag("template-list").performScrollToIndex(0)
         onNodeWithText("QR Message").performClick()
         onNodeWithTag("template-QR payload").performTextInput("Template QR ".repeat(8))
-        onNodeWithText("Preview template").performScrollTo().performClick()
+        onNodeWithText("Wide preview").assertDoesNotExist()
+        onNodeWithText("Print prepared document").assertDoesNotExist()
+        onNodeWithText("Preview", substring = false).performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithText("Preview settings").performScrollTo().performClick()
+        onNodeWithText("Wide preview").performScrollTo().performClick()
+        waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithText("QR native").performScrollTo().performClick()
         waitUntil { onAllNodesWithText("PRN141", substring = true).fetchSemanticsNodes().isNotEmpty() }
-        onNodeWithText("Open physical preview").performScrollTo().assertIsNotEnabled()
+        onNodeWithText("Preview target: ${SyntheticReferenceProfiles.wide80mm.display.name}").assertExists()
+        onNodeWithTag("physical-canvas").assertDoesNotExist()
         onNodeWithText("QR raster").performScrollTo().performClick()
         waitUntil { onAllNodesWithText("Physical preview ready.", substring = true).fetchSemanticsNodes().isNotEmpty() }
-        onNodeWithText("Open physical preview").performScrollTo().performClick()
+        onNodeWithText("Back to preview").performScrollTo().performClick()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
         onNodeWithTag("physical-canvas").assertContentDescriptionEquals("Physical preview, 576 prepared dots wide")
+        onNodeWithText("Markdown receipt").assertDoesNotExist()
     }
 }

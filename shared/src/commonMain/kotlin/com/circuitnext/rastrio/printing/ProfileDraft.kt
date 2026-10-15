@@ -20,6 +20,8 @@ import com.circuitnext.rastrio.core.profile.*
 /** Evidence is local application state; it is never added to the portable .tcfg schema. */
 enum class ProfileEvidence { UNKNOWN, USER_ENTERED, INFERRED, HARDWARE_OBSERVED, VERIFIED }
 enum class ProfileDraftFieldKind { TEXT, NUMBER, BOOLEAN, LIST }
+data class ProfileVerification(val area: String, val procedure: String, val observation: String, val deviceLocator: String, val snapshot: String)
+
 data class ProfileDraftField(val path: String, val label: String, val kind: ProfileDraftFieldKind)
 
 object ProfileDraftFields {
@@ -60,7 +62,10 @@ object ProfileDraftFields {
         text("nativeText.codePages[$index].selector.strategy", "Code page selector strategy (optional)"),
         number("nativeText.codePages[$index].selector.parameter", "Code page selector parameter"))
     val evidenceAreas = listOf("geometry", "protocol", "nativeText", "raster", "nativeQr", "nativeBarcode", "cutter", "statusQuery", "printerBuffer")
-    val all = basic + advanced + (0 until 16).flatMap { fontFields(it) + codePageFields(it) }
+    val worksheet = listOf(number("worksheet.paperWidthMm", "Paper width (mm, reported)"),
+        number("worksheet.printableWidthMm", "Printable width (mm, reported)"),
+        text("worksheet.charset", "Default charset (reported)"), text("worksheet.nativeFont", "Native font (reported)"))
+    val all = basic + worksheet + advanced + (0 until 16).flatMap { fontFields(it) + codePageFields(it) }
     internal val paths = all.map { it.path }.toSet()
 }
 
@@ -71,20 +76,42 @@ data class ProfileDraft(
     val evidence: Map<String, ProfileEvidence> = emptyMap(),
     val evidenceNotes: String = "",
     val syntheticSource: Boolean = false,
+    val suggestions: List<ProfileSuggestion> = emptyList(),
+    val verifications: List<ProfileVerification> = emptyList(),
 ) {
     operator fun get(path: String): String = fields[path].orEmpty()
     fun withField(path: String, value: String): ProfileDraft {
         val area = path.substringBefore('.')
         return copy(fields = fields + (path to value), evidence = if (this[path] != value && area in ProfileDraftFields.evidenceAreas)
-            evidence + (area to ProfileEvidence.UNKNOWN) else evidence)
+            evidence + (area to ProfileEvidence.UNKNOWN) else evidence,
+            verifications = if (this[path] != value) verifications.filterNot { it.area == area || path == "quirks" } else verifications,
+            suggestions = if (this[path] != value) suggestions.filterNot { it.path == path } else suggestions)
     }
     fun withEvidence(area: String, value: ProfileEvidence): ProfileDraft = copy(evidence = evidence + (area to value))
 
-    fun validate(): ProfileValidationResult<ValidatedPrinterProfile> = validate(requireEvidence = true)
+    /** Inspection proposes values; acceptance is explicit even when the existing field is blank. */
+    fun withSuggestions(values: List<ProfileSuggestion>): ProfileDraft {
+        require(values.size <= 32 && values.all { it.path in ProfileDraftFields.paths })
+        return copy(suggestions = values.toList())
+    }
+    fun acceptSuggestion(value: ProfileSuggestion): ProfileDraft {
+        require(value in suggestions)
+        val updated = withField(value.path, value.value)
+        return updated.copy(suggestions = (updated.suggestions + value).distinct().take(32))
+    }
+    private fun snapshot(area: String) = fields.entries.filter { it.key.substringBefore('.') == area || it.key == "quirks" }
+        .sortedBy { it.key }.joinToString("") { "${it.key.length}:${it.key}${it.value.length}:${it.value}" }
+    fun recordVerification(area: String, procedure: String, observation: String, deviceLocator: String): ProfileDraft {
+        require(area in ProfileDraftFields.evidenceAreas && procedure.isNotBlank() && procedure.length <= 256 &&
+            observation.isNotBlank() && observation.length <= 1024 && deviceLocator.isNotBlank() && deviceLocator.length <= 1024)
+        return copy(evidence = evidence + (area to ProfileEvidence.VERIFIED),
+            verifications = verifications.filterNot { it.area == area } + ProfileVerification(area, procedure, observation, deviceLocator, snapshot(area)))
+    }
+    fun validate(deviceLocator: String? = null): ProfileValidationResult<ValidatedPrinterProfile> = validate(requireEvidence = true, deviceLocator)
     /** Only Printer Lab may consume this candidate; it cannot activate or export an ordinary profile. */
-    fun validateCandidate(): ProfileValidationResult<ValidatedPrinterProfile> = validate(requireEvidence = false)
+    fun validateCandidate(): ProfileValidationResult<ValidatedPrinterProfile> = validate(requireEvidence = false, deviceLocator = null)
 
-    private fun validate(requireEvidence: Boolean): ProfileValidationResult<ValidatedPrinterProfile> {
+    private fun validate(requireEvidence: Boolean, deviceLocator: String?): ProfileValidationResult<ValidatedPrinterProfile> {
         val errors = mutableListOf<ProfileDiagnostic>()
         fun error(path: String, message: String) { errors += ProfileDiagnostic("PRF151", "$." + path, message) }
         if (!bounded()) return failure("Draft exceeds local storage limits or contains unknown fields")
@@ -92,7 +119,7 @@ data class ProfileDraft(
         fun integer(path: String, optional: Boolean = false): Int? {
             val value = this[path]
             if (optional && value.isEmpty()) return null
-            return value.toIntOrNull().also { if (it == null) error(path, "Enter an integer; unknown values must remain a draft") }
+            return value.toIntOrNull().also { if (it == null) error(path, if (value.isEmpty()) "This value has not been established. Save this draft or use Printer Lab calibration." else "Enter a whole number or leave this value unknown.") }
         }
         fun required(path: String) = integer(path) ?: 0
         fun enabled(path: String): Boolean {
@@ -147,32 +174,45 @@ data class ProfileDraft(
                 PrinterBufferGuidance(integer("printerBuffer.recommendedMaxBurstBytes", true), integer("printerBuffer.recommendedPauseAfterBurstMs", true)) else null,
             quirks = strings("quirks"),
         )
+        // Missing/invalid worksheet numbers must not be converted into Core zero-value cascades.
+        if (errors.isNotEmpty()) return ProfileValidationResult.Failure(ProfileList(errors.distinctBy { it.path }))
         val requiredEvidence = listOf("geometry", "protocol") + listOf("nativeText" to native, "raster" to raster,
             "nativeQr" to qr, "nativeBarcode" to barcode, "cutter" to cutter, "statusQuery" to status,
             "printerBuffer" to (candidate.printerBuffer != null)).filter { it.second }.map { it.first }
         if (requireEvidence) {
-            requiredEvidence.forEach { if (evidence[it] != ProfileEvidence.VERIFIED) error(it, "Record verified host-print evidence before activating this capability") }
-            if (evidenceNotes.isBlank()) error("evidenceNotes", "Record the test procedure and observed result supporting verified values")
+            requiredEvidence.forEach { area ->
+                val record = verifications.singleOrNull { it.area == area }
+                if (evidence[area] != ProfileEvidence.VERIFIED || record == null || record.snapshot != snapshot(area) ||
+                    (deviceLocator != null && record.deviceLocator != deviceLocator))
+                    error(area, "Record a procedure, observed result and printer identity before activating this capability")
+            }
+            if (verifications.map { it.deviceLocator }.distinct().size > 1) error("evidenceNotes", "Verification records refer to different printers")
         }
         when (val result = PrinterProfileFiles.validate(candidate)) {
             is ProfileValidationResult.Failure -> errors += result.diagnostics
             is ProfileValidationResult.Success -> if (errors.isEmpty()) return result
         }
-        return ProfileValidationResult.Failure(ProfileList(errors))
+        return ProfileValidationResult.Failure(ProfileList(errors.distinctBy { it.code to it.path }))
     }
 
     private fun bounded(): Boolean = draftId.length in 1..128 && fields.size <= ProfileDraftFields.paths.size &&
         fields.all { it.key in ProfileDraftFields.paths && it.value.length <= 1024 } &&
         evidence.keys.all { it in ProfileDraftFields.evidenceAreas } && evidenceNotes.length <= 4096 &&
-        fields.values.sumOf { it.length } <= 49152
+        fields.values.sumOf { it.length } <= 49152 && suggestions.size <= 32 &&
+        suggestions.all { it.path in ProfileDraftFields.paths && it.value.length <= 1024 && it.sourceDescription.length in 1..512 && it.deviceLocator.length in 1..1024 } &&
+        verifications.size <= ProfileDraftFields.evidenceAreas.size && verifications.map { it.area }.distinct().size == verifications.size &&
+        verifications.all { it.area in ProfileDraftFields.evidenceAreas && it.procedure.isNotBlank() && it.procedure.length <= 256 &&
+            it.observation.isNotBlank() && it.observation.length <= 1024 && it.deviceLocator.isNotBlank() && it.deviceLocator.length <= 1024 && it.snapshot.length <= 16384 }
 
     /** Private versioned length framing keeps unknown values without a second portable profile schema. */
     fun encodeLocal(): String {
         require(bounded()) { "Draft exceeds local storage limits" }
         val parts = listOf(draftId, evidenceNotes, syntheticSource.toString(), fields.size.toString()) +
             fields.entries.sortedBy { it.key }.flatMap { listOf(it.key, it.value) } + listOf(evidence.size.toString()) +
-            evidence.entries.sortedBy { it.key }.flatMap { listOf(it.key, it.value.name) }
-        val encoded = "RastrIO-local-draft-1:" + parts.joinToString("") { "${it.length}:$it" }
+            evidence.entries.sortedBy { it.key }.flatMap { listOf(it.key, it.value.name) } +
+            listOf(suggestions.size.toString()) + suggestions.flatMap { listOf(it.path, it.value, it.source.name, it.sourceDescription, it.deviceLocator) } +
+            listOf(verifications.size.toString()) + verifications.flatMap { listOf(it.area, it.procedure, it.observation, it.deviceLocator, it.snapshot) }
+        val encoded = "RastrIO-local-draft-2:" + parts.joinToString("") { "${it.length}:$it" }
         require(encoded.length <= 65536) { "Encoded draft exceeds local storage limit" }
         return encoded
     }
@@ -180,13 +220,14 @@ data class ProfileDraft(
     companion object {
         fun fresh(id: String) = ProfileDraft(id, mapOf("profileId" to id, "profileRevision" to "1"))
         fun decodeLocal(source: String): ProfileDraft? {
-            if (source.length > 65536 || !source.startsWith("RastrIO-local-draft-1:")) return null
+            val version = when { source.startsWith("RastrIO-local-draft-1:") -> 1; source.startsWith("RastrIO-local-draft-2:") -> 2; else -> return null }
+            if (source.length > 65536) return null
             var offset = "RastrIO-local-draft-1:".length
             fun part(): String? {
                 val end = source.indexOf(':', offset)
                 if (end < offset || end - offset > 5) return null
                 val length = source.substring(offset, end).toIntOrNull() ?: return null
-                if (length < 0 || length > 4096 || length > source.length - end - 1) return null
+                if (length < 0 || length > 16384 || length > source.length - end - 1) return null
                 offset = end + 1 + length
                 return source.substring(end + 1, offset)
             }
@@ -211,8 +252,26 @@ data class ProfileDraft(
                 if (key in evidence || key !in ProfileDraftFields.evidenceAreas) return null
                 evidence[key] = ProfileEvidence.entries.firstOrNull { it.name == value } ?: return null
             }
+            val suggestions = mutableListOf<ProfileSuggestion>()
+            val records = mutableListOf<ProfileVerification>()
+            if (version == 2) {
+                val suggestionCount = part()?.toIntOrNull() ?: return null
+                if (suggestionCount !in 0..32) return null
+                repeat(suggestionCount) {
+                    val path = part() ?: return null; val value = part() ?: return null
+                    val sourceName = part() ?: return null
+                    val classification = InspectionEvidence.entries.firstOrNull { it.name == sourceName } ?: return null
+                    val description = part() ?: return null; val identity = part() ?: return null
+                    suggestions += runCatching { ProfileSuggestion(path, value, classification, description, identity) }.getOrNull() ?: return null
+                }
+                val recordCount = part()?.toIntOrNull() ?: return null
+                if (recordCount !in 0..ProfileDraftFields.evidenceAreas.size) return null
+                repeat(recordCount) {
+                    records += ProfileVerification(part() ?: return null, part() ?: return null, part() ?: return null, part() ?: return null, part() ?: return null)
+                }
+            }
             if (offset != source.length) return null
-            return ProfileDraft(id, fields, evidence, notes, synthetic).takeIf { it.bounded() }
+            return ProfileDraft(id, fields, evidence, notes, synthetic, suggestions, records).takeIf { it.bounded() }
         }
 
         fun fromProfile(profile: PrinterProfile, newId: String = profile.profileId): ProfileDraft {

@@ -32,6 +32,7 @@ data class ImagePrintEdits(
     val cropX: String = "0", val cropY: String = "0", val cropWidth: String = "", val cropHeight: String = "",
     val widthDots: String = "", val brightness: Int = 0, val contrastPercent: Int = 100,
     val gammaHundredths: Int = 100, val algorithm: DitherAlgorithm = DitherAlgorithm.THRESHOLD,
+    val threshold: Int = 128, val orientation: Int? = null, val alignment: Alignment = Alignment.CENTER,
 )
 
 data class ImagePrintState(
@@ -83,8 +84,9 @@ class ImagePrintSession {
     private fun prepareState(inputState: ImagePrintState, cancelled: () -> Boolean = { false }): ImagePrintState {
         val input = inputState.input ?: return inputState
         val e = inputState.edits
-        val orientedWidth = if (input.orientation >= 5) input.image.height else input.image.width
-        val orientedHeight = if (input.orientation >= 5) input.image.width else input.image.height
+        val orientation = e.orientation ?: input.orientation
+        val orientedWidth = if (orientation >= 5) input.image.height else input.image.width
+        val orientedHeight = if (orientation >= 5) input.image.width else input.image.height
         val x = e.cropX.toIntOrNull()
         val y = e.cropY.toIntOrNull()
         val width = if (e.cropWidth.isBlank()) orientedWidth else e.cropWidth.toIntOrNull()
@@ -93,15 +95,16 @@ class ImagePrintSession {
         if (x == null || y == null || width == null || height == null || dots == null || x < 0 || y < 0 ||
             width <= 0 || height <= 0 || x.toLong() + width > orientedWidth || y.toLong() + height > orientedHeight ||
             dots !in 1..inputState.profile.geometry.printableWidthDots || e.brightness !in -255..255 ||
-            e.contrastPercent !in 0..400 || e.gammaHundredths !in 10..400) {
+            e.contrastPercent !in 0..400 || e.gammaHundredths !in 10..400 || e.threshold !in 0..255 ||
+            orientation !in 1..8) {
             return inputState.copy(result = PhysicalPreviewResult.NotPrepared,
                 editDiagnostic = "Invalid crop, print width, or image adjustment")
         }
         val asset = EmbeddedAssetReference("selected-image")
-        val document = ThermalDocument(blocks = listOf(Image(asset, Alignment.CENTER,
+        val document = ThermalDocument(blocks = listOf(Image(asset, e.alignment,
             RequestedWidthSizing(Length(dots * 25.4 / inputState.profile.geometry.horizontalDpi)))))
-        val raster = ResolvedRasterImage(input.image, RasterOptions(width, height, input.orientation,
-            ImageCrop(x, y, width, height), e.brightness, e.contrastPercent, e.gammaHundredths, e.algorithm))
+        val raster = ResolvedRasterImage(input.image, RasterOptions(width, height, orientation,
+            ImageCrop(x, y, width, height), e.brightness, e.contrastPercent, e.gammaHundredths, e.algorithm, e.threshold))
         val prepared = BasicPreparationEngine().prepare(document, inputState.profile, inputState.options,
             resolvedImages = mapOf(asset to raster), isCancelled = cancelled)
         val result = when (prepared) {

@@ -47,10 +47,38 @@ class TemplateDocumentBuilderTest {
 
     @Test fun shoppingQuantitiesAreLiteralAndOptional() {
         val document = build(ShoppingListState(items = listOf(ShoppingItem("Milk", "2 L"), ShoppingItem("Bread"))))
-        val list = document.blocks.single() as UnorderedList
-        assertEquals(listOf(Text("2 L"), Text(" × "), Text("Milk")), (list.items[0].blocks.single() as Paragraph).content)
-        assertEquals(listOf(Text("Bread")), (list.items[1].blocks.single() as Paragraph).content)
+        val table = assertIs<Table>(document.blocks.last())
+        assertEquals(listOf(Text("Milk")), table.rows.first()[1].content)
+        assertEquals(listOf(Text("2 L")), table.rows.first()[2].content)
+        assertEquals(listOf(Text("Bread")), table.rows[1][1].content)
+        assertTrue(table.rows[1][2].content.isEmpty())
         assertNull(document.metadata.title)
+    }
+
+    @Test fun shoppingHasCenteredHeadingOptionalDateAndAlignedLiteralCells() {
+        val state = ShoppingListState("Groceries", listOf(ShoppingItem("Milk for breakfast\nand baking", "2", "L", true)), date = "Oct 14, 2026")
+        val document = build(state)
+        assertEquals(Heading(1, Alignment.CENTER, listOf(Text("Groceries"))), document.blocks[0])
+        assertEquals(Paragraph(Alignment.CENTER, listOf(Text("Date: "), Text("Oct 14, 2026"))), document.blocks[1])
+        assertEquals(Separator, document.blocks[2])
+        val table = assertIs<Table>(document.blocks[3])
+        assertEquals(listOf(Alignment.LEFT, Alignment.LEFT, Alignment.RIGHT), table.columns.map { it.alignment })
+        assertEquals(listOf(1, 7, 2), table.columns.map { it.widthWeight })
+        assertTrue(table.header.isEmpty())
+        assertEquals(listOf(InlineCode("⊠")), table.rows.first()[0].content)
+        assertEquals(listOf(Text("Milk for breakfast"), LineBreak, Text("and baking")), table.rows.first()[1].content)
+        assertEquals(listOf(Text("2 L")), table.rows.first()[2].content)
+        assertFalse(build(state.copy(date = " ")).blocks.any { it is Paragraph })
+        failure(state.copy(date = "\uD800"), "TPL101", "date")
+    }
+
+    @Test fun memoDateDividerAndRightSignatureRemainSemantic() {
+        val document = build(MemoState("Supplies", "Team", "Body", "Darshan", "Oct 14, 2026"))
+        assertEquals(Paragraph(Alignment.LEFT, listOf(Text("Date: "), Text("Oct 14, 2026"))), document.blocks[2])
+        assertEquals(Separator, document.blocks[3])
+        assertEquals(Paragraph(Alignment.RIGHT, listOf(LineBreak, LineBreak, Text("Darshan"))), document.blocks.last())
+        assertEquals(listOf(Paragraph(Alignment.LEFT, listOf(Text("Body")))), build(MemoState(body = "Body")).blocks)
+        failure(MemoState(body = "Body", date = "\uD800"), "TPL101", "date")
     }
 
     @Test fun intentionalLineBreaksSurviveIncludingEmptyLinesAndTrailingBreak() {
@@ -60,9 +88,9 @@ class TemplateDocumentBuilderTest {
 
     @Test fun memoIncludesOnlyEnteredFields() {
         val full = build(MemoState("Subject", "Team", "Body", "Darshan"))
-        assertEquals(4, full.blocks.size)
+        assertEquals(5, full.blocks.size)
         assertEquals(listOf(Text("To: "), Text("Team")), (full.blocks[1] as Paragraph).content)
-        assertEquals(listOf(Text("Darshan")), (full.blocks.last() as Paragraph).content)
+        assertEquals(listOf(LineBreak, LineBreak, Text("Darshan")), (full.blocks.last() as Paragraph).content)
         assertEquals(listOf(Paragraph(Alignment.LEFT, listOf(Text("Body")))), build(MemoState(body = "Body")).blocks)
     }
 
@@ -83,7 +111,7 @@ class TemplateDocumentBuilderTest {
         assertEquals(3, state.items.size)
         val shopping = ShoppingListState(items = listOf(ShoppingItem("one"), ShoppingItem("two")))
         val changed = shopping.copy(items = listOf(shopping.items[1].copy(quantity = "4")))
-        assertEquals(1, (build(changed).blocks.single() as UnorderedList).items.size)
+        assertEquals(1, (build(changed).blocks.last() as Table).rows.size)
     }
 
     @Test fun equivalentStatesBuildEqualRoundTrippableDocuments() {
@@ -131,6 +159,14 @@ class TemplateDocumentBuilderTest {
         failure(QuickNoteState(body = "123"), "TPL120", "body", policy)
         failure(MemoState(body = "a", signature = "123"), "TPL120", "signature", policy)
         failure(QrMessageState("123"), "TPL120", "payload", policy)
+    }
+
+    @Test fun datesAndCustomUnitsRespectFieldAndUnicodeLimits() {
+        val policy = TemplateResourcePolicy(maxFieldBytes = 2)
+        failure(ShoppingListState(items = listOf(ShoppingItem("a")), date = "123"), "TPL120", "date", policy)
+        failure(MemoState(body = "a", date = "123"), "TPL120", "date", policy)
+        failure(ShoppingListState(items = listOf(ShoppingItem("a", "1", "123"))), "TPL120", "items[0].unit", policy)
+        failure(ShoppingListState(items = listOf(ShoppingItem("a", "1", "\uD800"))), "TPL101", "items[0].unit")
     }
 
     @Test fun itemAndLineBudgetsStopBeforeOutputAmplification() {

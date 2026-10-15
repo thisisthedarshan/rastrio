@@ -71,6 +71,19 @@ class PhysicalPreviewUiTest {
         }
     }
 
+    @Test fun compactPreviewFitsPaperAndKeepsTechnicalCodesInDetails() = runComposeUiTest {
+        val print = plan(options = PrintOptions(cutIntent = CutIntent.AUTOMATIC_OR_MANUAL))
+        setContent { AuthoringTheme { Box(Modifier.requiredSize(360.dp, 640.dp)) {
+            PhysicalPreviewScreen(preview(print), compact = true) {}
+        } } }
+        onNodeWithText("PRN201", substring = true).assertDoesNotExist()
+        val canvas = onNodeWithTag("physical-canvas").fetchSemanticsNode()
+        val paper = onNodeWithTag("physical-paper-0").fetchSemanticsNode()
+        assertTrue(paper.boundsInRoot.right <= canvas.boundsInRoot.right + 1f)
+        onNodeWithText("Preview details").performClick()
+        onNodeWithText("PRN201", substring = true).assertExists()
+    }
+
     @Test fun manualGuideAndFallbackWarningRemainPrintedAndAccessible() = runComposeUiTest {
         val print = plan(options = PrintOptions(cutIntent = CutIntent.AUTOMATIC_OR_MANUAL, finalFeedDots = 12))
         setContent { AuthoringTheme { PhysicalPreviewScreen(preview(print)) {} } }

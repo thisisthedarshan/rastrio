@@ -25,7 +25,7 @@ import com.circuitnext.rastrio.core.text.SnapshotList
 /** Stable procedures generate semantic inputs, never raw printer programs or automatic writes. */
 enum class CalibrationProcedure(val title: String, val hardwareTestId: String, val instructions: String) {
     GEOMETRY("Printable width and effective DPI", "HW-037",
-        "Enter independently established candidate DPI and dot width. Measure both axes separately using the known dot intervals; repeat measurements and inspect edge clipping. Millimetre width alone cannot establish DPI."),
+        "Use explicit candidate geometry, or select and acknowledge an isolated experimental starter. Measure both axes separately using the known dot intervals; repeat measurements and inspect edge clipping. Millimetre width alone cannot establish DPI."),
     NATIVE_FONT("Native font and line advance", "HW-001/002/004",
         "Select an explicit candidate font and page. Inspect prepared native text and captured selector bytes; measure cell dimensions and line advance on paper. Raster fallback cannot establish native font behavior."),
     CP437("CP437 repertoire and selector", "HW-036",
@@ -85,6 +85,27 @@ data class CalibrationFixture(
 }
 
 object CalibrationFixtures {
+    /** Hypotheses for an acknowledged registered command trial, never ordinary profile defaults. */
+    fun experimentalStarter(draft: ProfileDraft, commandCompatibilityAcknowledged: Boolean): ProfileDraft? {
+        if (!commandCompatibilityAcknowledged || draft.syntheticSource) return null
+        val values = mapOf(
+            "geometry.horizontalDpi" to "203", "geometry.verticalDpi" to "203", "geometry.printableWidthDots" to "384",
+            "protocol.dialectId" to "escpos.generic", "protocol.initializationStrategy" to "escpos.init.standard",
+            "raster.supported" to "true", "raster.strategies" to "escpos.raster.gs-v-0", "raster.preferredStrategy" to "escpos.raster.gs-v-0",
+            "raster.maxWidthDots" to "384", "raster.bandHeightDots.min" to "1", "raster.bandHeightDots.preferred" to "64", "raster.bandHeightDots.max" to "64",
+            "nativeText.supported" to "false", "nativeText.fontCount" to "0", "nativeText.codePageCount" to "0",
+            "nativeText.styles.bold" to "false", "nativeText.styles.underline" to "false",
+            "nativeText.styles.widthScales" to "", "nativeText.styles.heightScales" to "",
+            "nativeQr.supported" to "false", "nativeBarcode.supported" to "false", "cutter.supported" to "false", "statusQuery.supported" to "false",
+            "printerBuffer.recommendedMaxBurstBytes" to "", "printerBuffer.recommendedPauseAfterBurstMs" to "", "quirks" to "",
+        )
+        val isolated = ProfileDraft.fresh(draft.draftId).withField("profileId", draft["profileId"])
+            .withField("profileRevision", draft["profileRevision"]).withField("display.name", "Experimental raster trial")
+        val candidate = values.entries.fold(isolated) { current, (path, value) -> current.withField(path, value) }
+            .copy(evidence = emptyMap(), verifications = emptyList())
+        return candidate.takeIf { it.validateCandidate() is ProfileValidationResult.Success }
+    }
+
     fun create(draft: ProfileDraft, request: CalibrationRequest): ProfileValidationResult<CalibrationFixture> {
         val profile = when (val result = draft.validateCandidate()) {
             is ProfileValidationResult.Failure -> return result

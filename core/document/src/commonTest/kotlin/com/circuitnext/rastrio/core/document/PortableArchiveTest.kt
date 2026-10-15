@@ -47,6 +47,35 @@ class PortableArchiveTest {
         assertEquals(document, TdArchive.load(TdArchive.save(document)).document)
     }
 
+    @Test fun weightedHeaderlessTablesRoundTripWithoutChangingLegacyBytes() {
+        val columns = listOf(TableColumn(Alignment.LEFT, 1), TableColumn(Alignment.LEFT, 7), TableColumn(Alignment.RIGHT, 2))
+        val table = Table(columns, emptyList(), listOf(listOf(TableCell(listOf(Text("[]"))), TableCell(listOf(Text("Milk"))), TableCell(listOf(Text("2 L"))))))
+        val document = ThermalDocument(blocks = listOf(table))
+        assertEquals(document, TdArchive.load(TdArchive.save(document)).document)
+        val legacy = ThermalDocument(blocks = listOf(Table(listOf(TableColumn(Alignment.LEFT)), listOf(TableCell(emptyList())), emptyList())))
+        val json = TdJson.encodeDocument(legacy, TdResourcePolicy()).decodeToString()
+        assertEquals("""{"schemaVersion":1,"metadata":{},"layout":{"orientation":"portrait"},"blocks":[{"type":"table","columns":[{"alignment":"left"}],"header":[{"content":[]}],"rows":[]}]}""", json)
+        assertFalse(json.contains("widthWeight"))
+        assertEquals(legacy, TdJson.decodeDocument(json.encodeToByteArray(), TdResourcePolicy()))
+    }
+
+    @Test fun tableWidthWeightsUseStrictBoundedIntegerReaderAndWriter() {
+        val policy = TdResourcePolicy()
+        val base = """{"schemaVersion":1,"metadata":{},"layout":{"orientation":"portrait"},"blocks":[{"type":"table","columns":[{"alignment":"left","widthWeight":WEIGHT}],"header":[],"rows":[[{"content":[]}]]}]}"""
+        for (weight in listOf("0", "-1", "1001", "1.5", "null", "\"7\"", "9223372036854775808")) {
+            assertFailsWith<TdException> { TdJson.decodeDocument(base.replace("WEIGHT", weight).encodeToByteArray(), policy) }
+        }
+        for (weight in listOf(0, -1, 1001, Int.MAX_VALUE)) {
+            val document = ThermalDocument(blocks = listOf(Table(listOf(TableColumn(Alignment.LEFT, weight)), emptyList(), emptyList())))
+            assertFailsWith<TdException.Invalid> { TdArchive.save(document) }
+        }
+        for (weight in listOf("1", "1000")) {
+            val document = TdJson.decodeDocument(base.replace("WEIGHT", weight).encodeToByteArray(), policy)
+            assertEquals(weight.toInt(), (document.blocks.single() as Table).columns.single().widthWeight)
+        }
+        assertFailsWith<TdException> { TdJson.decodeDocument(base.replace("WEIGHT", "7,\"widthWeight\":8").encodeToByteArray(), policy) }
+    }
+
     @Test fun storedArchiveRoundTripsOnEveryCoreTarget() {
         val document = ThermalDocument(
             metadata = DocumentMetadata("portable"),

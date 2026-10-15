@@ -27,6 +27,78 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalTestApi::class)
 class ProfileCreationUiTest {
+    private class DeletionPlatform(val storage: ProfileDraftStorage) : PrintingPlatform {
+        override val profileDraftStorage = storage
+        override val profile = MutableStateFlow<PrinterProfile?>(null)
+        override val printers = MutableStateFlow(emptyList<PrinterInstance>())
+        override val status = MutableStateFlow("")
+        override val foreground = MutableStateFlow(true)
+        override val supportsProfileDeletion = true
+        val transport = FakePrinterTransport()
+        override fun deleteProfile() { profile.value = null; printers.value = emptyList() }
+        override fun refreshPairedPrinters() = Unit
+        override fun importProfile() = Unit
+        override fun selectPrinter(instance: PrinterInstance) = Unit
+        override fun createTransport(): PrinterTransport = transport
+    }
+
+    @Test fun appDeletionPersistsAndFailedStorageKeepsTheDraft() = runComposeUiTest {
+        val memory = MemoryProfileDraftStorage()
+        memory.saveDrafts(listOf(ProfileDraft.fresh("one").withField("display.name", "Temporary")))
+        var reject = true
+        val platform = DeletionPlatform(object : ProfileDraftStorage {
+            override fun loadDrafts() = memory.loadDrafts()
+            override fun saveDrafts(drafts: List<ProfileDraft>) = !reject && memory.saveDrafts(drafts)
+        })
+        setContent { RastrIOApp(printingPlatform = platform) }
+        onNodeWithText("Open Printers").performClick()
+        onNodeWithText("More").performScrollTo().performClick()
+        onNodeWithText("Delete draft Temporary").performClick()
+        onNodeWithText("Delete", substring = false).performClick()
+        onNodeWithText("Edit Temporary").assertExists()
+        assertEquals(1, memory.loadDrafts().size)
+        runOnIdle { reject = false }
+        onNodeWithText("More").performScrollTo().performClick()
+        onNodeWithText("Delete draft Temporary").performClick()
+        onNodeWithText("Delete", substring = false).performClick()
+        onNodeWithText("Edit Temporary").assertDoesNotExist()
+        assertTrue(memory.loadDrafts().isEmpty())
+        assertEquals(0, platform.transport.connections)
+    }
+
+    @Test fun activeProfileDeletionClearsSelectionWithoutPrinting() = runComposeUiTest {
+        val platform = DeletionPlatform(MemoryProfileDraftStorage())
+        platform.profile.value = SyntheticReferenceProfiles.narrow.copy(profileId = "operator.test")
+        setContent { RastrIOApp(printingPlatform = platform) }
+        onNodeWithText("Open Printers").performClick()
+        onNodeWithText("Manage profiles").performScrollTo().performClick()
+        onNodeWithText("Delete saved profile").performClick()
+        assertNotNull(platform.profile.value)
+        onNodeWithText("Delete", substring = false).performClick()
+        assertNull(platform.profile.value)
+        onNodeWithText("No validated physical printer profile selected.").assertExists()
+        assertEquals(0, platform.transport.connections)
+    }
+
+    @Test fun deletingDraftRequiresConfirmationAndRetainsOthers() = runComposeUiTest {
+        val storage = MemoryProfileDraftStorage()
+        storage.saveDrafts(listOf(ProfileDraft.fresh("one").withField("display.name", "Temporary"),
+            ProfileDraft.fresh("two").withField("display.name", "Keep")))
+        setContent { PrinterManagementScreen(SyntheticReferenceProfiles.narrow, {}, {}, {}, {}, {},
+            storage.loadDrafts(), {}, {}, {}, {}, onDeleteDraft = { draft ->
+                storage.saveDrafts(storage.loadDrafts().filterNot { it.draftId == draft.draftId })
+            }) }
+        onNodeWithTag("printer-management-list").performScrollToNode(hasText("Edit Temporary"))
+        onAllNodesWithText("More")[0].performClick()
+        onNodeWithText("Delete draft Temporary").performClick()
+        assertEquals(2, storage.loadDrafts().size)
+        onNodeWithText("Cancel").performClick()
+        onAllNodesWithText("More")[0].performClick()
+        onNodeWithText("Delete draft Temporary").performClick()
+        onNodeWithText("Delete", substring = false).performClick()
+        assertEquals(listOf("two"), storage.loadDrafts().map { it.draftId })
+    }
+
     @Test fun printerManagementCreatesAndResumesAnIncompleteDraftWithoutPrinting() = runComposeUiTest {
         setContent { RastrIOApp() }
         onNodeWithText("Open Printers").performClick()
@@ -61,19 +133,26 @@ class ProfileCreationUiTest {
         setContent { RastrIOApp(printingPlatform = platform) }
         onNodeWithText("Open Printers").performClick()
         onNodeWithText("Add Printer").performScrollTo().performClick()
-        onNodeWithText("Select My Classic printer").performScrollTo().performClick()
-        onNodeWithText("Select BLE printer").assertIsNotEnabled()
-        onNodeWithText("Save Printer").performScrollTo().assertIsNotEnabled()
+        onNodeWithTag("device-row-private").performClick()
+        onNodeWithText("BLE printer").assertDoesNotExist()
+        onNodeWithText("Continue").performClick()
         onNodeWithText("Create Printer Profile").performScrollTo().performClick()
         onNodeWithTag("profile-editor-list").performScrollToNode(hasText("Calibrate draft in Printer Lab"))
         onNodeWithText("Calibrate draft in Printer Lab").performClick()
+        onAllNodes(hasText("APP141", substring = true)).assertCountEquals(0)
+        onNodeWithTag("printer-lab-list").performScrollToNode(hasText("Experimental device: My Classic printer"))
+        onNodeWithText("Experimental device: My Classic printer").assertExists()
+        onNodeWithText("Calibrate My Classic printer").assertDoesNotExist()
         onNodeWithTag("printer-lab-list").performScrollToNode(hasText("Prepare calibration preview"))
+        onNodeWithTag("printer-lab-list").performScrollToNode(hasText("Transport trial settings"))
+        onNodeWithText("Transport trial settings").performClick()
         onNodeWithTag("printer-lab-list").performScrollToNode(hasText("Maximum write chunk bytes (1–4096)"))
         onNodeWithText("Maximum write chunk bytes (1–4096)").performTextReplacement("4096")
         onNodeWithTag("calibration-effective-policy").assertTextContains("Effective maximum write: 1024 bytes", substring = true)
         onNodeWithTag("printer-lab-list").performScrollToNode(hasText("Prepare calibration preview"))
         onNodeWithText("Prepare calibration preview").performClick()
         onNodeWithTag("calibration-status").assertExists()
+        onAllNodes(hasText("PRF151", substring = true)).assertCountEquals(0)
         onNodeWithTag("printer-lab-list").performScrollToNode(hasText("Print one experimental sample"))
         onNodeWithText("Print one experimental sample").assertIsNotEnabled()
         assertEquals(0, transport.connections)
@@ -101,8 +180,9 @@ class ProfileCreationUiTest {
 
     @Test fun failedWorksheetPersistenceCannotActivateOrHideTheDraft() = runComposeUiTest {
         val draft = ProfileDraft.fromProfile(SyntheticReferenceProfiles.narrow.copy(profileId = "org.rastrio.fixture.persist-failure"))
-            .copy(evidence = ProfileDraftFields.evidenceAreas.associateWith { ProfileEvidence.VERIFIED },
-                evidenceNotes = "Automated fixture only; no hardware claim")
+            .let { original -> ProfileDraftFields.evidenceAreas.fold(original) { value, area ->
+                value.recordVerification(area, "Automated persistence fixture", "Synthetic recorded result for software test only", "fixture-device")
+            } }
         var activations = 0
         val platform = object : PrintingPlatform {
             override val profileDraftStorage = object : ProfileDraftStorage {
@@ -127,8 +207,8 @@ class ProfileCreationUiTest {
         onNodeWithText("Validate profile").performClick()
         onNodeWithTag("profile-editor-list").performScrollToNode(hasText("Save and select validated profile"))
         onNodeWithText("Save and select validated profile").performClick()
-        onNodeWithTag("profile-editor-list").performScrollToNode(hasText("APP145:", substring = true))
-        onNodeWithText("APP145:", substring = true).assertExists()
+        onNodeWithTag("profile-editor-list").performScrollToNode(hasText("Draft could not be saved", substring = true))
+        onNodeWithText("Draft could not be saved", substring = true).assertExists()
         assertEquals(0, activations)
     }
 
@@ -153,12 +233,13 @@ class ProfileCreationUiTest {
         setContent { RastrIOApp(input, platform) }
         onNodeWithText("Open Markdown").performClick()
         onNodeWithText("Printer preview").performClick()
-        onNodeWithText("Use Classic fixture").performScrollTo().performClick()
-        waitUntil { onAllNodesWithText("Open physical preview").fetchSemanticsNodes().isNotEmpty() }
-        onNodeWithText("Print prepared document").performScrollTo().assertIsNotEnabled()
+        onNodeWithTag("configured-printer-selector").performClick()
+        onNodeWithText("Classic fixture").performClick()
+        onNodeWithTag("confirm-print").assertIsNotEnabled()
+        onNodeWithTag("physical-canvas").assertDoesNotExist()
         runOnIdle { saved.value = printer }
-        waitUntil { onAllNodes(hasText("Print prepared document") and isEnabled()).fetchSemanticsNodes().isNotEmpty() }
-        onNodeWithText("Print prepared document").assertIsEnabled()
+        waitUntil { onAllNodesWithTag("physical-canvas").fetchSemanticsNodes().isNotEmpty() }
+        onNodeWithTag("confirm-print").assertIsEnabled()
         assertEquals(0, transport.connections)
         assertEquals(0, transport.byteCount)
     }

@@ -1,7 +1,7 @@
 # RastrIO `.td` Thermal Document Specification
 
 **Status:** Normative specification  
-**Specification version:** 1.1  
+**Specification version:** 1.2
 **Target format:** `.td` container version 1 / document schema version 1  
 **Project:** RastrIO
 **License context:** Apache-2.0  
@@ -1326,11 +1326,16 @@ header
 rows
 ```
 
-Each `columns` entry contains exactly:
+Each `columns` entry requires `alignment`:
 
 ```json
 { "alignment": "left" }
 ```
+
+A column MAY additionally contain `widthWeight`, a JSON integer from 1 through 1000.
+Omitting it means 1. It expresses a relative share of the enclosing logical table
+width, not a printer width or physical dot count. No other column properties are valid.
+Canonical writers omit `widthWeight` when it is 1.
 
 Each table cell contains `content` and MAY contain an alignment override:
 
@@ -1346,13 +1351,31 @@ If `alignment` is omitted, the cell uses its column alignment. If present, it MU
 Validation rules:
 
 - `columns` MUST be non-empty;
-- `header` cell count MUST equal `columns` count;
+- `header` MUST be present; an empty array means there is no header row; a non-empty array MUST have exactly the `columns` count;
 - every row cell count MUST equal `columns` count;
 - table/row/column/cell counts MUST obey resource policy;
 - cell content is inline semantic content;
 - table geometry is not stored in `.td`.
 
 Column widths, wrapping, row heights, strip segmentation, and target physical geometry are resolved later by layout/printer preparation.
+
+### 51.1 Weighted/headerless v1 extension and compatibility
+
+On 2026-10-14 the v1 table contract deliberately gained optional `widthWeight`
+and empty `header` support for document templates. The schema version remains 1.
+Existing v1 documents remain valid, default equal column geometry remains identical,
+and canonical output for old tables is byte-identical. Private template draft version
+2 migrates version 1 drafts by retaining their entered quantity text and supplying
+empty dates/units and unchecked shopping items; it is separate from `.td` versioning.
+
+Older strict readers reject non-default `widthWeight` as an unknown property and
+reject an empty header as an invalid shape. Such documents therefore require an
+updated reader; do not claim forward compatibility with older v1 implementations.
+No automatic lossy export or downgrade is performed. Headerless tables with no body
+rows are valid empty table containers; no synthetic header/cell content is added.
+Duplicate properties, nulls, non-integer/out-of-range weights and invalid non-empty
+header counts remain errors before lossy parsing or layout.
+
 
 ---
 
