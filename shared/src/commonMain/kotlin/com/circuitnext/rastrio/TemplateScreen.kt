@@ -32,6 +32,7 @@ import com.circuitnext.rastrio.core.document.QrErrorCorrection
 import com.circuitnext.rastrio.core.document.ThermalDocument
 import com.circuitnext.rastrio.core.templates.*
 import com.circuitnext.rastrio.presentation.*
+import rastrio.shared.generated.resources.*
 
 internal val TemplateFormsSaver = listSaver<TemplateForms, String>(
     save = { it.snapshot() }, restore = { TemplateForms.restore(it) },
@@ -43,11 +44,24 @@ internal fun rememberTemplateFormsState(): MutableState<TemplateForms> =
 
 @Composable
 internal fun TemplateGallery(onSelect: (TemplateKind) -> Unit, onBack: () -> Unit, busy: Boolean = false) {
-    LazyColumn(Modifier.fillMaxSize().padding(16.dp).widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(Modifier.widthIn(max = 960.dp).fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { TemplateHeader("Templates", "Back to Home", true, onBack) }
         item { Text("Start with a list, a note, or a message.", style = MaterialTheme.typography.bodyLarge) }
         for (kind in TemplateKind.entries) item {
-            ListItem(headlineContent = { Text(kind.label) }, supportingContent = {
+            ListItem(headlineContent = { Text(kind.label, style = MaterialTheme.typography.titleMedium) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
+                leadingContent = {
+                    val icon = when (kind) {
+                        TemplateKind.TODO -> Res.drawable.ic_checklist
+                        TemplateKind.SHOPPING -> Res.drawable.ic_shopping_basket
+                        TemplateKind.NOTE -> Res.drawable.ic_sticky_note_2
+                        TemplateKind.MEMO -> Res.drawable.ic_mail
+                        TemplateKind.QR -> Res.drawable.ic_qr_code_2
+                    }
+                    Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.primaryContainer) {
+                        WorkspaceIcon(icon, Modifier.padding(10.dp))
+                    }
+                }, supportingContent = {
                 Text(when (kind) {
                     TemplateKind.TODO -> "Keep track of things to do"
                     TemplateKind.SHOPPING -> "Items, quantities, and units"
@@ -55,7 +69,7 @@ internal fun TemplateGallery(onSelect: (TemplateKind) -> Unit, onBack: () -> Uni
                     TemplateKind.MEMO -> "A message for someone"
                     TemplateKind.QR -> "A scannable message or link"
                 })
-            }, trailingContent = { Text("›", style = MaterialTheme.typography.headlineSmall) },
+            }, trailingContent = { WorkspaceIcon(Res.drawable.ic_chevron_right) },
                 modifier = Modifier.clickable(enabled = !busy) { onSelect(kind) }.authoringFocus())
             HorizontalDivider()
         }
@@ -150,7 +164,7 @@ internal fun TemplateScreen(
             }
         }
         item {
-            Button(onClick = {
+            Button(shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(16.dp), onClick = {
                 val result = forms.build()
                 diagnostics = result.diagnostics
                 result.document?.let { document ->
@@ -203,16 +217,13 @@ internal fun TemplateScreen(
 
 @Composable
 private fun TemplateHeader(title: String, backLabel: String, enabled: Boolean, onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        IconButton(onBack, enabled = enabled, modifier = Modifier.semantics { contentDescription = backLabel }) { Text("←", style = MaterialTheme.typography.headlineSmall) }
-        Text(title, style = MaterialTheme.typography.headlineMedium)
-    }
+    WorkspaceHeader(title, backLabel, onBack, enabled)
 }
 
 @Composable
 private fun TemplateField(label: String, value: String, enabled: Boolean, error: String?, multiline: Boolean = false,
     modifier: Modifier = Modifier, onValue: (String) -> Unit) {
-    OutlinedTextField(value, onValue, label = { Text(label) }, enabled = enabled, singleLine = !multiline,
+    OutlinedTextField(value, onValue, label = { Text(label) }, shape = MaterialTheme.shapes.small, enabled = enabled, singleLine = !multiline,
         minLines = if (multiline) 5 else 1, isError = error != null,
         supportingText = if (error != null) ({ Text(error) }) else null,
         modifier = modifier.fillMaxWidth().testTag("template-$label"))
@@ -223,7 +234,7 @@ private fun TemplateChoice(label: String, value: String, choices: List<String>, 
     modifier: Modifier = Modifier, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedButton({ expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        WorkspaceOutlinedButton({ expanded = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
             Column { Text(label, style = MaterialTheme.typography.labelSmall); Text(value) }
         }
         DropdownMenu(expanded, { expanded = false }) {

@@ -1,5 +1,89 @@
 # RastrIO Visual System
 
+## Application UI evolution — 2026-10-16
+
+This section implements the user-approved white/vermilion application direction
+and **supersedes earlier application UI palette tables, examples and contrast
+claims below**. Earlier values remain reference material for existing brand and
+launcher assets, whose canonical files and colors are unchanged. Do not mix the
+old blue interaction scheme with these current application roles.
+
+Current shared implementation: `AuthoringTheme.kt` and `WorkspaceComponents.kt`.
+
+### Startup surfaces
+
+Android, Desktop/JVM and both browser targets enter through `RastrIOLaunch`.
+The welcome uses the canonical **symbol only**, mechanically derived from
+`assets/brand/logo/rastrio-symbol.svg`; all lettering is normal application text.
+Its mark uses primary vermilion (`#B8442E` light / `#F2A08C` dark) on the current
+background (`#FFFFFF` / `#171916`). This is an approved startup-only treatment;
+the fixed-color launcher, favicon and promotional assets remain unchanged.
+
+`LaunchScreen.kt` holds nine playful messages in one list. Add another string to
+that list to extend the pool. One message is selected randomly on a fresh launch,
+saved through recomposition/configuration changes, and never rotated in place.
+The shared welcome lasts 1.4 seconds (extended by the platform's accessibility
+timeout when requested) and offers an immediate **Continue** action.
+It is a brief introduction, not a progress meter or evidence of printer readiness.
+There is no spinning, pulsing or continuous motion. Text wraps and the content
+scrolls on short screens or at large font scales.
+
+Android's mandatory OS splash uses the same background and the canonical mark
+in the corresponding primary color, then hands off to the shared welcome without
+holding the system splash. The browser's pre-runtime fallback uses the same mark,
+normal text and theme colors until the Compose canvas appears; the random message
+is selected by the shared welcome after the runtime starts. No startup network
+request, external font, printer connection or new dependency is introduced.
+
+`scripts/generate_android_branding.py` derives both the Android resources and
+shared/browser startup vectors from the canonical SVG. Its `--check` mode detects
+stale derivatives. The existing light/dark theme roles below remain authoritative.
+
+| UI role | Light | Dark |
+|---|---|---|
+| Background / content | `#FFFFFF` / `#252622` | `#171916` / `#F3F3EC` |
+| Primary surface / content | `#F7F7F5` / `#252622` | `#1F211D` / `#F3F3EC` |
+| Secondary surface / content | `#F2F1ED` / `#686A63` | `#282B25` / `#BFC2B8` |
+| Primary action / content | `#B8442E` / `#FFFFFF` | `#F2A08C` / `#3D160D` |
+| Primary container / content | `#FBEDE7` / `#9E3825` | `#5F2D20` / `#FFE4DA` |
+| Secondary action / content | `#805B20` / `#FFFFFF` | `#E3AE66` / `#332109` |
+| Secondary container / content | `#F3E2C7` / `#3A240C` | `#523A1D` / `#F5E2C5` |
+| Strong boundary | `#898D82` | `#7B8272` |
+| Decorative boundary | `#E5E5DF` | `#454A3F` |
+| Editor | `#F7F7F5` | `#1C1E1A` |
+| Disabled surface / text | `#F2F1ED` / `#646C70` | `#2A2F32` / `#8D979B` |
+
+Conventional success, warning and error roles remain distinct from brand color.
+Normal text and filled-control labels require at least 4.5:1 contrast in both
+appearances; meaningful boundaries and focus require at least 3:1. Decorative
+thumbnail lines and dividers are not sole control affordances.
+
+Controls use 12 dp corners, panels 20 dp, and dialogs/sheets 24 dp. Primary actions
+have a minimum 52 dp height; ordinary actions and icon-control hit areas are at
+least 48 dp. Content wraps rather than truncating form values or action labels.
+Use 8/12/16/20/24 dp spacing according to nesting and existing adaptive constraints.
+Noto Sans is bundled locally; application typography never controls Core geometry.
+
+Home uses one document-start panel, two compact quick-start destinations and a
+separate printer destination. Reuse headers with a named Back action. Preserve
+the existing route history, all five dedicated template editors, item sheets,
+printer/profile management, calibration safeguards, image controls and print
+confirmation. Advanced details remain accessible through explicit disclosures.
+
+The Markdown formatting toolbar edits selected source text only: Heading inserts
+`## `, Bold surrounds the selection with `**`, and List inserts `- `. Empty
+selections insert selected editable placeholders. Formatting invalidates the
+compiled result through the same authoring-session edit path as typing. It does
+not compile, fetch assets, prepare output, connect, or print implicitly.
+
+All actual logical/physical preview geometry, raster colors, diagnostics, resource
+limits and immutable prepared artifacts retain their existing governing contracts.
+Never use Home's decorative thumbnail as a physical-output preview.
+
+Material Symbols Sharp vectors are vendored locally with their upstream Apache
+license; their source and compatibility adaptations are recorded in
+`shared/src/commonMain/composeResources/files/material_symbols/README.md`.
+
 **Status:** Production visual-system baseline  
 **Project:** RastrIO
 **Applies to:** Android, Desktop/JVM, Web, GitHub, F-Droid, documentation, project website, screenshots, release material  

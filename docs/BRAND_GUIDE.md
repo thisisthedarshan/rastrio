@@ -1,5 +1,32 @@
 # RastrIO Brand Guide
 
+## Application UI evolution — 2026-10-16
+
+The approved application direction is **white, charcoal, warm neutral surfaces,
+and vermilion actions**, based on the reviewed white-background prototype. This
+deliberately supersedes the Registration Blue interaction palette and the earlier
+paper-tinted application-background guidance below, for application UI only.
+The authoritative current UI tokens and controls are defined in the corresponding
+evolution section of `VISUAL_SYSTEM.md`; earlier UI palette examples are historical
+reference, not an alternative implementation contract.
+
+Keep color selective: primary actions and focus use vermilion, secondary controls
+use neutral boundaries, and most content sits on white. Use the existing bundled
+Noto Sans for interface text and the existing monospace face for editable source.
+Document thumbnails may be decorative; authoritative physical output remains the
+unaltered Core preview. Shared controls should feel tactile through spacing,
+soft corners, and restrained elevation rather than gradients or bright panels.
+
+The Registration Strip logo, canonical vector geometry, launcher assets, and
+their existing fixed colors are unchanged. This UI evolution does not authorize
+recoloring or redrawing those production assets or promotional materials.
+
+The 2026-10-16 startup refresh additionally permits the canonical symbol geometry
+in the current primary action color on launch surfaces only. Use the symbol SVG
+without its outlined wordmark; render the name and playful launch copy with the
+normal bundled UI font. Keep fixed-color launcher and promotional masters intact.
+See `VISUAL_SYSTEM.md` → Startup surfaces for the shared launch behavior and tokens.
+
 **Status:** Brand baseline  
 **Project:** RastrIO
 **License context:** Apache-2.0 / FOSS project  

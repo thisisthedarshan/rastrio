@@ -3589,6 +3589,14 @@ cold/warm startup appearance. Run those on the device separately. The operator's
 supplied API 34/arm64-v8a renderer PASS is scoped to the renderer/artifact gate,
 not to the newly changed branding or Bluetooth workflow.
 
+`LaunchScreenTest` covers a stable randomly chosen welcome message during
+recomposition, immediate Continue, automatic dismissal, and short-screen layout
+in light/dark themes. `test_android_branding.py` also compares startup symbol paths
+and viewports to the canonical SVG and verifies light/dark Android splash resources.
+All three platform entry points use the shared `RastrIOLaunch` wrapper. Browser
+pre-runtime markup is a static themed brand fallback, hidden once a canvas exists;
+browser runtime assembly should be checked for both JS and Wasm distributions.
+
 
 ### Phase 14 guided-setup regression and visual gates
 

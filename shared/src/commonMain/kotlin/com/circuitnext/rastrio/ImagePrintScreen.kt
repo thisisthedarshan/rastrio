@@ -60,13 +60,10 @@ internal fun ImagePrintScreen(state: ImagePrintState, platform: ImagePlatform?, 
     onBack: () -> Unit, preparing: Boolean = false) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp).widthIn(max = 960.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            Text("Image Print", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            TextButton(onClick = onBack) { Text("Back to Home") }
-        }
+        WorkspaceHeader("Image Print", "Back to Home", onBack, compact = true)
         Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(enabled = platform != null && !busy, onClick = { platform?.importImage() }) { Text("Choose image") }
+            WorkspaceOutlinedButton(enabled = platform != null && !busy, onClick = { platform?.importImage() }) { Text("Choose image") }
             Text(if (platform == null) "Image selection is available on Android" else status,
                 style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -86,8 +83,8 @@ internal fun ImagePrintScreen(state: ImagePrintState, platform: ImagePlatform?, 
                 }
             }
         }
-        Button(enabled = state.input != null && !busy, onClick = onPreview,
-            modifier = Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally)) { Text("Continue to Print") }
+        WorkspacePrimaryButton("Continue to Print", enabled = state.input != null && !busy,
+            modifier = Modifier.fillMaxWidth(), onClick = onPreview)
     }
 }
 
@@ -181,7 +178,7 @@ internal fun ImageAdjustmentControls(state: ImagePrintState, onEdit: (ImagePrint
         val orientations = listOf("Original orientation", "Normal", "Mirror horizontally", "Rotate 180°", "Mirror vertically",
             "Transpose", "Rotate 90° clockwise", "Transverse", "Rotate 90° counterclockwise")
         Box {
-            OutlinedButton(enabled = enabled, onClick = { orientationMenu = true }) {
+            WorkspaceOutlinedButton(enabled = enabled, onClick = { orientationMenu = true }) {
                 Text("Orientation: ${orientations[(edits.orientation ?: 0).coerceIn(0, 8)]}")
             }
             DropdownMenu(expanded = orientationMenu, onDismissRequest = { orientationMenu = false }) {
@@ -219,7 +216,7 @@ private fun ImageSlider(label: String, value: Int, display: String, range: Close
 
 @Composable
 private fun ImageNumber(label: String, value: String, enabled: Boolean, onValue: (String) -> Unit) {
-    OutlinedTextField(value, { onValue(it.take(12)) }, label = { Text(label) }, enabled = enabled,
+    OutlinedTextField(value, { onValue(it.take(12)) }, label = { Text(label) }, shape = MaterialTheme.shapes.small, enabled = enabled,
         singleLine = true, modifier = Modifier.width(180.dp))
 }
 

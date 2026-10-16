@@ -131,7 +131,7 @@ internal fun AddPrinterScreen(
                         }
                         if (inspectionStatus.isNotBlank()) Text(inspectionStatus)
                         if (inspecting) { LinearProgressIndicator(Modifier.fillMaxWidth()); TextButton(onCancelInspection) { Text("Cancel inspection") } }
-                        else Button(onClick = { consent = true }, enabled = selectedAvailable, colors = actionColors) { Text("Inspect Printer") }
+                        else Button(onClick = { consent = true }, enabled = selectedAvailable, shape = MaterialTheme.shapes.small, colors = actionColors) { Text("Inspect Printer") }
                         Text("You can continue without inspection and save an incomplete draft.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -140,7 +140,7 @@ internal fun AddPrinterScreen(
                         Text("Create or choose a profile", style = MaterialTheme.typography.titleLarge)
                         Text("Keep unknown values blank. Detected names are suggestions; capability values need documented or physical evidence.")
                         if (profileName != null) Text("Current validated configuration: $profileName")
-                        Button(onCreate, colors = actionColors) { Text("Create Printer Profile") }
+                        Button(onCreate, shape = MaterialTheme.shapes.small, colors = actionColors) { Text("Create Printer Profile") }
                         TextButton(onImport) { Text("Import existing profile") }
                         Text("Start with suggested 2-inch paper, font and charset values. Review them for your printer; geometry and commands remain unknown.", style = MaterialTheme.typography.bodySmall)
                         TextButton(onSelfTestDraft) { Text("Start with a 2-inch draft") }
@@ -169,14 +169,14 @@ internal fun AddPrinterScreen(
         }
         HorizontalDivider()
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = {
+            WorkspaceOutlinedButton(onClick = {
                 if (step == PrinterSetupStep.DEVICE) onBack()
                 else { onStep(PrinterSetupStep.entries[step.ordinal - 1]); if (step == PrinterSetupStep.INSPECT) onExpand(true) }
             }, modifier = Modifier.weight(1f).authoringFocus()) { Text("Back") }
             if (step == PrinterSetupStep.VERIFY && !listExpanded) Button(onSavePrinter,
-                enabled = selectedAvailable && profileName != null, colors = actionColors, modifier = Modifier.weight(1f).authoringFocus()) { Text("Save Printer") }
+                enabled = selectedAvailable && profileName != null, shape = MaterialTheme.shapes.small, colors = actionColors, modifier = Modifier.weight(1f).authoringFocus()) { Text("Save Printer") }
             else Button(onClick = { onExpand(false); onStep(PrinterSetupStep.entries[minOf(step.ordinal + 1, 3)]) },
-                enabled = selected != null && !inspecting, colors = actionColors, modifier = Modifier.weight(1f).authoringFocus()) { Text("Continue") }
+                enabled = selected != null && !inspecting, shape = MaterialTheme.shapes.small, colors = actionColors, modifier = Modifier.weight(1f).authoringFocus()) { Text("Continue") }
         }
     }
     if (consent) AlertDialog(onDismissRequest = { consent = false }, title = { Text("Inspect this device?") },

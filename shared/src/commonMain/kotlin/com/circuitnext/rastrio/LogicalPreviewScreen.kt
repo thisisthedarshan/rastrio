@@ -114,8 +114,7 @@ internal class PreviewBands(preview: LogicalPreview) {
 @Composable
 internal fun PreviewScreen(preview: LogicalPreview, backLabel: String = "Back to Markdown", onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Logical preview", style = MaterialTheme.typography.headlineMedium)
-        AuthoringButton(backLabel, onClick = onBack)
+        WorkspaceHeader("Logical preview", backLabel, onBack)
         Text("${preview.widthMm} × ${preview.heightMm} mm · ${preview.orientation.name.lowercase()}" +
             " · scroll to inspect", style = MaterialTheme.typography.bodySmall)
         LogicalPreviewCanvas(preview, Modifier.weight(1f).fillMaxWidth())

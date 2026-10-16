@@ -91,9 +91,24 @@ class AndroidBrandingTest(unittest.TestCase):
             starting = styles["Theme.RastrIO.Starting"]
             self.assertEqual(starting.get("parent"), "Theme.SplashScreen")
             values = {item.get("name"): item.text for item in starting}
-            self.assertEqual(values["windowSplashScreenAnimatedIcon"], "@drawable/ic_launcher_foreground")
-            self.assertEqual(values["windowSplashScreenBackground"], "#315C73")
+            self.assertEqual(values["windowSplashScreenAnimatedIcon"], "@drawable/ic_splash")
+            self.assertEqual(values["windowSplashScreenBackground"], "#FFFFFF" if qualifier == "values" else "#171916")
             self.assertEqual(values["postSplashScreenTheme"], "@style/Theme.RastrIO")
+
+    def test_startup_art_preserves_canonical_svg_geometry(self):
+        source = ET.parse(ROOT / "assets/brand/logo/rastrio-symbol.svg").getroot()
+        shared = ET.parse(ROOT / "shared/src/commonMain/composeResources/drawable/rastrio_symbol.xml").getroot()
+        self.assertEqual([p.get("d") for p in source.iter(S + "path")],
+                         [p.get(A + "pathData") for p in shared.iter("path")])
+        self.assertEqual([float(shared.get(A + key)) for key in ("viewportWidth", "viewportHeight")],
+                         [float(v) for v in source.get("viewBox").split()[2:]])
+        web = ET.parse(ROOT / "webApp/src/webMain/resources/rastrio-symbol.svg").getroot()
+        self.assertEqual([p.get("d") for p in source.iter(S + "path")], [p.get("d") for p in web.iter(S + "path")])
+        master = ET.parse(ROOT / "assets/brand/logo/rastrio-symbol.svg").getroot().find(S + "path").get("d")
+        for qualifier, color in (("drawable", "#B8442E"), ("drawable-night", "#F2A08C")):
+            vector = ET.parse(RES / qualifier / "ic_splash.xml").getroot()
+            self.assertEqual(vector.find("group/path").get(A + "pathData"), master)
+            self.assertEqual(vector.find("group/path").get(A + "fillColor"), color)
 
     def test_install_before_on_create_without_delay(self):
         source = (ROOT / "androidApp/src/main/kotlin/com/circuitnext/rastrio/MainActivity.kt").read_text()

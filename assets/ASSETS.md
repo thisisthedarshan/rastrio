@@ -4,7 +4,21 @@ This directory contains the production brand assets for RastrIO. The system pres
 
 ## Source of Truth
 
+Application UI adopted a white/vermilion interaction palette on 2026-10-16;
+see `docs/VISUAL_SYSTEM.md`. Existing fixed-color brand/launcher assets below
+remain unchanged. Their Registration Blue is an asset color, not the current
+application action token. Standard interface icons are vendored Material Symbols
+Sharp with licensing recorded under shared Compose resources.
+
 `assets/brand/logo/rastrio-symbol.svg` is the **authoritative logo geometry**.
+
+Startup-only derivatives use its unchanged path with the current application
+primary color: `shared/.../composeResources/drawable/rastrio_symbol.xml`, Android
+`drawable/ic_splash.xml` and `drawable-night/ic_splash.xml`, and the browser's
+`rastrio-symbol.svg`. Run `python3 scripts/generate_android_branding.py` to regenerate
+them, or `--check` to verify them. No SVG lettering is used on launch surfaces.
+Startup treatments are governed by `docs/VISUAL_SYSTEM.md` → Startup surfaces;
+they do not change the fixed-color launcher/icon masters below.
 
 All fixed-color symbol variants, application-icon compositions, and full-size symbol-derived assets MUST be mechanically derived from that path. The micro/favicon artwork is the only intentional optical variant; it is documented below and MUST NOT replace the normal master above 23 px.
 

@@ -38,6 +38,51 @@ import com.circuitnext.rastrio.core.preview.toLogicalPreview
 
 @OptIn(ExperimentalTestApi::class)
 class AuthoringUiTest {
+    @Test fun formattedSourceProducesStyledPreviewWithoutMarkdownDelimiters() = runComposeUiTest {
+        val session = createAuthoringSession()
+        session.edit("## Title\n\n**Hello**\n\n- List item")
+        session.compile()
+        val ready = assertIs<MarkdownAuthoringResult.Ready>(session.state.result)
+        val runs = PreviewBands(ready.preview).elements(0).filterIsInstance<PreviewElement.Text>().map { it.run }
+        assertEquals(com.circuitnext.rastrio.core.text.TextWeight.BOLD, runs.first { it.text == "Hello" }.typography.style.weight)
+        assertIs<com.circuitnext.rastrio.core.document.UnorderedList>(ready.document.blocks.last())
+        setContent { RastrIOApp(session) }
+        onNodeWithText("Open Markdown").performClick()
+        onNodeWithText("Open logical preview").performClick()
+        onNodeWithText("Title").assertExists()
+        onNodeWithText("Hello").assertExists()
+        onNodeWithText("List item").assertExists()
+        onNodeWithText("**Hello**").assertDoesNotExist()
+        onNodeWithText("- List item").assertDoesNotExist()
+    }
+
+    @Test fun compactEditorKeepsSourceAndActionsVisible() = runComposeUiTest {
+        setContent { Box(Modifier.requiredSize(900.dp, 365.dp)) { RastrIOApp() } }
+        onNodeWithText("Open Markdown").performScrollTo().performClick()
+        val bounds = onNodeWithTag("markdown-source").getUnclippedBoundsInRoot()
+        assertTrue(bounds.bottom - bounds.top >= 80.dp, "Landscape source must remain editable: $bounds")
+        onNodeWithText("Compile").assertIsDisplayed()
+        onNodeWithText("Printer preview").assertIsDisplayed()
+    }
+
+    @Test fun formattingSelectionInvalidatesCompiledPreviewAndRetainsDraft() = runComposeUiTest {
+        setContent { RastrIOApp() }
+        onNodeWithText("Open Markdown").performClick()
+        onNodeWithTag("markdown-source").performTextInput("Hello")
+        onNodeWithText("Compile").performClick()
+        onNodeWithText("Open logical preview").assertIsEnabled()
+        onNodeWithTag("markdown-source").performClick()
+        onNodeWithTag("markdown-source").performTextInputSelection(androidx.compose.ui.text.TextRange(0, 5))
+        onNodeWithTag("markdown-source").assert(SemanticsMatcher.expectValue(SemanticsProperties.TextSelectionRange,
+            androidx.compose.ui.text.TextRange(0, 5)))
+        onNodeWithContentDescription("Bold selected text").performClick()
+        onNodeWithTag("markdown-source").assertTextContains("**Hello**")
+        onNodeWithText("Open logical preview").assertIsNotEnabled()
+        onNodeWithText("Back to Home").performClick()
+        onNodeWithText("Open Markdown").performClick()
+        onNodeWithTag("markdown-source").assertTextContains("**Hello**")
+    }
+
     @Test fun homeOpensEditor() = runComposeUiTest {
         setContent { RastrIOApp() }
         onNodeWithText("RastrIO").assertExists()

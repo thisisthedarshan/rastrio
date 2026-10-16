@@ -60,7 +60,7 @@ internal fun PrintConfirmationScreen(
                 TextButton(onClick = onAdd) { Text("Add Printer") }
             } else {
                 Box {
-                    OutlinedButton(onClick = { menu = true }, enabled = !state.isActive,
+                    WorkspaceOutlinedButton(onClick = { menu = true }, enabled = !state.isActive,
                         modifier = Modifier.fillMaxWidth().testTag("configured-printer-selector")) {
                         Text(selected?.displayName ?: "Choose a configured printer")
                     }
@@ -117,10 +117,7 @@ internal fun PrintConfirmationScreen(
         }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("Back") }
-            Text("Print", style = MaterialTheme.typography.titleLarge)
-        }
+        WorkspaceHeader("Print", "Back", onBack, compact = true)
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
             val keyboardHeight = with(LocalDensity.current) { WindowInsets.ime.getBottom(this).toDp() }
             if (compactPrintLayout(maxWidth, maxHeight, keyboardHeight)) {
@@ -149,8 +146,8 @@ internal fun PrintConfirmationScreen(
             horizontalAlignment = Alignment.CenterHorizontally) {
             if (state.phase != PrintSessionPhase.IDLE) Text(printSessionMessage(state), style = MaterialTheme.typography.bodySmall)
             state.diagnosticCode?.let { Text(printDiagnosticMessage(it), color = MaterialTheme.colorScheme.error) }
-            Button(onClick = onPrint, enabled = eligible && !preparing && !state.isActive && !state.outputMayExist,
-                modifier = Modifier.testTag("confirm-print")) { Text("Print") }
+            WorkspacePrimaryButton("Print", onClick = onPrint, enabled = eligible && !preparing && !state.isActive && !state.outputMayExist,
+                modifier = Modifier.fillMaxWidth().testTag("confirm-print"))
             if (state.isActive) TextButton(onClick = { session?.cancel() }) { Text("Cancel print") }
             if (state.outputMayExist && !state.isActive) TextButton(onClick = { session?.requestRetry() }, enabled = eligible) { Text("Request another print") }
             TextButton(onClick = onManage, enabled = !state.isActive) { Text("Manage printers") }

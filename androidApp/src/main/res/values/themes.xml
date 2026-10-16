@@ -17,12 +17,12 @@
 
 <resources>
     <style name="Theme.RastrIO" parent="@android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">#FBF9F4</item>
+        <item name="android:windowBackground">#FFFFFF</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
     <style name="Theme.RastrIO.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#315C73</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.RastrIO</item>
     </style>
 </resources>

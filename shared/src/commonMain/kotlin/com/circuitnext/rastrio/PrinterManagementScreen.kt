@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.circuitnext.rastrio.core.profile.PrinterProfile
 import com.circuitnext.rastrio.core.profile.SyntheticReferenceProfiles
 import com.circuitnext.rastrio.printing.*
+import rastrio.shared.generated.resources.*
 
 @Composable
 internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: @Composable () -> Unit,
@@ -69,13 +70,12 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
     LazyColumn(Modifier.fillMaxSize().testTag("printer-management-list").padding(horizontal = 24.dp).widthIn(max = 960.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
         item {
-            TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp)) { Text("Back to Home") }
-            Text("Printers and profiles", style = MaterialTheme.typography.headlineSmall)
+            WorkspaceHeader("Printers and profiles", "Back to Home", onBack)
             if (managementStatus.isNotBlank()) Text(managementStatus, style = MaterialTheme.typography.bodySmall)
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Printers", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
+                Text("Printers", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(top = 12.dp))
                 AuthoringButton("Add Printer", onClick = onAdd)
             }
             if (printers.isEmpty()) {
@@ -85,6 +85,8 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
         }
         for (printer in printers) item(key = "printer-${printer.id}") {
             ListItem(headlineContent = { Text(printer.displayName) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                leadingContent = { WorkspaceIcon(Res.drawable.ic_print) },
                 supportingContent = { Text("${printer.transportKind.name.lowercase().replace('_', ' ')} connection") },
                 modifier = Modifier.clickable(role = Role.Button, onClick = { onSelect(printer) }).authoringFocus(),
                 trailingContent = { TextButton(onClick = { deletingPrinter = printer }) { Text("Remove") } })
@@ -105,7 +107,7 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Profiles", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
+                Text("Profiles", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(top = 12.dp))
                 Box {
                     TextButton(onClick = { profileMenu = true }) { Text("Manage profiles") }
                     DropdownMenu(profileMenu, onDismissRequest = { profileMenu = false }) {
@@ -126,7 +128,9 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
         for (draft in drafts) item(key = "draft-${draft.draftId}") {
             var menu by remember { mutableStateOf(false) }
             val name = draft["display.name"].ifBlank { "Untitled profile" }
-            ListItem(headlineContent = { Text("Edit $name") }, supportingContent = { Text("Local draft") },
+            ListItem(headlineContent = { Text("Edit $name") },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                leadingContent = { WorkspaceIcon(Res.drawable.ic_description) }, supportingContent = { Text("Local draft") },
                 modifier = Modifier.clickable(role = Role.Button, onClick = { onEdit(draft) }).authoringFocus(),
                 trailingContent = {
                     Box {
@@ -141,7 +145,7 @@ internal fun PrinterManagementScreen(profile: PrinterProfile, printingControls: 
         item {
             HorizontalDivider()
             ListItem(headlineContent = { Text("Open Printer Lab") }, supportingContent = { Text("Print test samples and record measurements") },
-                trailingContent = { Text("›", style = MaterialTheme.typography.titleLarge) },
+                trailingContent = { WorkspaceIcon(Res.drawable.ic_chevron_right) },
                 modifier = Modifier.clickable(role = Role.Button, onClick = onLab).authoringFocus())
         }
         item {

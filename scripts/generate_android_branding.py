@@ -73,6 +73,23 @@ def generate(destination):
     return generated
 
 
+def startup_assets():
+    """Derive startup-only artwork; launcher masters and their colors stay intact."""
+    source = ET.parse(ROOT / "assets/brand/logo/rastrio-symbol.svg").getroot()
+    master = source.find(SVG + "path").get("d")
+    prefix = '<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated from canonical SVGs by scripts/generate_android_branding.py. -->\n'
+    vector = f'<vector xmlns:android="{ANDROID}" android:width="96dp" android:height="96dp" android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#252622" android:pathData="{master}" /></vector>\n'
+    result = {"shared/src/commonMain/composeResources/drawable/rastrio_symbol.xml": prefix + vector}
+    # currentColor lets the static browser loader follow the same light/dark tokens.
+    for path in source.iter(SVG + "path"):
+        path.set("fill", "currentColor")
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    result["webApp/src/webMain/resources/rastrio-symbol.svg"] = ET.tostring(source, encoding="unicode") + "\n"
+    for qualifier, color in (("drawable", "#B8442E"), ("drawable-night", "#F2A08C")):
+        result[f"androidApp/src/main/res/{qualifier}/ic_splash.xml"] = prefix + f'<vector xmlns:android="{ANDROID}" android:width="288dp" android:height="288dp" android:viewportWidth="108" android:viewportHeight="108"><group android:translateX="18" android:translateY="18" android:scaleX="3" android:scaleY="3"><path android:fillColor="{color}" android:pathData="{master}" /></group></vector>\n'
+    return result
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
@@ -84,6 +101,14 @@ if __name__ == "__main__":
             stale = [name for name in generated if not (RES / name).exists() or (RES / name).read_bytes() != (output / name).read_bytes()]
             if stale:
                 raise SystemExit("Stale Android branding resources: " + ", ".join(stale))
-        print(f"Android branding derivation PASS ({len(generated)} resources)")
+        stale = [name for name, content in startup_assets().items() if not (ROOT / name).exists() or (ROOT / name).read_text() != content]
+        if stale:
+            raise SystemExit("Stale startup branding resources: " + ", ".join(stale))
+        print(f"Branding derivation PASS ({len(generated)} Android resources + {len(startup_assets())} startup assets)")
     else:
         print(f"Generated {len(generate(RES))} Android branding resources")
+        for name, content in startup_assets().items():
+            destination = ROOT / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(content)
+        print(f"Generated {len(startup_assets())} startup assets")

@@ -70,8 +70,7 @@ internal fun PhysicalPreviewScreen(preview: PrintPreview, syntheticTarget: Boole
             Text("Physical preview", style = MaterialTheme.typography.titleLarge)
             TextButton(onClick = onBack) { Text(backLabel) }
         } else {
-            Text("Physical preview", style = MaterialTheme.typography.headlineMedium)
-            AuthoringButton(backLabel, onClick = onBack)
+            WorkspaceHeader("Physical preview", backLabel, onBack)
         }
         Text(if (compact) { if (syntheticTarget) "Software preview" else "Selected printer target" }
             else "${if (syntheticTarget) "Synthetic test target" else "Selected printer target"} · ${preview.target.profileId}",

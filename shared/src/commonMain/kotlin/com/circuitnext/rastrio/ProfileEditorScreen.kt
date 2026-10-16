@@ -60,8 +60,7 @@ internal fun ProfileEditorScreen(draft: ProfileDraft, onDraft: (ProfileDraft) ->
     LazyColumn(Modifier.fillMaxSize().testTag("profile-editor-list").padding(16.dp).widthIn(max = 960.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Text("Create Printer Profile", style = MaterialTheme.typography.headlineMedium)
-            AuthoringButton("Back to printers", onClick = onBack)
+            WorkspaceHeader("Create Printer Profile", "Back to printers", onBack)
             Text(if (valid != null) "Validated · ready to save" else "Local draft · save at any time", style = MaterialTheme.typography.titleMedium)
             selectedDevice?.let { Text("Selected device: ${it.displayName}", style = MaterialTheme.typography.bodyMedium) }
             Text("Keep unknown values blank. Use Printer Lab to establish print geometry and host command compatibility.")
@@ -199,7 +198,7 @@ private fun ProfileChoiceField(descriptor: ProfileDraftField, value: String, cho
     val multiple = descriptor.kind == ProfileDraftFieldKind.LIST
     val selected = value.split(',').map { it.trim() }.filter { it.isNotEmpty() }
     Box(Modifier.fillMaxWidth()) {
-        OutlinedTextField(value, { if (it.length <= 1024) onValue(it) }, label = { Text(descriptor.label) },
+        OutlinedTextField(value, { if (it.length <= 1024) onValue(it) }, label = { Text(descriptor.label) }, shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth().testTag("profile-field-${descriptor.path}"), isError = error != null,
             singleLine = true,
             trailingIcon = if (choices.isEmpty()) null else ({

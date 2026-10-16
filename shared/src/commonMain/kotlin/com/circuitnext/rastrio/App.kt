@@ -27,6 +27,18 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import rastrio.shared.generated.resources.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -638,28 +650,58 @@ fun RastrIOApp(session: MarkdownAuthoringSession? = null, printingPlatform: Prin
 @Composable
 fun HomeScreen(onImage: (() -> Unit)? = null, onTemplates: (() -> Unit)? = null,
     onPrinters: (() -> Unit)? = null, onMarkdown: () -> Unit) {
-    Column(Modifier.widthIn(max = 960.dp).verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("RastrIO", style = MaterialTheme.typography.headlineMedium)
-            Text("Create something to print.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("RastrIO", style = MaterialTheme.typography.titleLarge)
+                Text("Your print workspace", style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("What will you print?", style = MaterialTheme.typography.headlineLarge)
+                Text("Start with words, an image, or a template.", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            WorkspacePanel(Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    DocumentThumbnail()
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Markdown", style = MaterialTheme.typography.titleLarge)
+                        Text("Write something new or open a document.", style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                WorkspacePrimaryButton("Open Markdown", modifier = Modifier.fillMaxWidth(),
+                    icon = Res.drawable.ic_edit_note, onClick = onMarkdown)
+            }
+            if (onImage != null || onTemplates != null) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Quick starts", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (onTemplates != null) WorkspaceDestination("Open Templates", "Lists, notes, memos, and QR messages",
+                        Res.drawable.ic_dashboard, Modifier.weight(1f), onTemplates)
+                    if (onImage != null) WorkspaceDestination("Open Image Print", "Photos, sketches, and graphics",
+                        Res.drawable.ic_image, Modifier.weight(1f), onImage)
+                }
+            }
+            if (onPrinters != null) Card(onClick = onPrinters, modifier = Modifier.fillMaxWidth().authoringFocus(),
+                shape = MaterialTheme.shapes.medium,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    WorkspaceIcon(Res.drawable.ic_print)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Open Printers", style = MaterialTheme.typography.titleSmall)
+                        Text("Connections, profiles, and calibration", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    WorkspaceIcon(Res.drawable.ic_chevron_right)
+                }
+            }
+            Text("Made with ♥ · Free & Open Source :D", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.align(Alignment.CenterHorizontally))
         }
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            HomeDestination("Open Markdown", "Write a document", onMarkdown)
-            if (onImage != null) HomeDestination("Open Image Print", "Prepare a photo or graphic", onImage)
-            if (onTemplates != null) HomeDestination("Open Templates", "Lists, notes, memos and QR messages", onTemplates)
-        }
-        HorizontalDivider()
-        if (onPrinters != null) HomeDestination("Open Printers", "Connections, profiles and calibration", onPrinters)
     }
-}
-
-@Composable
-private fun HomeDestination(title: String, description: String, onClick: () -> Unit) {
-    ListItem(headlineContent = { Text(title, style = MaterialTheme.typography.titleMedium) },
-        supportingContent = { Text(description, style = MaterialTheme.typography.bodyMedium) },
-        trailingContent = { Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary) },
-        modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp).clickable(role = Role.Button, onClick = onClick).authoringFocus())
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -667,28 +709,83 @@ private fun HomeDestination(title: String, description: String, onClick: () -> U
 internal fun MarkdownScreen(authoring: ObservableAuthoring, onHome: () -> Unit, onPreview: () -> Unit,
     onPhysicalPreview: () -> Unit, assetControls: @Composable () -> Unit = {}) {
     val state = authoring.state
-    Column(Modifier.padding(16.dp).widthIn(max = 960.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("Markdown", style = MaterialTheme.typography.headlineMedium)
-            AuthoringButton("Back to Home", onClick = onHome)
+    var editor by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(state.source)) }
+    if (editor.text != state.source) editor = TextFieldValue(state.source, TextRange(state.source.length))
+    val focus = remember { FocusRequester() }
+    var formattingSelection by remember { mutableStateOf(editor.selection) }
+    var details by rememberSaveable { mutableStateOf(false) }
+    BoxWithConstraints(Modifier.widthIn(max = 960.dp).fillMaxSize()) {
+        val compact = maxHeight < 520.dp
+        Column(Modifier.fillMaxSize().padding(if (compact) 12.dp else 20.dp).pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    // Snapshot before the text field handles a press outside itself and deselects.
+                    if (awaitPointerEvent(PointerEventPass.Initial).type == PointerEventType.Press) {
+                        formattingSelection = editor.selection
+                    }
+                }
+            }
+        }, verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
+            WorkspaceHeader("Markdown", "Back to Home", onHome, compact = compact)
+            Surface(Modifier.weight(1f).fillMaxWidth(), shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        val actions = listOf(Triple(MarkdownFormat.HEADING, Res.drawable.ic_title, "Insert heading"),
+                            Triple(MarkdownFormat.BOLD, Res.drawable.ic_format_bold, "Bold selected text"),
+                            Triple(MarkdownFormat.LIST, Res.drawable.ic_format_list_bulleted, "Insert list item"))
+                        for ((format, icon, label) in actions) IconButton(onClick = {
+                            editor = formatMarkdown(editor.copy(selection = formattingSelection), format)
+                            formattingSelection = editor.selection
+                            authoring.edit(editor.text)
+                            focus.requestFocus()
+                        }, modifier = Modifier.size(48.dp).authoringFocus().semantics { contentDescription = label }) {
+                            WorkspaceIcon(icon)
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Text("Markdown", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    OutlinedTextField(value = editor, onValueChange = {
+                        if (!it.selection.collapsed) formattingSelection = it.selection
+                        editor = it
+                        authoring.edit(it.text)
+                    },
+                        label = { Text("Markdown source") }, placeholder = { Text("# Your document") },
+                        modifier = Modifier.fillMaxWidth().weight(1f).focusRequester(focus)
+                            .onPreviewKeyEvent {
+                                if (it.key == Key.Tab) formattingSelection = editor.selection
+                                false
+                            }.testTag("markdown-source")
+                            .semantics { contentDescription = "Markdown source" },
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+                            focusedContainerColor = LocalAuthoringColors.current.editor,
+                            unfocusedContainerColor = LocalAuthoringColors.current.editor))
+                }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("${state.source.length} characters", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                TextButton(onClick = { details = !details }) { Text(if (details) "Hide editor details" else "Editor details") }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AuthoringButton("Compile", onClick = authoring::compile)
+                WorkspaceOutlinedButton(onClick = onPreview, enabled = state.result is MarkdownAuthoringResult.Ready,
+                    modifier = Modifier) { Text("Open logical preview") }
+                WorkspaceOutlinedButton(onClick = onPhysicalPreview, enabled = state.result.semanticDocument() != null,
+                    modifier = Modifier) { Text("Printer preview") }
+            }
+            Column(Modifier.fillMaxWidth().heightIn(max = if (compact) 72.dp else 200.dp).verticalScroll(rememberScrollState())) {
+                assetControls()
+                Diagnostics(state.result)
+                if (details) Text("Logical authoring canvas: 120 mm by default. Controlled bundled font coverage; unsupported content produces diagnostics.",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
-        Text("Logical authoring canvas: 120 mm by default. Controlled bundled font coverage; unsupported content produces diagnostics.",
-            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(value = state.source, onValueChange = authoring::edit,
-            label = { Text("Markdown source") }, placeholder = { Text("# Your document") },
-            modifier = Modifier.fillMaxWidth().weight(1f).testTag("markdown-source")
-                .semantics { contentDescription = "Markdown source" },
-            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = LocalAuthoringColors.current.editor,
-                unfocusedContainerColor = LocalAuthoringColors.current.editor))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AuthoringButton("Compile", onClick = authoring::compile)
-            AuthoringButton("Open logical preview", state.result is MarkdownAuthoringResult.Ready, onPreview)
-            AuthoringButton("Printer preview", state.result.semanticDocument() != null, onPhysicalPreview)
-        }
-        assetControls()
-        Diagnostics(state.result)
     }
 }
 

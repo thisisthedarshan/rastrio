@@ -97,8 +97,10 @@ class MainActivity : ComponentActivity() {
             })
         }
         setContent {
-            RastrIOApp(printingPlatform = printing, printingSessions = printingOwner.sessions,
-                backHandler = { enabled, onBack -> BackHandler(enabled = enabled, onBack = onBack) })
+            RastrIOLaunch {
+                RastrIOApp(printingPlatform = printing, printingSessions = printingOwner.sessions,
+                    backHandler = { enabled, onBack -> BackHandler(enabled = enabled, onBack = onBack) })
+            }
         }
     }
 }
